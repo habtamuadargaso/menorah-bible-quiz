@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { createClient } from "@/lib/supabase/client";
 import { questionById } from "@/lib/questions";
+import { shuffleQuestionChoices } from "@/lib/questions/shuffleChoices";
 import type { LangCode } from "@/lib/i18n/locales";
 
 const ROUND_SECONDS = 15;
@@ -96,12 +97,20 @@ export default function LiveBattlePage() {
 
   const lang: LangCode = room?.language === "am" ? "am" : "en";
 
-  const question =
-    roomQuestion &&
-    room &&
-    roomQuestion.question_number === room.current_question
-      ? questionById(lang, roomQuestion.question_id)
-      : null;
+  const originalQuestion =
+  roomQuestion &&
+  room &&
+  roomQuestion.question_number === room.current_question
+    ? questionById(lang, roomQuestion.question_id)
+    : null;
+
+const question =
+  originalQuestion && roomQuestion
+    ? shuffleQuestionChoices(
+        originalQuestion,
+        `${code}-${roomQuestion.question_id}-${roomQuestion.question_number}`
+      )
+    : null;
 
   const isHost = room?.host_id === userId;
   const myAnswer = answers.find(
