@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 function generateRoomCode(length = 6): string {
   const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -13,14 +12,28 @@ function generateRoomCode(length = 6): string {
   }).join("");
 }
 
+function getErrorMessage(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return "Something went wrong. Please try again.";
+}
+
 export default function MultiplayerPage() {
   const router = useRouter();
-  const { lang } = useLanguage();
 
   const [playerName, setPlayerName] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSwitchingPlayer, setIsSwitchingPlayer] =
+    useState(false);
 
   useEffect(() => {
     const savedName = window.localStorage.getItem(
@@ -41,7 +54,10 @@ export default function MultiplayerPage() {
     } = await supabase.auth.getUser();
 
     if (currentUser) {
-      return { supabase, user: currentUser };
+      return {
+        supabase,
+        user: currentUser,
+      };
     }
 
     if (getUserError) {
@@ -62,7 +78,10 @@ export default function MultiplayerPage() {
       throw new Error("Unable to create guest player.");
     }
 
-    return { supabase, user: data.user };
+    return {
+      supabase,
+      user: data.user,
+    };
   }
 
   async function ensurePlayerProfile(
@@ -80,7 +99,7 @@ export default function MultiplayerPage() {
         {
           id: user.id,
           display_name: name,
-          language: lang === "am" ? "am" : "en",
+          language: "en",
         },
         {
           onConflict: "id",
@@ -100,6 +119,52 @@ export default function MultiplayerPage() {
       supabase,
       userId: user.id,
     };
+  }
+
+  async function switchPlayer() {
+    setIsSwitchingPlayer(true);
+    setStatus("Creating a new guest player...");
+
+    try {
+      const supabase = createClient();
+
+      const { error: signOutError } =
+        await supabase.auth.signOut({
+          scope: "local",
+        });
+
+      if (signOutError) {
+        throw signOutError;
+      }
+
+      window.localStorage.removeItem(
+        "menorah-player-name"
+      );
+
+      const { data, error: signInError } =
+        await supabase.auth.signInAnonymously();
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      if (!data.user) {
+        throw new Error(
+          "Unable to create a new guest player."
+        );
+      }
+
+      setPlayerName("");
+      setRoomCode("");
+      setStatus(
+        "New player session created. Enter a new player name."
+      );
+    } catch (error: unknown) {
+      console.error("Switch player error:", error);
+      setStatus(getErrorMessage(error));
+    } finally {
+      setIsSwitchingPlayer(false);
+    }
   }
 
   async function handleCreateRoom(
@@ -128,10 +193,6 @@ export default function MultiplayerPage() {
           }
         | null = null;
 
-      /*
-       * Retry a few times in the unlikely event that
-       * another room already uses the generated code.
-       */
       for (let attempt = 0; attempt < 5; attempt += 1) {
         const generatedCode = generateRoomCode();
 
@@ -140,9 +201,11 @@ export default function MultiplayerPage() {
           .insert({
             code: generatedCode,
             host_id: userId,
+            category_id: "old-testament",
+            game_level: 1,
+            language: "en",
             status: "waiting",
             current_question: 0,
-            language: lang === "am" ? "am" : "en",
             max_players: 8,
           })
           .select("id, code")
@@ -153,17 +216,14 @@ export default function MultiplayerPage() {
           break;
         }
 
-        if (
-          error &&
-          error.code !== "23505"
-        ) {
+        if (error && error.code !== "23505") {
           throw error;
         }
       }
 
       if (!createdRoom) {
         throw new Error(
-          "Unable to generate a unique room code. Try again."
+          "Unable to generate a unique room code. Please try again."
         );
       }
 
@@ -178,9 +238,6 @@ export default function MultiplayerPage() {
         });
 
       if (playerError) {
-        /*
-         * Clean up the empty room if adding the host failed.
-         */
         await supabase
           .from("rooms")
           .delete()
@@ -194,7 +251,6 @@ export default function MultiplayerPage() {
       );
     } catch (error: unknown) {
       console.error("Create room error:", error);
-
       setStatus(getErrorMessage(error));
     } finally {
       setIsLoading(false);
@@ -253,16 +309,14 @@ export default function MultiplayerPage() {
         );
       }
 
-      const {
-        count,
-        error: countError,
-      } = await supabase
-        .from("room_players")
-        .select("*", {
-          count: "exact",
-          head: true,
-        })
-        .eq("room_id", room.id);
+      const { count, error: countError } =
+        await supabase
+          .from("room_players")
+          .select("*", {
+            count: "exact",
+            head: true,
+          })
+          .eq("room_id", room.id);
 
       if (countError) {
         throw countError;
@@ -299,7 +353,6 @@ export default function MultiplayerPage() {
       );
     } catch (error: unknown) {
       console.error("Join room error:", error);
-
       setStatus(getErrorMessage(error));
     } finally {
       setIsLoading(false);
@@ -320,7 +373,8 @@ export default function MultiplayerPage() {
 
           <p className="mx-auto mt-4 max-w-xl text-slate-300">
             Create a room or join your family,
-            friends, or church using a room code.
+            friends, or church members using a room
+            code.
           </p>
         </header>
 
@@ -343,6 +397,24 @@ export default function MultiplayerPage() {
             placeholder="Enter your name"
             className="w-full rounded-xl border border-white/20 bg-slate-900 px-4 py-3 outline-none focus:border-amber-400"
           />
+
+          <button
+            type="button"
+            onClick={switchPlayer}
+            disabled={
+              isLoading || isSwitchingPlayer
+            }
+            className="mt-4 w-full rounded-xl border border-red-400/40 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSwitchingPlayer
+              ? "Switching Player..."
+              : "Change / Switch Player"}
+          </button>
+
+          <p className="mt-3 text-center text-xs text-slate-400">
+            Use this when testing multiple players in
+            the same browser.
+          </p>
         </section>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -359,13 +431,15 @@ export default function MultiplayerPage() {
             </h2>
 
             <p className="mt-2 text-sm text-slate-300">
-              Become the host and invite other
-              players using your room code.
+              Become the host and invite other players
+              using your room code.
             </p>
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={
+                isLoading || isSwitchingPlayer
+              }
               className="mt-7 w-full rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading
@@ -387,8 +461,8 @@ export default function MultiplayerPage() {
             </h2>
 
             <p className="mt-2 text-sm text-slate-300">
-              Enter the code shared by the room
-              host.
+              Enter the six-character code shared by
+              the room host.
             </p>
 
             <label
@@ -406,10 +480,7 @@ export default function MultiplayerPage() {
                 setRoomCode(
                   event.target.value
                     .toUpperCase()
-                    .replace(
-                      /[^A-Z0-9]/g,
-                      ""
-                    )
+                    .replace(/[^A-Z0-9]/g, "")
                     .slice(0, 6)
                 )
               }
@@ -420,7 +491,9 @@ export default function MultiplayerPage() {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={
+                isLoading || isSwitchingPlayer
+              }
               className="mt-4 w-full rounded-xl bg-blue-500 px-5 py-3 font-bold transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading
@@ -438,20 +511,17 @@ export default function MultiplayerPage() {
             {status}
           </div>
         )}
+
+        <div className="mt-8 text-center">
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="rounded-xl border border-white/15 px-5 py-3 font-semibold text-slate-300 transition hover:bg-white/5"
+          >
+            Back to Home
+          </button>
+        </div>
       </div>
     </main>
   );
-}
-
-function getErrorMessage(error: unknown): string {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof error.message === "string"
-  ) {
-    return error.message;
-  }
-
-  return "Something went wrong. Please try again.";
 }
