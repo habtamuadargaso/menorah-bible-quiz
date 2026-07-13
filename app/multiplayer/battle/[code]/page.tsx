@@ -515,7 +515,7 @@ export default function MultiplayerPage() {
         <div className="mt-8 text-center">
           <button
             type="button"
-            onClick={() => router.push("/")}
+            onClick={() => router.replace("/multiplayer")}
             className="rounded-xl border border-white/15 px-5 py-3 font-semibold text-slate-300 transition hover:bg-white/5"
           >
             Back to Home
