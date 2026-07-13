@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { LANGUAGES, type LangCode } from "@/lib/i18n/locales";
 
 function generateRoomCode(length = 6): string {
   const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -27,6 +29,7 @@ function getErrorMessage(error: unknown): string {
 
 export default function MultiplayerPage() {
   const router = useRouter();
+  const { lang, setLang } = useLanguage();
 
   const [playerName, setPlayerName] = useState("");
   const [roomCode, setRoomCode] = useState("");
@@ -99,7 +102,7 @@ export default function MultiplayerPage() {
         {
           id: user.id,
           display_name: name,
-          language: "en",
+          language: lang,
         },
         {
           onConflict: "id",
@@ -203,7 +206,7 @@ export default function MultiplayerPage() {
             host_id: userId,
             category_id: "old-testament",
             game_level: 1,
-            language: "en",
+            language: lang,
             status: "waiting",
             current_question: 0,
             max_players: 8,
@@ -288,7 +291,7 @@ export default function MultiplayerPage() {
         await supabase
           .from("rooms")
           .select(
-            "id, code, host_id, status, max_players"
+            "id, code, host_id, status, max_players, language"
           )
           .eq("code", cleanCode)
           .maybeSingle();
@@ -328,6 +331,8 @@ export default function MultiplayerPage() {
       ) {
         throw new Error("This room is full.");
       }
+
+      setLang((room.language ?? "en") as LangCode);
 
       const { error: joinError } = await supabase
         .from("room_players")
@@ -385,6 +390,22 @@ export default function MultiplayerPage() {
           >
             Player name
           </label>
+
+          <label htmlFor="battle-language" className="mb-2 mt-5 block font-semibold">
+            Game language
+          </label>
+          <select
+            id="battle-language"
+            value={lang}
+            onChange={(event) => setLang(event.target.value as LangCode)}
+            className="mb-5 w-full rounded-xl border border-white/20 bg-slate-900 px-4 py-3 outline-none focus:border-amber-400"
+          >
+            {LANGUAGES.map((language) => (
+              <option key={language.code} value={language.code}>
+                {language.nativeName} — {language.englishName}
+              </option>
+            ))}
+          </select>
 
           <input
             id="player-name"
