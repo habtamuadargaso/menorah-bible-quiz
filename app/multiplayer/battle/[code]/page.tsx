@@ -1,64 +1,15 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import { useParams, useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
-
+import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { questionById } from "@/lib/questions";
-import { shuffleQuestionChoices } from "@/lib/questions/shuffleChoices";
-import type { LangCode } from "@/lib/i18n/locales";
 
-const ROUND_SECONDS = 15;
+function generateRoomCode(length = 6): string {
+  const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-type Room = {
-  id: string;
-  code: string;
-  host_id: string;
-  status: "waiting" | "playing" | "revealing" | "finished";
-  current_question: number;
-  language: string;
-  question_started_at: string | null;
-  question_ends_at: string | null;
-};
-
-type Player = {
-  id: string;
-  player_id: string;
-  display_name: string;
-  score: number;
-};
-
-type RoomQuestion = {
-  id: string;
-  question_number: number;
-  question_id: string;
-};
-
-type Answer = {
-  id: string;
-  player_id: string;
-  selected_answer: number;
-  is_correct: boolean;
-  response_time_ms: number;
-  points_awarded: number;
-  submitted_at: string;
-};
-
-function secondsRemaining(endsAt: string | null): number {
-  if (!endsAt) return ROUND_SECONDS;
-
-  return Math.max(
-    0,
-    Math.ceil((new Date(endsAt).getTime() - Date.now()) / 1000),
-  );
+  return Array.from({ length }, () => {
+    return characters[Math.floor(Math.random() * characters.length)];
+  }).join("");
 }
 
 function getErrorMessage(error: unknown): string {
@@ -71,637 +22,506 @@ function getErrorMessage(error: unknown): string {
     return error.message;
   }
 
-  return "Something went wrong.";
+  return "Something went wrong. Please try again.";
 }
 
-export default function LiveBattlePage() {
-  const { code: rawCode } = useParams<{ code: string }>();
+export default function MultiplayerPage() {
   const router = useRouter();
-  const code = rawCode.toUpperCase();
-  const supabase = useMemo(() => createClient(), []);
 
-  const [room, setRoom] = useState<Room | null>(null);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [roomQuestion, setRoomQuestion] =
-    useState<RoomQuestion | null>(null);
-  const [answers, setAnswers] = useState<Answer[]>([]);
-  const [userId, setUserId] = useState("");
-  const [selected, setSelected] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
-  const [message, setMessage] = useState(
-    "Connecting to live battle...",
-  );
-
-  const revealingRef = useRef(false);
-  const loadSequenceRef = useRef(0);
-
-  const lang: LangCode = room?.language === "am" ? "am" : "en";
-
-  const originalQuestion =
-  roomQuestion &&
-  room &&
-  roomQuestion.question_number === room.current_question
-    ? questionById(lang, roomQuestion.question_id)
-    : null;
-
-const question =
-  originalQuestion && roomQuestion
-    ? shuffleQuestionChoices(
-        originalQuestion,
-        `${code}-${roomQuestion.question_id}-${roomQuestion.question_number}`
-      )
-    : null;
-
-  const isHost = room?.host_id === userId;
-  const myAnswer = answers.find(
-    (answer) => answer.player_id === userId,
-  );
-
-  const loadBattle = useCallback(async () => {
-    const sequence = ++loadSequenceRef.current;
-
-    try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        router.replace("/multiplayer");
-        return;
-      }
-
-      if (sequence !== loadSequenceRef.current) return;
-      setUserId(user.id);
-
-      const { data: roomData, error: roomError } = await supabase
-        .from("rooms")
-        .select(
-          "id,code,host_id,status,current_question,language,question_started_at,question_ends_at",
-        )
-        .eq("code", code)
-        .maybeSingle();
-
-      if (roomError || !roomData) {
-        throw new Error(roomError?.message ?? "Room not found.");
-      }
-
-      if (sequence !== loadSequenceRef.current) return;
-
-      const nextRoom = roomData as Room;
-      const questionChanged =
-        room?.current_question !== nextRoom.current_question;
-
-      if (questionChanged) {
-        setRoomQuestion(null);
-        setAnswers([]);
-        setSelected(null);
-        revealingRef.current = false;
-      }
-
-      setRoom(nextRoom);
-      setTimeLeft(secondsRemaining(nextRoom.question_ends_at));
-
-      const { data: playerData, error: playerError } =
-        await supabase
-          .from("room_players")
-          .select("id,player_id,display_name,score")
-          .eq("room_id", nextRoom.id)
-          .order("score", { ascending: false });
-
-      if (playerError) throw playerError;
-      if (sequence !== loadSequenceRef.current) return;
-
-      setPlayers((playerData ?? []) as Player[]);
-
-      if (nextRoom.status === "finished") {
-        setRoomQuestion(null);
-        setAnswers([]);
-        setMessage("Battle complete!");
-        return;
-      }
-
-      const { data: questionData, error: questionError } =
-        await supabase
-          .from("room_questions")
-          .select("id,question_number,question_id")
-          .eq("room_id", nextRoom.id)
-          .eq("question_number", nextRoom.current_question)
-          .maybeSingle();
-
-      if (questionError) throw questionError;
-      if (sequence !== loadSequenceRef.current) return;
-
-      const nextRoomQuestion =
-        (questionData as RoomQuestion | null) ?? null;
-
-      setRoomQuestion(nextRoomQuestion);
-
-      if (!nextRoomQuestion) {
-        setAnswers([]);
-        setMessage("Question is loading...");
-        return;
-      }
-
-      const { data: answerData, error: answerError } =
-        await supabase
-          .from("answers")
-          .select(
-            "id,player_id,selected_answer,is_correct,response_time_ms,points_awarded,submitted_at",
-          )
-          .eq("room_question_id", nextRoomQuestion.id)
-          .order("submitted_at", { ascending: true });
-
-      if (answerError) throw answerError;
-      if (sequence !== loadSequenceRef.current) return;
-
-      setAnswers((answerData ?? []) as Answer[]);
-      setMessage(
-        nextRoom.status === "revealing"
-          ? "Round results"
-          : "Choose your answer",
-      );
-    } catch (error: unknown) {
-      console.error("Battle load error:", error);
-      setMessage(getErrorMessage(error));
-    }
-  }, [code, room?.current_question, router, supabase]);
+  const [playerName, setPlayerName] = useState("");
+  const [roomCode, setRoomCode] = useState("");
+  const [status, setStatus] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSwitchingPlayer, setIsSwitchingPlayer] =
+    useState(false);
 
   useEffect(() => {
-    void loadBattle();
-
-    const channel = supabase
-      .channel(`battle:${code}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "rooms" },
-        () => void loadBattle(),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "room_players",
-        },
-        () => void loadBattle(),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "room_questions",
-        },
-        () => void loadBattle(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "answers" },
-        () => void loadBattle(),
-      )
-      .subscribe();
-
-    const fallback = window.setInterval(
-      () => void loadBattle(),
-      2500,
+    const savedName = window.localStorage.getItem(
+      "menorah-player-name"
     );
 
-    return () => {
-      window.clearInterval(fallback);
-      void supabase.removeChannel(channel);
-    };
-  }, [code, loadBattle, supabase]);
+    if (savedName) {
+      setPlayerName(savedName);
+    }
+  }, []);
 
-  useEffect(() => {
-    if (!room?.question_ends_at || room.status !== "playing") {
-      return;
+  async function getAuthenticatedUser() {
+    const supabase = createClient();
+
+    const {
+      data: { user: currentUser },
+      error: getUserError,
+    } = await supabase.auth.getUser();
+
+    if (currentUser) {
+      return {
+        supabase,
+        user: currentUser,
+      };
     }
 
-    const tick = () => {
-      setTimeLeft(secondsRemaining(room.question_ends_at));
-    };
-
-    tick();
-    const timer = window.setInterval(tick, 250);
-
-    return () => window.clearInterval(timer);
-  }, [
-    room?.current_question,
-    room?.question_ends_at,
-    room?.status,
-  ]);
-
-  async function submitAnswer(index: number) {
-    if (
-      !room ||
-      !roomQuestion ||
-      !question ||
-      myAnswer ||
-      room.status !== "playing" ||
-      roomQuestion.question_number !== room.current_question
-    ) {
-      return;
+    if (getUserError) {
+      console.info(
+        "No current guest session:",
+        getUserError.message
+      );
     }
 
-    setSelected(index);
-
-    const startedAt = room.question_started_at
-      ? new Date(room.question_started_at).getTime()
-      : Date.now();
-
-    const responseTime = Math.max(0, Date.now() - startedAt);
-
-    const { error } = await supabase.from("answers").insert({
-      room_id: room.id,
-      room_question_id: roomQuestion.id,
-      player_id: userId,
-      selected_answer: index,
-      is_correct: index === question.correctIndex,
-      response_time_ms: responseTime,
-    });
+    const { data, error } =
+      await supabase.auth.signInAnonymously();
 
     if (error) {
-      setSelected(null);
-      setMessage(error.message);
+      throw error;
+    }
+
+    if (!data.user) {
+      throw new Error("Unable to create guest player.");
+    }
+
+    return {
+      supabase,
+      user: data.user,
+    };
+  }
+
+  async function ensurePlayerProfile(
+    name: string
+  ): Promise<{
+    supabase: ReturnType<typeof createClient>;
+    userId: string;
+  }> {
+    const { supabase, user } =
+      await getAuthenticatedUser();
+
+    const { error } = await supabase
+      .from("profiles")
+      .upsert(
+        {
+          id: user.id,
+          display_name: name,
+          language: "en",
+        },
+        {
+          onConflict: "id",
+        }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    window.localStorage.setItem(
+      "menorah-player-name",
+      name
+    );
+
+    return {
+      supabase,
+      userId: user.id,
+    };
+  }
+
+  async function switchPlayer() {
+    setIsSwitchingPlayer(true);
+    setStatus("Creating a new guest player...");
+
+    try {
+      const supabase = createClient();
+
+      const { error: signOutError } =
+        await supabase.auth.signOut({
+          scope: "local",
+        });
+
+      if (signOutError) {
+        throw signOutError;
+      }
+
+      window.localStorage.removeItem(
+        "menorah-player-name"
+      );
+
+      const { data, error: signInError } =
+        await supabase.auth.signInAnonymously();
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      if (!data.user) {
+        throw new Error(
+          "Unable to create a new guest player."
+        );
+      }
+
+      setPlayerName("");
+      setRoomCode("");
+      setStatus(
+        "New player session created. Enter a new player name."
+      );
+    } catch (error: unknown) {
+      console.error("Switch player error:", error);
+      setStatus(getErrorMessage(error));
+    } finally {
+      setIsSwitchingPlayer(false);
     }
   }
 
-  const revealRound = useCallback(async () => {
-    if (
-      !isHost ||
-      !room ||
-      !roomQuestion ||
-      !question ||
-      revealingRef.current ||
-      room.status !== "playing" ||
-      roomQuestion.question_number !== room.current_question
-    ) {
+  async function handleCreateRoom(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    const cleanName = playerName.trim();
+
+    if (!cleanName) {
+      setStatus("Please enter your player name.");
       return;
     }
 
-    revealingRef.current = true;
+    setIsLoading(true);
+    setStatus("Creating your room...");
 
     try {
-      const { data: claimedRoom, error: claimError } =
-        await supabase
+      const { supabase, userId } =
+        await ensurePlayerProfile(cleanName);
+
+      let createdRoom:
+        | {
+            id: string;
+            code: string;
+          }
+        | null = null;
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const generatedCode = generateRoomCode();
+
+        const { data, error } = await supabase
           .from("rooms")
-          .update({ status: "revealing" })
-          .eq("id", room.id)
-          .eq("status", "playing")
-          .eq("current_question", room.current_question)
-          .select("id")
-          .maybeSingle();
+          .insert({
+            code: generatedCode,
+            host_id: userId,
+            category_id: "old-testament",
+            game_level: 1,
+            language: "en",
+            status: "waiting",
+            current_question: 0,
+            max_players: 8,
+          })
+          .select("id, code")
+          .single();
 
-      if (claimError) throw claimError;
-      if (!claimedRoom) return;
+        if (!error && data) {
+          createdRoom = data;
+          break;
+        }
 
-      const { data: rawAnswers, error: answersError } =
-        await supabase
-          .from("answers")
-          .select(
-            "id,player_id,is_correct,response_time_ms,points_awarded",
-          )
-          .eq("room_question_id", roomQuestion.id)
-          .order("response_time_ms", { ascending: true });
-
-      if (answersError) throw answersError;
-
-      const allAnswers = rawAnswers ?? [];
-      const correctAnswers = allAnswers.filter(
-        (answer) => answer.is_correct,
-      );
-      const basePoints = [100, 75, 50];
-      const multiplier = room.current_question === 10 ? 2 : 1;
-
-      for (const answer of allAnswers) {
-        if ((answer.points_awarded ?? 0) > 0) continue;
-
-        const rank = correctAnswers.findIndex(
-          (item) => item.id === answer.id,
-        );
-
-        const points = answer.is_correct
-          ? (basePoints[rank] ?? 25) * multiplier
-          : 0;
-
-        const { error: answerUpdateError } = await supabase
-          .from("answers")
-          .update({ points_awarded: points })
-          .eq("id", answer.id)
-          .eq("points_awarded", 0);
-
-        if (answerUpdateError) throw answerUpdateError;
-
-        if (points > 0) {
-          const { data: latestPlayer, error: playerReadError } =
-            await supabase
-              .from("room_players")
-              .select("score")
-              .eq("room_id", room.id)
-              .eq("player_id", answer.player_id)
-              .single();
-
-          if (playerReadError) throw playerReadError;
-
-          const { error: scoreError } = await supabase
-            .from("room_players")
-            .update({ score: (latestPlayer?.score ?? 0) + points })
-            .eq("room_id", room.id)
-            .eq("player_id", answer.player_id);
-
-          if (scoreError) throw scoreError;
+        if (error && error.code !== "23505") {
+          throw error;
         }
       }
 
-      await loadBattle();
+      if (!createdRoom) {
+        throw new Error(
+          "Unable to generate a unique room code. Please try again."
+        );
+      }
+
+      const { error: playerError } = await supabase
+        .from("room_players")
+        .insert({
+          room_id: createdRoom.id,
+          player_id: userId,
+          display_name: cleanName,
+          score: 0,
+          is_ready: true,
+        });
+
+      if (playerError) {
+        await supabase
+          .from("rooms")
+          .delete()
+          .eq("id", createdRoom.id);
+
+        throw playerError;
+      }
+
+      router.push(
+        `/multiplayer/lobby/${createdRoom.code}`
+      );
     } catch (error: unknown) {
-      console.error("Reveal round error:", error);
-      setMessage(getErrorMessage(error));
+      console.error("Create room error:", error);
+      setStatus(getErrorMessage(error));
     } finally {
-      revealingRef.current = false;
+      setIsLoading(false);
     }
-  }, [
-    isHost,
-    loadBattle,
-    question,
-    room,
-    roomQuestion,
-    supabase,
-  ]);
+  }
 
-  useEffect(() => {
-    if (
-      !isHost ||
-      !room ||
-      !roomQuestion ||
-      !question ||
-      room.status !== "playing" ||
-      roomQuestion.question_number !== room.current_question
-    ) {
+  async function handleJoinRoom(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    const cleanName = playerName.trim();
+    const cleanCode = roomCode
+      .trim()
+      .toUpperCase();
+
+    if (!cleanName) {
+      setStatus("Please enter your player name.");
       return;
     }
 
-    const everyPlayerAnswered =
-      players.length > 0 && answers.length >= players.length;
-
-    const serverTimerExpired =
-      Boolean(room.question_ends_at) &&
-      Date.now() >= new Date(room.question_ends_at as string).getTime();
-
-    if (everyPlayerAnswered || serverTimerExpired) {
-      void revealRound();
-    }
-  }, [
-    answers.length,
-    isHost,
-    players.length,
-    question,
-    revealRound,
-    room,
-    roomQuestion,
-    timeLeft,
-  ]);
-
-  async function nextRound() {
-    if (!isHost || !room || room.status !== "revealing") return;
-
-    if (room.current_question >= 10) {
-      const { error } = await supabase
-        .from("rooms")
-        .update({
-          status: "finished",
-          question_started_at: null,
-          question_ends_at: null,
-        })
-        .eq("id", room.id)
-        .eq("status", "revealing");
-
-      if (error) setMessage(error.message);
+    if (cleanCode.length !== 6) {
+      setStatus("Enter the 6-character room code.");
       return;
     }
 
-    const nextQuestionNumber = room.current_question + 1;
-    const startedAt = new Date();
-    const endsAt = new Date(
-      startedAt.getTime() + ROUND_SECONDS * 1000,
-    );
+    setIsLoading(true);
+    setStatus("Finding the room...");
 
-    setRoomQuestion(null);
-    setAnswers([]);
-    setSelected(null);
-    setTimeLeft(ROUND_SECONDS);
-    revealingRef.current = false;
+    try {
+      const { supabase, userId } =
+        await ensurePlayerProfile(cleanName);
 
-    const { error } = await supabase
-      .from("rooms")
-      .update({
-        status: "playing",
-        current_question: nextQuestionNumber,
-        question_started_at: startedAt.toISOString(),
-        question_ends_at: endsAt.toISOString(),
-      })
-      .eq("id", room.id)
-      .eq("status", "revealing")
-      .eq("current_question", room.current_question);
+      const { data: room, error: roomError } =
+        await supabase
+          .from("rooms")
+          .select(
+            "id, code, host_id, status, max_players"
+          )
+          .eq("code", cleanCode)
+          .maybeSingle();
 
-    if (error) {
-      setMessage(error.message);
-      await loadBattle();
-    }
-  }
+      if (roomError) {
+        throw roomError;
+      }
 
-  if (!room) {
-    return (
-      <Shell>
-        <p className="text-center text-slate-300">{message}</p>
-      </Shell>
-    );
-  }
+      if (!room) {
+        throw new Error(
+          "Room not found. Check the code and try again."
+        );
+      }
 
-  if (room.status === "finished") {
-    const ranked = [...players].sort((a, b) => b.score - a.score);
+      if (room.status !== "waiting") {
+        throw new Error(
+          "This game has already started."
+        );
+      }
 
-    return (
-      <Shell>
-        <div className="text-center">
-          <div className="text-6xl">🏆</div>
-          <p className="mt-4 text-sm uppercase tracking-[0.35em] text-amber-400">
-            Bible Champion
-          </p>
-          <h1 className="mt-2 text-4xl font-black">
-            {ranked[0]?.display_name ?? "Champion"}
-          </h1>
-        </div>
+      const { count, error: countError } =
+        await supabase
+          .from("room_players")
+          .select("*", {
+            count: "exact",
+            head: true,
+          })
+          .eq("room_id", room.id);
 
-        <div className="mt-8 space-y-3">
-          {ranked.map((player, index) => (
-            <ScoreRow
-              key={player.id}
-              player={player}
-              rank={index + 1}
-            />
-          ))}
-        </div>
+      if (countError) {
+        throw countError;
+      }
 
-        <button
-          type="button"
-          onClick={() => router.push("/multiplayer")}
-          className="mt-8 w-full rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950"
-        >
-          Return to Multiplayer
-        </button>
-      </Shell>
-    );
-  }
+      if (
+        typeof count === "number" &&
+        count >= room.max_players
+      ) {
+        throw new Error("This room is full.");
+      }
 
-  return (
-    <Shell>
-      <div className="mb-5 flex items-center justify-between gap-3 text-sm">
-        <span className="font-bold text-amber-300">Room {code}</span>
-        <span>Question {room.current_question}/10</span>
-        <span
-          className={
-            timeLeft <= 3
-              ? "font-black text-red-400"
-              : "font-black text-amber-300"
+      const { error: joinError } = await supabase
+        .from("room_players")
+        .upsert(
+          {
+            room_id: room.id,
+            player_id: userId,
+            display_name: cleanName,
+            score: 0,
+            is_ready: true,
+          },
+          {
+            onConflict: "room_id,player_id",
           }
-        >
-          {timeLeft}s
-        </span>
-      </div>
+        );
 
-      <div className="h-2 overflow-hidden rounded-full bg-white/10">
-        <motion.div
-          className="h-full bg-amber-400"
-          animate={{
-            width: `${(timeLeft / ROUND_SECONDS) * 100}%`,
-          }}
-        />
-      </div>
+      if (joinError) {
+        throw joinError;
+      }
 
-      <AnimatePresence mode="wait">
-        <motion.section
-          key={roomQuestion?.id ?? room.current_question}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-6 rounded-3xl border border-white/15 bg-white/5 p-6 sm:p-8"
-        >
-          <p className="text-center text-xs font-semibold uppercase tracking-[0.28em] text-amber-400">
-            {message}
+      router.push(
+        `/multiplayer/lobby/${cleanCode}`
+      );
+    } catch (error: unknown) {
+      console.error("Join room error:", error);
+      setStatus(getErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-950 px-4 py-12 text-white">
+      <div className="mx-auto max-w-4xl">
+        <header className="mb-10 text-center">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-[0.3em] text-amber-400">
+            Menorah Bible Quiz
           </p>
 
-          <h1 className="mx-auto mt-4 max-w-2xl text-center text-2xl font-bold leading-snug sm:text-3xl">
-            {question?.question ?? "Question is loading..."}
+          <h1 className="text-4xl font-bold sm:text-5xl">
+            Online Bible Battle
           </h1>
 
-          <div className="mt-7 grid gap-3 sm:grid-cols-2">
-            {(question?.choices ?? []).map((choice, index) => {
-              const locked =
-                Boolean(myAnswer) || room.status !== "playing";
-              const reveal = room.status === "revealing";
-              const correct =
-                reveal && index === question?.correctIndex;
-              const wrong =
-                reveal &&
-                (myAnswer?.selected_answer ?? selected) === index &&
-                !correct;
+          <p className="mx-auto mt-4 max-w-xl text-slate-300">
+            Create a room or join your family,
+            friends, or church members using a room
+            code.
+          </p>
+        </header>
 
-              return (
-                <button
-                  key={`${roomQuestion?.id ?? "question"}-${index}`}
-                  type="button"
-                  disabled={locked}
-                  onClick={() => void submitAnswer(index)}
-                  className={`rounded-2xl border px-5 py-4 text-left font-semibold transition ${
-                    correct
-                      ? "border-emerald-400 bg-emerald-400/20"
-                      : wrong
-                        ? "border-red-400 bg-red-400/15"
-                        : "border-white/15 bg-slate-900/70 hover:border-amber-400"
-                  }`}
-                >
-                  {choice}
-                </button>
-              );
-            })}
-          </div>
+        <section className="mb-6 rounded-3xl border border-white/15 bg-white/5 p-6 backdrop-blur">
+          <label
+            htmlFor="player-name"
+            className="mb-2 block font-semibold"
+          >
+            Player name
+          </label>
 
-          {myAnswer && room.status === "playing" && (
-            <p className="mt-5 text-center font-semibold text-emerald-300">
-              Answer locked. Waiting for the other players…
-            </p>
-          )}
+          <input
+            id="player-name"
+            type="text"
+            value={playerName}
+            onChange={(event) =>
+              setPlayerName(event.target.value)
+            }
+            maxLength={30}
+            placeholder="Enter your name"
+            className="w-full rounded-xl border border-white/20 bg-slate-900 px-4 py-3 outline-none focus:border-amber-400"
+          />
 
-          {room.status === "revealing" && question && (
-            <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-5">
-              <p className="font-bold text-amber-300">
-                {question.reference}
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-slate-200">
-                {question.explanation}
-              </p>
+          <button
+            type="button"
+            onClick={switchPlayer}
+            disabled={
+              isLoading || isSwitchingPlayer
+            }
+            className="mt-4 w-full rounded-xl border border-red-400/40 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSwitchingPlayer
+              ? "Switching Player..."
+              : "Change / Switch Player"}
+          </button>
 
-              {isHost ? (
-                <button
-                  type="button"
-                  onClick={() => void nextRound()}
-                  className="mt-5 w-full rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950"
-                >
-                  {room.current_question === 10
-                    ? "Finish Battle"
-                    : "Next Question"}
-                </button>
-              ) : (
-                <p className="mt-4 text-center text-sm text-slate-300">
-                  Waiting for the host…
-                </p>
-              )}
+          <p className="mt-3 text-center text-xs text-slate-400">
+            Use this when testing multiple players in
+            the same browser.
+          </p>
+        </section>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <form
+            onSubmit={handleCreateRoom}
+            className="rounded-3xl border border-amber-400/40 bg-amber-400/10 p-7"
+          >
+            <div className="mb-4 text-4xl">
+              👑
             </div>
-          )}
-        </motion.section>
-      </AnimatePresence>
 
-      <section className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
-        <h2 className="font-bold">Live Scoreboard</h2>
-        <div className="mt-3 space-y-2">
-          {[...players]
-            .sort((a, b) => b.score - a.score)
-            .map((player, index) => (
-              <ScoreRow
-                key={player.id}
-                player={player}
-                rank={index + 1}
-              />
-            ))}
+            <h2 className="text-2xl font-bold">
+              Create Room
+            </h2>
+
+            <p className="mt-2 text-sm text-slate-300">
+              Become the host and invite other players
+              using your room code.
+            </p>
+
+            <button
+              type="submit"
+              disabled={
+                isLoading || isSwitchingPlayer
+              }
+              className="mt-7 w-full rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoading
+                ? "Please wait..."
+                : "Create Battle Room"}
+            </button>
+          </form>
+
+          <form
+            onSubmit={handleJoinRoom}
+            className="rounded-3xl border border-blue-400/30 bg-blue-400/10 p-7"
+          >
+            <div className="mb-4 text-4xl">
+              ⚔️
+            </div>
+
+            <h2 className="text-2xl font-bold">
+              Join Room
+            </h2>
+
+            <p className="mt-2 text-sm text-slate-300">
+              Enter the six-character code shared by
+              the room host.
+            </p>
+
+            <label
+              htmlFor="room-code"
+              className="sr-only"
+            >
+              Room code
+            </label>
+
+            <input
+              id="room-code"
+              type="text"
+              value={roomCode}
+              onChange={(event) =>
+                setRoomCode(
+                  event.target.value
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, "")
+                    .slice(0, 6)
+                )
+              }
+              placeholder="ABC123"
+              maxLength={6}
+              className="mt-5 w-full rounded-xl border border-white/20 bg-slate-900 px-4 py-3 text-center text-xl font-bold uppercase tracking-[0.35em] outline-none focus:border-blue-400"
+            />
+
+            <button
+              type="submit"
+              disabled={
+                isLoading || isSwitchingPlayer
+              }
+              className="mt-4 w-full rounded-xl bg-blue-500 px-5 py-3 font-bold transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoading
+                ? "Please wait..."
+                : "Join Battle Room"}
+            </button>
+          </form>
         </div>
-      </section>
-    </Shell>
-  );
-}
 
-function Shell({ children }: { children: ReactNode }) {
-  return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
-      <div className="mx-auto max-w-3xl">{children}</div>
+        {status && (
+          <div
+            role="status"
+            className="mt-6 rounded-xl border border-white/15 bg-white/5 px-5 py-4 text-center text-sm"
+          >
+            {status}
+          </div>
+        )}
+
+        <div className="mt-8 text-center">
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="rounded-xl border border-white/15 px-5 py-3 font-semibold text-slate-300 transition hover:bg-white/5"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
     </main>
-  );
-}
-
-function ScoreRow({
-  player,
-  rank,
-}: {
-  player: Player;
-  rank: number;
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-xl bg-slate-900/80 px-4 py-3">
-      <span>
-        <b className="mr-3 text-amber-300">#{rank}</b>
-        {player.display_name}
-      </span>
-      <b>{player.score}</b>
-    </div>
   );
 }
