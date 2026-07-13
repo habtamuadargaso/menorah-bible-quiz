@@ -1,24 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  useParams,
+  useRouter,
+} from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { nativeQuestionBank } from "@/lib/questions";
-import { shuffle } from "@/lib/shuffle";
 
 type Room = {
   id: string;
   code: string;
   host_id: string;
-  status: string;
+  status: "waiting" | "playing" | "revealing" | "finished";
+  current_question: number;
   max_players: number;
-  language?: string;
-  category_id?: string;
-  game_level?: number;
 };
 
 type RoomPlayer = {
   id: string;
+  room_id: string;
   player_id: string;
   display_name: string;
   score: number;
@@ -26,25 +31,35 @@ type RoomPlayer = {
   joined_at: string;
 };
 
+function getErrorMessage(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return "Something went wrong.";
+}
+
 export default function LobbyPage() {
   const params = useParams<{ code: string }>();
   const router = useRouter();
 
-  const code = params.code.toUpperCase();
+  const roomCode = useMemo(
+    () => String(params.code ?? "").toUpperCase(),
+    [params.code]
+  );
 
-  const [room, setRoom] = useState<Room | null>(
-    null
-  );
-  const [players, setPlayers] = useState<
-    RoomPlayer[]
-  >([]);
-  const [currentUserId, setCurrentUserId] =
-    useState("");
-  const [status, setStatus] = useState(
-    "Loading lobby..."
-  );
-  const [isStarting, setIsStarting] =
-    useState(false);
+  const [room, setRoom] = useState<Room | null>(null);
+  const [players, setPlayers] = useState<RoomPlayer[]>([]);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [statusMessage, setStatusMessage] =
+    useState("Loading lobby...");
+  const [isStarting, setIsStarting] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const loadLobby = useCallback(async () => {
     try {
@@ -66,9 +81,16 @@ export default function LobbyPage() {
         await supabase
           .from("rooms")
           .select(
-            "id, code, host_id, status, max_players, language, category_id, game_level"
+            `
+              id,
+              code,
+              host_id,
+              status,
+              current_question,
+              max_players
+            `
           )
-          .eq("code", code)
+          .eq("code", roomCode)
           .maybeSingle();
 
       if (roomError) {
@@ -76,98 +98,111 @@ export default function LobbyPage() {
       }
 
       if (!roomData) {
-        throw new Error("Room not found.");
+        setStatusMessage("Room not found.");
+        return;
       }
 
-      setRoom(roomData);
+      const typedRoom = roomData as Room;
+      setRoom(typedRoom);
 
       const {
         data: playerData,
-        error: playersError,
+        error: playerError,
       } = await supabase
         .from("room_players")
         .select(
-          "id, player_id, display_name, score, is_ready, joined_at"
+          `
+            id,
+            room_id,
+            player_id,
+            display_name,
+            score,
+            is_ready,
+            joined_at
+          `
         )
-        .eq("room_id", roomData.id)
+        .eq("room_id", typedRoom.id)
         .order("joined_at", {
           ascending: true,
         });
 
-      if (playersError) {
-        throw playersError;
+      if (playerError) {
+        throw playerError;
       }
 
-      setPlayers(playerData ?? []);
+      setPlayers((playerData ?? []) as RoomPlayer[]);
 
-      if (roomData.status === "playing") {
-        setStatus("The battle is starting...");
-        router.replace(`/multiplayer/battle/${code}`);
-      } else {
-        setStatus(
-          "Waiting for the host to start."
+      // Important:
+      // When the host starts, every player goes to the battle route.
+      if (typedRoom.status === "playing") {
+        router.replace(
+          `/multiplayer/battle/${typedRoom.code}`
         );
+        return;
       }
+
+      if (typedRoom.status === "finished") {
+        router.replace(
+          `/multiplayer/battle/${typedRoom.code}`
+        );
+        return;
+      }
+
+      setStatusMessage(
+        typedRoom.host_id === user.id
+          ? "Players are ready. Start when at least two players have joined."
+          : "Waiting for the host to start the battle."
+      );
     } catch (error: unknown) {
-      console.error("Lobby error:", error);
-      setStatus(getErrorMessage(error));
+      console.error("Lobby loading error:", error);
+      setStatusMessage(getErrorMessage(error));
     }
-  }, [code, router]);
+  }, [roomCode, router]);
 
   useEffect(() => {
-    loadLobby();
+    void loadLobby();
 
-    const intervalId = window.setInterval(
-      loadLobby,
-      2000
-    );
+    // Polling guarantees the lobby works even if Realtime
+    // is temporarily delayed or not configured.
+    const intervalId = window.setInterval(() => {
+      void loadLobby();
+    }, 1200);
 
     return () => {
       window.clearInterval(intervalId);
     };
   }, [loadLobby]);
 
-  async function startGame() {
-    if (!room) {
+  async function startBattle() {
+    if (!room || !currentUserId) {
+      return;
+    }
+
+    if (room.host_id !== currentUserId) {
+      setStatusMessage(
+        "Only the room host can start the battle."
+      );
       return;
     }
 
     if (players.length < 2) {
-      setStatus(
-        "At least two players are required."
+      setStatusMessage(
+        "At least two players are required to start."
       );
       return;
     }
 
     setIsStarting(true);
+    setStatusMessage("Starting battle...");
 
     try {
       const supabase = createClient();
 
-      const language = room.language === "am" ? "am" : "en";
-      const bank = nativeQuestionBank(language);
-
-      if (bank.length < 10) {
-        throw new Error("This language needs at least 10 reviewed questions before online battle can start.");
-      }
-
-      const selected = shuffle(bank).slice(0, 10);
-
-      await supabase.from("room_questions").delete().eq("room_id", room.id);
-      await supabase.from("answers").delete().eq("room_id", room.id);
-
-      const { error: questionError } = await supabase.from("room_questions").insert(
-        selected.map((question, index) => ({
-          room_id: room.id,
-          question_number: index + 1,
-          question_id: question.id,
-        }))
+      const startedAt = new Date();
+      const endsAt = new Date(
+        startedAt.getTime() + 15_000
       );
 
-      if (questionError) throw questionError;
-
-      const startedAt = new Date();
-      const endsAt = new Date(startedAt.getTime() + 15000);
       const { error } = await supabase
         .from("rooms")
         .update({
@@ -176,43 +211,75 @@ export default function LobbyPage() {
           question_started_at: startedAt.toISOString(),
           question_ends_at: endsAt.toISOString(),
         })
-        .eq("id", room.id);
+        .eq("id", room.id)
+        .eq("host_id", currentUserId);
 
-      if (error) throw error;
-      router.push(`/multiplayer/battle/${code}`);
+      if (error) {
+        throw error;
+      }
+
+      // Host goes directly to the battle page.
+      router.replace(
+        `/multiplayer/battle/${room.code}`
+      );
     } catch (error: unknown) {
-      console.error("Start game error:", error);
-      setStatus(getErrorMessage(error));
-    } finally {
+      console.error("Start battle error:", error);
+      setStatusMessage(getErrorMessage(error));
       setIsStarting(false);
     }
   }
 
   async function leaveRoom() {
     if (!room || !currentUserId) {
-      router.push("/multiplayer");
+      router.replace("/multiplayer");
       return;
     }
 
-    const supabase = createClient();
+    setIsLeaving(true);
 
-    await supabase
-      .from("room_players")
-      .delete()
-      .eq("room_id", room.id)
-      .eq("player_id", currentUserId);
+    try {
+      const supabase = createClient();
 
-    router.push("/multiplayer");
+      const isHost = room.host_id === currentUserId;
+
+      if (isHost) {
+        const { error } = await supabase
+          .from("rooms")
+          .delete()
+          .eq("id", room.id)
+          .eq("host_id", currentUserId);
+
+        if (error) {
+          throw error;
+        }
+      } else {
+        const { error } = await supabase
+          .from("room_players")
+          .delete()
+          .eq("room_id", room.id)
+          .eq("player_id", currentUserId);
+
+        if (error) {
+          throw error;
+        }
+      }
+
+      router.replace("/multiplayer");
+    } catch (error: unknown) {
+      console.error("Leave room error:", error);
+      setStatusMessage(getErrorMessage(error));
+      setIsLeaving(false);
+    }
   }
 
   const isHost =
-    room?.host_id === currentUserId;
+    Boolean(room) && room?.host_id === currentUserId;
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
       <div className="mx-auto max-w-3xl">
         <header className="text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400">
+          <p className="text-sm font-bold uppercase tracking-[0.3em] text-amber-400">
             Waiting Lobby
           </p>
 
@@ -225,7 +292,7 @@ export default function LobbyPage() {
           </p>
 
           <div className="mx-auto mt-3 inline-flex rounded-2xl border border-amber-400/50 bg-amber-400/10 px-8 py-4 text-3xl font-black tracking-[0.35em] text-amber-300">
-            {code}
+            {roomCode}
           </div>
         </header>
 
@@ -236,45 +303,48 @@ export default function LobbyPage() {
             </h2>
 
             <span className="rounded-full bg-white/10 px-3 py-1 text-sm">
-              {players.length}/
-              {room?.max_players ?? 8}
+              {players.length}/{room?.max_players ?? 8}
             </span>
           </div>
 
           <div className="space-y-3">
-            {players.map((player, index) => (
-              <div
-                key={player.id}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/80 p-4"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-full bg-amber-400 font-bold text-slate-950">
-                    {index + 1}
+            {players.map((player, index) => {
+              const playerIsHost =
+                player.player_id === room?.host_id;
+
+              return (
+                <div
+                  key={player.id}
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/80 p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-10 w-10 place-items-center rounded-full bg-amber-400 font-bold text-slate-950">
+                      {index + 1}
+                    </div>
+
+                    <div>
+                      <p className="font-semibold">
+                        {player.display_name}
+                      </p>
+
+                      <p className="text-xs text-slate-400">
+                        {playerIsHost
+                          ? "Room host"
+                          : "Player"}
+                      </p>
+                    </div>
                   </div>
 
-                  <div>
-                    <p className="font-semibold">
-                      {player.display_name}
-                    </p>
-
-                    <p className="text-xs text-slate-400">
-                      {player.player_id ===
-                      room?.host_id
-                        ? "Room host"
-                        : "Player"}
-                    </p>
-                  </div>
+                  <span className="text-sm font-semibold text-emerald-400">
+                    Ready ✓
+                  </span>
                 </div>
-
-                <span className="text-sm font-semibold text-emerald-400">
-                  Ready ✓
-                </span>
-              </div>
-            ))}
+              );
+            })}
 
             {players.length === 0 && (
               <p className="py-8 text-center text-slate-400">
-                No players have joined yet.
+                Waiting for players...
               </p>
             )}
           </div>
@@ -284,22 +354,21 @@ export default function LobbyPage() {
           role="status"
           className="mt-5 rounded-xl border border-white/10 bg-white/5 px-5 py-4 text-center text-sm text-slate-300"
         >
-          {status}
+          {statusMessage}
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {isHost ? (
             <button
               type="button"
-              onClick={startGame}
+              onClick={startBattle}
               disabled={
-                isStarting ||
-                players.length < 2
+                isStarting || players.length < 2
               }
               className="rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isStarting
-                ? "Starting..."
+                ? "Starting Battle..."
                 : "Start Battle"}
             </button>
           ) : (
@@ -311,25 +380,13 @@ export default function LobbyPage() {
           <button
             type="button"
             onClick={leaveRoom}
-            className="rounded-xl border border-red-400/40 px-5 py-3 font-semibold text-red-300 transition hover:bg-red-400/10"
+            disabled={isLeaving}
+            className="rounded-xl border border-red-400/40 px-5 py-3 font-semibold text-red-300 transition hover:bg-red-400/10 disabled:opacity-50"
           >
-            Leave Room
+            {isLeaving ? "Leaving..." : "Leave Room"}
           </button>
         </div>
       </div>
     </main>
   );
-}
-
-function getErrorMessage(error: unknown): string {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof error.message === "string"
-  ) {
-    return error.message;
-  }
-
-  return "Something went wrong.";
 }
