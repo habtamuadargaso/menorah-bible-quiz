@@ -1,0 +1,9 @@
+{
+  "appId": "com.menorah.biblequiz",
+  "appName": "Menorah Bible Quiz",
+  "webDir": "www",
+  "server": {
+    "url": "https://menorah-bible-quiz.vercel.app",
+    "cleartext": false
+  }
+}
