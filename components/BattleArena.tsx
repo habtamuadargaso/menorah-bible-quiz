@@ -1,8 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { questionsForLevel } from "@/lib/questions";
+import { useEffect, useRef, useState } from "react";
+import { loadQuestionsForGame } from "@/lib/questions/loadQuestionsForGame";
+import type { Question } from "@/lib/questions/types";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { playCorrectSound, playFinishSound, playTimeoutSound, playWrongSound, startGameMusic, stopGameMusic } from "@/lib/sound";
 import { getLevelConfig } from "@/lib/game/levelConfig";
@@ -16,10 +17,9 @@ type PlayerState = BattlePlayer & { score: number; correct: number; wrong: numbe
 export default function BattleArena({ config, onExit, onRematch }: { config: BattleConfig; onExit: () => void; onRematch: () => void }) {
   const { lang, t } = useLanguage();
   const roundSeconds = getLevelConfig(config.level).timerSeconds;
-  const { questions, usedFallback } = useMemo(
-    () => questionsForLevel(lang, config.categoryId, config.level),
-    [lang, config.categoryId, config.level],
-  );
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [usedFallback, setUsedFallback] = useState(false);
+  const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [players, setPlayers] = useState<PlayerState[]>(() => config.players.map((player) => ({ ...player, score: 0, correct: 0, wrong: 0, fastestMs: null, streak: 0 })));
   const [index, setIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(roundSeconds);
@@ -29,6 +29,70 @@ export default function BattleArena({ config, onExit, onRematch }: { config: Bat
   const roundStartedAt = useRef(Date.now());
   const nextTimer = useRef<number | null>(null);
   const current = questions[index];
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadBattleQuestions() {
+      setLoadingQuestions(true);
+      setQuestions([]);
+      setUsedFallback(false);
+      setIndex(0);
+      setTimeLeft(roundSeconds);
+      setResponses({});
+      setRevealed(false);
+      setFinished(false);
+      roundStartedAt.current = Date.now();
+
+      try {
+        const loadedQuestions = await loadQuestionsForGame(
+          lang,
+          config.categoryId,
+          config.level
+        );
+
+        if (cancelled) return;
+
+        setQuestions(loadedQuestions);
+
+        setUsedFallback(
+          loadedQuestions.length > 0 &&
+          !loadedQuestions.some((question) =>
+            question.id.startsWith("AI-")
+          )
+        );
+      } catch (error) {
+        console.error(
+          "Unable to load battle questions:",
+          error
+        );
+
+        if (!cancelled) {
+          setQuestions([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingQuestions(false);
+        }
+      }
+    }
+
+    void loadBattleQuestions();
+
+    return () => {
+      cancelled = true;
+
+      if (nextTimer.current !== null) {
+        window.clearTimeout(nextTimer.current);
+        nextTimer.current = null;
+      }
+    };
+  }, [
+    config.categoryId,
+    config.level,
+    lang,
+    roundSeconds,
+  ]);
 
   useEffect(() => {
     startGameMusic();
@@ -109,6 +173,14 @@ export default function BattleArena({ config, onExit, onRematch }: { config: Bat
   }
 
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score || b.correct - a.correct);
+
+  if (loadingQuestions) {
+    return (
+      <section className="mx-auto max-w-xl px-5 py-24 text-center text-[#d8dce5]">
+        Loading battle questions...
+      </section>
+    );
+  }
 
   if (!current) {
     return <section className="mx-auto max-w-xl px-5 py-24 text-center text-[#d8dce5]">{t.quiz.noQuestions}</section>;

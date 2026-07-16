@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CategoryId } from "@/lib/categories";
-import { questionsForLevel } from "@/lib/questions";
+import { loadQuestionsForGame } from "@/lib/questions/loadQuestionsForGame";
 import type { Question, Difficulty } from "@/lib/questions/types";
 import { getLevelConfig } from "@/lib/game/levelConfig";
-import { MAX_GAME_LEVEL, levelTitle } from "@/lib/levels";
+import { MAX_GAME_LEVEL } from "@/lib/levels";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { playCorrectSound, playFinishSound, playTimeoutSound, playWrongSound, startGameMusic, stopGameMusic } from "@/lib/sound";
 
@@ -57,12 +57,6 @@ export default function QuizCard({
   const categoryText = t.categories[categoryId];
   const timePerQuestion = getLevelConfig(level).timerSeconds;
 
-  const { questions, usedFallback } = useMemo(() => {
-    // Every level is exactly 10 questions. Switching language remounts and
-    // reloads the question round so the active questions change with the UI.
-    return questionsForLevel(lang, categoryId, level);
-  }, [categoryId, lang, level]);
-
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [locked, setLocked] = useState(false);
@@ -72,11 +66,80 @@ export default function QuizCard({
   const [bestStreak, setBestStreak] = useState(0);
   const [fastAnswers, setFastAnswers] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [usedFallback, setUsedFallback] = useState(false);
+  const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [timeLeft, setTimeLeft] = useState(timePerQuestion);
   const autoNextRef = useRef<number | null>(null);
 
   const current: Question | undefined = questions[index];
-  const isLast = index === questions.length - 1;
+  const isLast =
+    questions.length > 0 &&
+    index === questions.length - 1;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRound() {
+      setLoadingQuestions(true);
+      setQuestions([]);
+      setUsedFallback(false);
+      setIndex(0);
+      setSelected(null);
+      setLocked(false);
+      setScore(0);
+      setCorrectCount(0);
+      setStreak(0);
+      setBestStreak(0);
+      setFastAnswers(0);
+      setLives(MAX_LIVES);
+      setTimeLeft(timePerQuestion);
+
+      try {
+        const loadedQuestions =
+          await loadQuestionsForGame(
+            lang,
+            categoryId,
+            level
+          );
+
+        if (cancelled) return;
+
+        setQuestions(loadedQuestions);
+
+        setUsedFallback(
+          loadedQuestions.length > 0 &&
+          !loadedQuestions.some((question) =>
+            question.id.startsWith("AI-")
+          )
+        );
+      } catch (error) {
+        console.error(
+          "Unable to load quiz questions:",
+          error
+        );
+
+        if (!cancelled) {
+          setQuestions([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingQuestions(false);
+        }
+      }
+    }
+
+    void loadRound();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    categoryId,
+    lang,
+    level,
+    timePerQuestion,
+  ]);
 
   useEffect(() => {
     startGameMusic();
@@ -163,6 +226,14 @@ export default function QuizCard({
     setSelected(null);
     setLocked(false);
     setTimeLeft(timePerQuestion);
+  }
+
+  if (loadingQuestions) {
+    return (
+      <section className="mx-auto max-w-xl px-5 py-24 text-center text-[#a7aebd]">
+        Loading questions...
+      </section>
+    );
   }
 
   if (!current) {

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Menorah Bible Quiz</string>
+    <string name="title_activity_main">Menorah Bible Quiz</string>
+    <string name="package_name">com.menorah.biblequiz</string>
+    <string name="custom_url_scheme">com.menorah.biblequiz</string>
+</resources>
