@@ -146,7 +146,7 @@ export default function LeaderboardPreview({
 
         <button
           onClick={onViewAll}
-          className="mt-6 w-full rounded-full border border-gold-500/40 px-6 py-3 text-sm font-bold text-gold-400 outline-none transition-colors hover:bg-gold-500/10 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="mt-6 w-full rounded-full border border-gold-500/40 px-6 py-3 text-sm font-bold text-gold-400 outline-none transition-all hover:border-gold-400 hover:bg-gold-500/10 hover:shadow-[0_0_28px_rgba(232,193,95,0.35)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           {isAmharic ? "ሙሉ ደረጃ ሰንጠረዥ ይመልከቱ" : "View Full Leaderboard"}
         </button>

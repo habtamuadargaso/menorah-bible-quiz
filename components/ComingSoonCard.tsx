@@ -8,10 +8,12 @@ export default function ComingSoonCard({
   title,
   subtitle,
   icon,
+  motif,
 }: {
   title: string;
   subtitle: string;
   icon?: ReactNode;
+  motif?: ReactNode;
 }) {
   const { t } = useLanguage();
 
@@ -24,6 +26,14 @@ export default function ComingSoonCard({
       whileHover={{ y: -6, scale: 1.02 }}
       className="relative overflow-hidden rounded-card-sm border border-white/10 bg-white/[0.03] p-6 opacity-90 shadow-premium transition-colors hover:border-gold-500/25 hover:opacity-100"
     >
+      {motif && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-8 -right-8 -z-10 h-36 w-36 text-gold-400 opacity-[0.12]"
+        >
+          {motif}
+        </div>
+      )}
       <div className="absolute right-4 top-4 rounded-full border border-gold-500/30 bg-navy-950/70 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-gold-400">
         {t.common.comingSoon}
       </div>

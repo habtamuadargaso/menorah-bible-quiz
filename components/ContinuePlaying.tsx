@@ -142,7 +142,7 @@ export default function ContinuePlaying({
 
             <button
               onClick={() => onContinue(featured.category.id, featured.level)}
-              className="mt-7 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-6 py-3 text-sm font-bold text-navy-950 shadow-gold outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+              className="mt-7 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-6 py-3 text-sm font-bold text-navy-950 shadow-gold outline-none transition-all hover:-translate-y-0.5 hover:shadow-[0_0_36px_rgba(232,193,95,0.55)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
             >
               {isAmharic ? "ቀጥል →" : "Resume →"}
             </button>

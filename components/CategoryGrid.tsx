@@ -15,24 +15,36 @@ function CategoryMotif({ id, className }: { id: CategoryId; className?: string }
 
   switch (id) {
     case "old-testament":
-      // desert dunes under a distant sun
+      // mountains, the tablets of the Law, and a distant ark on the water
       return (
         <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
-          <circle cx="330" cy="40" r="22" {...common} strokeWidth={1} />
-          <path d="M0 110c60-30 100-30 140 0s100 30 140 0 100-30 120-10" {...common} strokeWidth={1.2} />
-          <path d="M0 130c60-24 100-24 140 0s100 24 140 0 100-24 120-8" {...common} strokeWidth={1} />
+          <path d="M0 100 60 45 110 85 160 35 210 90 260 50 320 95 400 60" {...common} strokeWidth={1.2} />
+          <path d="M172 118V78a14 14 0 0 1 28 0v40Z" {...common} strokeWidth={1.1} />
+          <path d="M204 118V78a14 14 0 0 1 28 0v40Z" {...common} strokeWidth={1.1} />
+          <path d="M180 90h12M180 100h12M212 90h12M212 100h12" {...common} strokeWidth={0.7} opacity={0.7} />
+          <path d="M90 122q30-16 60 0" {...common} strokeWidth={0.9} />
+          <path d="M120 122V102M112 102h16" {...common} strokeWidth={0.8} />
         </svg>
       );
     case "new-testament":
-      // sunrise rays over a horizon
+      // the cross, an unrolled scroll, and a fish
       return (
         <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
-          <path d="M200 90V10M140 95 100 30M260 95l40-65M90 110 30 70M310 110l60-40" {...common} strokeWidth={1.2} />
-          <path d="M0 112h400" {...common} strokeWidth={1} />
+          <path d="M200 15v100M170 45h60" {...common} strokeWidth={2.2} />
+          <g>
+            <circle cx="70" cy="100" r="8" {...common} strokeWidth={1} />
+            <circle cx="140" cy="100" r="8" {...common} strokeWidth={1} />
+            <path d="M78 100h54" {...common} strokeWidth={1} />
+            <path d="M88 96h34M88 104h34" {...common} strokeWidth={0.6} opacity={0.7} />
+          </g>
+          <g>
+            <path d="M290 95c8-10 30-10 40 0-10 10-32 10-40 0Z" {...common} strokeWidth={1} />
+            <path d="M330 95l10-8M330 95l10 8" {...common} strokeWidth={1} />
+          </g>
         </svg>
       );
     case "life-of-jesus":
-      // radiant starburst
+      // the guiding star of Bethlehem with a soft trail, and an olive branch below
       return (
         <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
           {Array.from({ length: 10 }).map((_, i) => {
@@ -41,15 +53,17 @@ function CategoryMotif({ id, className }: { id: CategoryId; className?: string }
               <line
                 key={i}
                 x1={200}
-                y1={70}
-                x2={200 + Math.cos(a) * 110}
-                y2={70 + Math.sin(a) * 110}
+                y1={55}
+                x2={200 + Math.cos(a) * 90}
+                y2={55 + Math.sin(a) * 90}
                 {...common}
                 strokeWidth={1}
               />
             );
           })}
-          <circle cx="200" cy="70" r="14" {...common} strokeWidth={1.3} />
+          <circle cx="200" cy="55" r="12" {...common} strokeWidth={1.3} />
+          <path d="M215 65q30 20 60 45" {...common} strokeWidth={1} opacity={0.7} />
+          <path d="M140 125q40-10 60 0M150 118q8-8 16 0M174 118q8-8 16 0" {...common} strokeWidth={0.9} />
         </svg>
       );
     case "apostles":
@@ -65,14 +79,14 @@ function CategoryMotif({ id, className }: { id: CategoryId; className?: string }
         </svg>
       );
     case "bible-characters":
-      // scattered starfield
+      // an unrolled scroll, textured with lines of an ancient story
       return (
-        <svg viewBox="0 0 400 140" className={className}>
-          {[
-            [30, 30, 2.4], [80, 70, 1.6], [130, 25, 2], [180, 90, 1.8], [230, 40, 2.6],
-            [270, 100, 1.6], [320, 30, 2.2], [360, 75, 1.8], [50, 110, 1.6], [300, 60, 2],
-          ].map(([cx, cy, r], i) => (
-            <circle key={i} cx={cx} cy={cy} r={r} fill="currentColor" stroke="none" />
+        <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
+          <circle cx="30" cy="70" r="14" {...common} strokeWidth={1} />
+          <circle cx="370" cy="70" r="14" {...common} strokeWidth={1} />
+          <path d="M30 70h340" {...common} strokeWidth={1} />
+          {[30, 45, 60, 75, 90, 105].map((y) => (
+            <line key={y} x1="55" y1={y} x2="345" y2={y} {...common} strokeWidth={0.6} opacity={0.55} />
           ))}
         </svg>
       );
@@ -97,19 +111,14 @@ function CategoryMotif({ id, className }: { id: CategoryId; className?: string }
         </svg>
       );
     case "faith-prayer":
-      // soft clouds with gentle light
+      // praying hands beside a lit candle
       return (
         <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
-          <path
-            d="M90 90a26 26 0 0 1 0-52 34 34 0 0 1 66-14 28 28 0 0 1 34 40 24 24 0 0 1-4 26Z"
-            {...common}
-            strokeWidth={1.1}
-          />
-          <path
-            d="M230 110a20 20 0 0 1 2-40 26 26 0 0 1 50-8 22 22 0 0 1 24 32Z"
-            {...common}
-            strokeWidth={1}
-          />
+          <path d="M190 120V70c0-16 6-30 14-38 8 8 14 22 14 38v50" {...common} strokeWidth={1.1} />
+          <path d="M190 120c-10 0-16-6-16-14M218 120c10 0 16-6 16-14" {...common} strokeWidth={1} />
+          <path d="M300 118V86" {...common} strokeWidth={1} />
+          <path d="M292 86h16" {...common} strokeWidth={0.8} />
+          <path d="M300 60c-4 6-7 11-7 16a7 7 0 0 0 14 0c0-5-3-10-7-16Z" {...common} strokeWidth={0.9} />
         </svg>
       );
     case "gospel-challenge":
@@ -218,10 +227,10 @@ export default function CategoryGrid({ onSelect }: { onSelect: (categoryId: Cate
                 </span>
 
                 <div
-                  className={`relative flex h-16 w-16 items-center justify-center rounded-2xl shadow-lg transition-transform duration-300 group-hover:scale-110 ${
+                  className={`relative flex h-16 w-16 items-center justify-center rounded-2xl shadow-lg transition-all duration-300 group-hover:scale-110 ${
                     isPurple
-                      ? "bg-gradient-to-br from-purple-400/30 to-purple-600/10 text-purple-200"
-                      : "bg-gradient-to-br from-gold-400/30 to-gold-600/10 text-gold-300"
+                      ? "bg-gradient-to-br from-purple-400/30 to-purple-600/10 text-purple-200 group-hover:shadow-[0_0_28px_rgba(139,92,246,0.45)]"
+                      : "bg-gradient-to-br from-gold-400/30 to-gold-600/10 text-gold-300 group-hover:shadow-[0_0_28px_rgba(232,193,95,0.45)]"
                   }`}
                 >
                   <CategoryIcon icon={category.icon} className="h-8 w-8" />

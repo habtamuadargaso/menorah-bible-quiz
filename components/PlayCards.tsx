@@ -194,10 +194,10 @@ export default function PlayCards({
                 }`}
               />
               <div
-                className={`relative flex h-16 w-16 items-center justify-center rounded-2xl shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-2 ${
+                className={`relative flex h-16 w-16 items-center justify-center rounded-2xl shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:-rotate-2 ${
                   card.theme === "gold"
-                    ? "bg-gradient-to-br from-gold-400/30 to-gold-600/10 text-gold-300"
-                    : "bg-gradient-to-br from-purple-400/30 to-purple-600/10 text-purple-200"
+                    ? "bg-gradient-to-br from-gold-400/30 to-gold-600/10 text-gold-300 group-hover:shadow-[0_0_28px_rgba(232,193,95,0.45)]"
+                    : "bg-gradient-to-br from-purple-400/30 to-purple-600/10 text-purple-200 group-hover:shadow-[0_0_28px_rgba(139,92,246,0.45)]"
                 }`}
               >
                 <CardIcon name={card.icon} />

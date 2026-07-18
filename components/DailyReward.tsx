@@ -48,7 +48,7 @@ export default function DailyReward() {
           disabled={!ready}
           className={`rounded-full px-6 py-3 text-sm font-bold outline-none transition ${
             ready
-              ? "bg-gradient-to-br from-gold-300 to-gold-600 text-navy-900 shadow-gold hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+              ? "bg-gradient-to-br from-gold-300 to-gold-600 text-navy-900 shadow-gold hover:-translate-y-0.5 hover:shadow-[0_0_36px_rgba(232,193,95,0.55)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
               : "cursor-not-allowed border border-white/15 text-[#8d94a3]"
           }`}
         >

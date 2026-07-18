@@ -123,7 +123,7 @@ export default function DailyVerseBanner({ onExplore }: { onExplore?: () => void
             {onExplore && (
               <button
                 onClick={onExplore}
-                className="mt-8 inline-flex items-center gap-2 rounded-full border border-gold-500/40 px-6 py-2.5 text-sm font-semibold text-gold-400 outline-none transition-colors hover:bg-gold-500/10 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+                className="mt-8 inline-flex items-center gap-2 rounded-full border border-gold-500/40 px-6 py-2.5 text-sm font-semibold text-gold-400 outline-none transition-all hover:border-gold-400 hover:bg-gold-500/10 hover:shadow-[0_0_28px_rgba(232,193,95,0.35)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
               >
                 {isAmharic ? "ተጨማሪ የመጽሐፍ ቅዱስ ገፅታዎችን ያስሱ" : "Explore Bible Features"}
                 <span aria-hidden>→</span>

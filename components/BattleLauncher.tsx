@@ -11,7 +11,7 @@ export default function BattleLauncher({ onStart }: { onStart: () => void }) {
         whileHover={{ y: -6, scale: 1.015 }}
         whileTap={{ scale: .99 }}
         onClick={onStart}
-        className="w-full rounded-card border border-gold-500/35 bg-glass-gold p-6 text-left shadow-premium outline-none transition-colors hover:border-gold-500/55 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 sm:p-8"
+        className="w-full rounded-card border border-gold-500/35 bg-glass-gold p-6 text-left shadow-premium outline-none transition-all hover:border-gold-500/55 hover:shadow-[0_0_36px_rgba(232,193,95,0.3)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 sm:p-8"
       >
         <div className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
           <div>
