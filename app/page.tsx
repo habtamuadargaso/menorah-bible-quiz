@@ -19,6 +19,7 @@ import QuizCard, {
   type QuizResult,
 } from "@/components/QuizCard";
 import ResultCard from "@/components/ResultCard";
+import ProfilePage from "@/components/profile/ProfilePage";
 import Leaderboard from "@/components/Leaderboard";
 import ChallengesStrip from "@/components/ChallengesStrip";
 import BibleLearningSection from "@/components/BibleLearningSection";
@@ -56,12 +57,14 @@ import {
   unlockNextCampaignLevel,
   type CampaignProgress,
 } from "@/lib/campaign";
+import { recordCompletedQuiz } from "@/lib/profileStats";
 
 type Stage =
   | "categories"
   | "quiz"
   | "result"
   | "leaderboard"
+  | "profile"
   | "battle-setup"
   | "battle";
 
@@ -143,6 +146,11 @@ export default function Home() {
       res.coinsEarned
     );
 
+    // Purely additive: mirrors a few extra numbers for the Profile screen
+    // (questions answered, correct answers, day streak, recent activity).
+    // Does not read or affect XP/coins/campaign/achievement state above.
+    recordCompletedQuiz(res);
+
     const playerLevel = levelForXp(
       progressUpdate.progress.totalXp
     ).level;
@@ -222,6 +230,11 @@ export default function Home() {
     scrollTo(gameRef);
   }
 
+  function handleProfile() {
+    setStage("profile");
+    scrollTo(gameRef);
+  }
+
   function handleBattleSetup() {
     setStage("battle-setup");
     scrollTo(gameRef);
@@ -262,6 +275,8 @@ export default function Home() {
         onBible={handleBible}
         onChurch={handleChurch}
         onLeaderboard={handleLeaderboard}
+        onProfile={handleProfile}
+        stage={stage}
       />
 
       <Hero
@@ -381,6 +396,24 @@ export default function Home() {
             transition={{ duration: 0.3 }}
           >
             <Leaderboard entries={entries} />
+          </motion.div>
+        )}
+
+        {stage === "profile" && (
+          <motion.div
+            key="profile"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ProfilePage
+              onCategories={() => {
+                setStage("categories");
+                scrollTo(gameRef);
+              }}
+              onLeaderboard={handleLeaderboard}
+            />
           </motion.div>
         )}
 
