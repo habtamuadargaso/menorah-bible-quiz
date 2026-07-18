@@ -2,12 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { LANGUAGES, type LangCode } from "@/lib/i18n/locales";
 import { loadQuestionsForLevel } from "@/lib/questions/loadQuestions";
 import { questionsForLevel } from "@/lib/questions";
+import { difficultyForLevel } from "@/lib/levels";
 import type { CategoryId } from "@/lib/categories";
+import LobbyHeader from "@/components/multiplayer/LobbyHeader";
+import RoomCard from "@/components/multiplayer/RoomCard";
+import PlayerCard from "@/components/multiplayer/PlayerCard";
+import ReadyButton from "@/components/multiplayer/ReadyButton";
+import Countdown from "@/components/multiplayer/Countdown";
+import InvitePanel from "@/components/multiplayer/InvitePanel";
 
 const ROUND_SECONDS = 15;
 
@@ -33,25 +41,29 @@ type RoomPlayer = {
   joined_at: string;
 };
 
-function getErrorMessage(error: unknown): string {
-  if (typeof error === "object" && error !== null && "message" in error) {
-    return String(error.message);
-  }
-  return "Something went wrong.";
-}
-
 export default function LobbyPage() {
   const params = useParams<{ code: string }>();
   const router = useRouter();
-  const { setLang } = useLanguage();
+  const { t, setLang } = useLanguage();
+  const reduceMotion = useReducedMotion();
+  const tm = t.multiplayerLobby;
   const roomCode = useMemo(() => String(params.code ?? "").toUpperCase(), [params.code]);
+
+  function getErrorMessage(error: unknown): string {
+    if (typeof error === "object" && error !== null && "message" in error) {
+      return String(error.message);
+    }
+    return tm.errorGeneric;
+  }
 
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [currentUserId, setCurrentUserId] = useState("");
-  const [statusMessage, setStatusMessage] = useState("Loading lobby...");
+  const [statusMessage, setStatusMessage] = useState("");
   const [isStarting, setIsStarting] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [showCountdown, setShowCountdown] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   const loadLobby = useCallback(async () => {
     try {
@@ -70,7 +82,7 @@ export default function LobbyPage() {
         .maybeSingle();
       if (roomError) throw roomError;
       if (!roomData) {
-        setStatusMessage("Room not found.");
+        setNotFound(true);
         return;
       }
 
@@ -92,15 +104,14 @@ export default function LobbyPage() {
       }
 
       setStatusMessage(
-        typedRoom.host_id === user.id
-          ? "Players are ready. Start when at least two players have joined."
-          : "Waiting for the host to start the battle."
+        typedRoom.host_id === user.id ? "" : tm.waitingForHost
       );
     } catch (error) {
       console.error("Lobby loading error:", error);
       setStatusMessage(getErrorMessage(error));
     }
-  }, [roomCode, router, setLang]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode, router, setLang, tm.waitingForHost]);
 
   useEffect(() => {
     void loadLobby();
@@ -120,23 +131,13 @@ export default function LobbyPage() {
     }
 
     if (ids.length < 10) {
-      const local = questionsForLevel(
-        activeRoom.language,
-        activeRoom.category_id,
-        activeRoom.game_level
-      ).questions;
+      const local = questionsForLevel(activeRoom.language, activeRoom.category_id, activeRoom.game_level).questions;
       ids = local.slice(0, 10).map((question) => question.id);
     }
-
     if (ids.length < 10) {
-      const english = questionsForLevel(
-        "en",
-        activeRoom.category_id,
-        activeRoom.game_level
-      ).questions;
+      const english = questionsForLevel("en", activeRoom.category_id, activeRoom.game_level).questions;
       ids = english.slice(0, 10).map((question) => question.id);
     }
-
     if (ids.length < 10) {
       throw new Error("This level needs at least 10 questions before the battle can start.");
     }
@@ -153,17 +154,11 @@ export default function LobbyPage() {
 
   async function startBattle() {
     if (!room || !currentUserId) return;
-    if (room.host_id !== currentUserId) {
-      setStatusMessage("Only the room host can start the battle.");
-      return;
-    }
-    if (players.length < 2) {
-      setStatusMessage("At least two players are required to start.");
-      return;
-    }
+    if (room.host_id !== currentUserId) return;
+    if (players.length < 2) return;
 
     setIsStarting(true);
-    setStatusMessage("Preparing the same 10 questions for every player...");
+    setStatusMessage(tm.startingBattle);
     try {
       const supabase = createClient();
       await seedRoomQuestions(room);
@@ -184,6 +179,35 @@ export default function LobbyPage() {
       console.error("Start battle error:", error);
       setStatusMessage(getErrorMessage(error));
       setIsStarting(false);
+      setShowCountdown(false);
+    }
+  }
+
+  function handleStartClick() {
+    if (!room || !currentUserId || room.host_id !== currentUserId) return;
+    if (players.length < 2) {
+      setStatusMessage(tm.minPlayersHint);
+      return;
+    }
+    setShowCountdown(true);
+  }
+
+  async function toggleReady() {
+    if (!room || !currentUserId) return;
+    const me = players.find((p) => p.player_id === currentUserId);
+    if (!me) return;
+    const nextReady = !me.is_ready;
+    setPlayers((prev) => prev.map((p) => (p.player_id === currentUserId ? { ...p, is_ready: nextReady } : p)));
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("room_players")
+        .update({ is_ready: nextReady })
+        .eq("room_id", room.id)
+        .eq("player_id", currentUserId);
+      if (error) throw error;
+    } catch (error) {
+      setStatusMessage(getErrorMessage(error));
     }
   }
 
@@ -215,52 +239,175 @@ export default function LobbyPage() {
 
   const isHost = room?.host_id === currentUserId;
   const languageName = LANGUAGES.find((item) => item.code === room?.language)?.nativeName ?? "English";
+  const categoryTitle = room ? t.categories[room.category_id]?.title ?? room.category_id : "";
+  const difficultyLabel = room ? t.quiz.difficulty[difficultyForLevel(room.game_level)] : "";
+  const hostName = players.find((p) => p.player_id === room?.host_id)?.display_name ?? tm.hostLabel;
+  const me = players.find((p) => p.player_id === currentUserId);
+
+  if (notFound) {
+    return (
+      <main
+        className="flex min-h-screen items-center justify-center px-4 text-center text-[#f3efe2]"
+        style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
+      >
+        <div>
+          <p className="text-lg font-semibold">{tm.roomNotFoundMessage}</p>
+          <button
+            type="button"
+            onClick={() => router.push("/multiplayer")}
+            className="mt-5 rounded-full border border-gold-500/45 px-6 py-3 text-sm font-bold text-gold-300 outline-none transition-colors hover:bg-gold-500/10"
+          >
+            {tm.backToHome}
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (!room) {
+    return (
+      <main
+        className="flex min-h-screen items-center justify-center px-4 text-center text-[#a7aebd]"
+        style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
+      >
+        {tm.loadingLobby}
+      </main>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
+    <main
+      className="min-h-screen w-full px-4 py-10 text-[#f3efe2] sm:px-8"
+      style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
+    >
       <div className="mx-auto max-w-3xl">
-        <header className="text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400">Waiting Lobby</p>
-          <h1 className="mt-3 text-4xl font-bold">Bible Battle</h1>
-          <p className="mt-4 text-slate-300">Language: <strong>{languageName}</strong></p>
-          <p className="mt-3 text-slate-300">Share this room code:</p>
-          <div className="mx-auto mt-3 inline-flex rounded-2xl border border-amber-400/50 bg-amber-400/10 px-8 py-4 text-3xl font-black tracking-[0.35em] text-amber-300">{roomCode}</div>
-        </header>
+        <LobbyHeader
+          eyebrow={tm.lobbyEyebrow}
+          heading={tm.lobbyHeading}
+          roomCode={roomCode}
+          copyLabel={tm.copyCodeButton}
+          copiedLabel={tm.copiedMessage}
+          shareLabel={tm.shareButton}
+        />
 
-        <section className="mt-10 rounded-3xl border border-white/15 bg-white/5 p-6">
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-xl font-bold">Players</h2>
-            <span className="rounded-full bg-white/10 px-3 py-1 text-sm">{players.length}/{room?.max_players ?? 8}</span>
-          </div>
-          <div className="space-y-3">
-            {players.map((player, index) => (
-              <div key={player.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-900/80 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-full bg-amber-400 font-bold text-slate-950">{index + 1}</div>
-                  <div>
-                    <p className="font-semibold">{player.display_name}</p>
-                    <p className="text-xs text-slate-400">{player.player_id === room?.host_id ? "Room host" : "Player"}</p>
-                  </div>
-                </div>
-                <span className="text-sm font-semibold text-emerald-400">Ready ✓</span>
-              </div>
-            ))}
-          </div>
-        </section>
+        <div className="mt-6">
+          <RoomCard
+            roomName={`${hostName}'s Room`}
+            hostName={hostName}
+            playerCount={players.length}
+            maxPlayers={room.max_players}
+            categoryTitle={categoryTitle}
+            difficultyLabel={difficultyLabel}
+            languageName={languageName}
+            labels={{
+              roomNameLabel: tm.roomNameLabel,
+              hostLabel: tm.hostLabel,
+              maxPlayersLabel: tm.maxPlayersLabel,
+              categoryLabel: tm.categoryLabel,
+              difficultyLabel: tm.difficultyLabel,
+              languageLabel: tm.languageLabel,
+              privacyLabel: tm.privacyLabel,
+              privateRoomBadge: tm.privateRoomBadge,
+            }}
+          />
+        </div>
 
-        <div role="status" className="mt-5 rounded-xl border border-white/10 bg-white/5 px-5 py-4 text-center text-sm text-slate-300">{statusMessage}</div>
+        {players.length < 2 && (
+          <div className="mt-6">
+            <InvitePanel
+              roomCode={roomCode}
+              heading={tm.emptyStateHeading}
+              body={tm.emptyStateBody}
+              shareHint={tm.roomCodeShareHint}
+              copyLabel={tm.copyCodeButton}
+              copiedLabel={tm.copiedMessage}
+              shareLabel={tm.shareButton}
+            />
+          </div>
+        )}
+
+        <motion.section
+          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
+          animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.4, delay: 0.1 }}
+          className="mt-6 rounded-card border border-white/10 bg-white/[0.04] p-6 shadow-premium backdrop-blur-md sm:p-7"
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-gold-400">{tm.playersHeading}</h2>
+            <span className="rounded-full border border-white/15 bg-white/[0.04] px-3 py-1 text-xs font-bold text-[#c6cbd6]">
+              {players.length}/{room.max_players}
+            </span>
+          </div>
+          <ul className="flex flex-col gap-2.5">
+            <AnimatePresence initial={false}>
+              {players.map((player) => (
+                <PlayerCard
+                  key={player.id}
+                  name={player.display_name}
+                  isHost={player.player_id === room.host_id}
+                  isReady={player.is_ready}
+                  isYou={player.player_id === currentUserId}
+                  hostLabel={tm.hostBadge}
+                  readyLabel={tm.readyBadge}
+                  waitingLabel={tm.waitingBadge}
+                />
+              ))}
+            </AnimatePresence>
+          </ul>
+        </motion.section>
+
+        {me && (
+          <div className="mt-5">
+            <ReadyButton
+              isReady={me.is_ready}
+              onToggle={toggleReady}
+              readyLabel={tm.readyButton}
+              notReadyLabel={tm.notReadyButton}
+            />
+          </div>
+        )}
+
+        {statusMessage && (
+          <div role="status" className="mt-5 rounded-xl border border-white/10 bg-white/5 px-5 py-4 text-center text-sm text-[#c6cbd6]">
+            {statusMessage}
+          </div>
+        )}
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {isHost ? (
-            <button type="button" onClick={startBattle} disabled={isStarting || players.length < 2} className="rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50">
-              {isStarting ? "Starting Battle..." : "Start Battle"}
-            </button>
+            <motion.button
+              type="button"
+              onClick={handleStartClick}
+              disabled={isStarting || players.length < 2}
+              whileHover={reduceMotion || isStarting ? undefined : { y: -2, scale: 1.02 }}
+              whileTap={reduceMotion || isStarting ? undefined : { scale: 0.98 }}
+              className="rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-3.5 text-sm font-bold text-navy-900 shadow-gold outline-none transition-shadow hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isStarting ? tm.startingBattle : tm.startButton}
+            </motion.button>
           ) : (
-            <div className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-center text-slate-300">Waiting for host</div>
+            <div className="rounded-full border border-white/10 bg-white/5 px-5 py-3.5 text-center text-sm text-[#a7aebd]">
+              {tm.waitingForHost}
+            </div>
           )}
-          <button type="button" onClick={leaveRoom} disabled={isLeaving} className="rounded-xl border border-red-400/40 px-5 py-3 font-semibold text-red-300 transition hover:bg-red-400/10 disabled:opacity-50">{isLeaving ? "Leaving..." : "Leave Room"}</button>
+          <motion.button
+            type="button"
+            onClick={leaveRoom}
+            disabled={isLeaving}
+            whileHover={reduceMotion || isLeaving ? undefined : { y: -2, scale: 1.02 }}
+            whileTap={reduceMotion || isLeaving ? undefined : { scale: 0.98 }}
+            className="rounded-full border border-red-400/40 px-5 py-3.5 text-sm font-semibold text-red-300 outline-none transition-colors hover:bg-red-400/10 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 disabled:opacity-50"
+          >
+            {isLeaving ? tm.leavingRoom : isHost ? tm.cancelRoomButton : tm.leaveRoomButton}
+          </motion.button>
         </div>
+
+        {isHost && players.length < 2 && (
+          <p className="mt-3 text-center text-xs text-[#8d94a3]">{tm.minPlayersHint}</p>
+        )}
       </div>
+
+      {showCountdown && <Countdown goLabel={tm.countdownGo} onComplete={() => void startBattle()} />}
     </main>
   );
 }
