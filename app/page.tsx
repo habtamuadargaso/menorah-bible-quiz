@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useEffect,
   useRef,
@@ -11,6 +10,10 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import Hero from "@/components/Hero";
 import Header from "@/components/Header";
+import DailyVerseBanner from "@/components/DailyVerseBanner";
+import PlayCards from "@/components/PlayCards";
+import ContinuePlaying from "@/components/ContinuePlaying";
+import LeaderboardPreview from "@/components/LeaderboardPreview";
 import CategoryGrid from "@/components/CategoryGrid";
 import QuizCard, {
   type QuizResult,
@@ -86,36 +89,10 @@ export default function Home() {
     useState<BattleConfig | null>(null);
 
   const gameRef = useRef<HTMLDivElement>(null);
+  const categoriesRef = useRef<HTMLDivElement>(null);
+  const challengesRef = useRef<HTMLDivElement>(null);
   const bibleRef = useRef<HTMLDivElement>(null);
   const churchRef = useRef<HTMLDivElement>(null);
-
-  const isAmharic = lang === "am";
-
-  const onlineBattleText = isAmharic
-    ? {
-        eyebrow: "የቀጥታ ባለብዙ ተጫዋች ጨዋታ",
-        title: "የመጽሐፍ ቅዱስ የመስመር ላይ ውድድር",
-        description:
-          "ከጓደኞች፣ ከቤተሰብ ወይም ከቤተ ክርስቲያን አባላት ጋር ከተለያዩ ስልኮች ይጫወቱ። ክፍል ይፍጠሩ ወይም በክፍል ኮድ ይቀላቀሉ።",
-        createJoin: "ክፍል ፍጠር ወይም ተቀላቀል",
-        sameQuestion: "ሁሉም ተጫዋቾች ተመሳሳይ ጥያቄ ያያሉ",
-        fastestWins: "ፈጣኑ ትክክለኛ መልስ ከፍተኛ ነጥብ ያገኛል",
-        tenQuestions: "10 የቀጥታ ጥያቄዎች",
-        online: "የመስመር ላይ",
-      }
-    : {
-        eyebrow: "REAL-TIME MULTIPLAYER",
-        title: "Online Bible Battle",
-        description:
-          "Play with friends, family, or church members from different phones. Create a room or join with a room code.",
-        createJoin: "Create Room or Join Room",
-        sameQuestion:
-          "Every player sees the same question",
-        fastestWins:
-          "Fastest correct answer earns the most points",
-        tenQuestions: "10 live questions",
-        online: "Online",
-      };
 
   useEffect(() => {
     setEntries(loadLeaderboard());
@@ -133,6 +110,23 @@ export default function Home() {
 
   function handleStart() {
     setStage("categories");
+    scrollTo(gameRef);
+  }
+
+  function handlePlaySingle() {
+    setStage("categories");
+    scrollTo(categoriesRef);
+  }
+
+  function handleDailyChallenge() {
+    setStage("categories");
+    scrollTo(challengesRef);
+  }
+
+  function handleContinueCategory(id: CategoryId, level: number) {
+    setCategoryId(id);
+    setGameLevel(level);
+    setStage("quiz");
     scrollTo(gameRef);
   }
 
@@ -254,7 +248,7 @@ export default function Home() {
       className="min-h-screen w-full"
       style={{
         background:
-          "linear-gradient(165deg,#050b1c 0%,#0b1f3a 48%,#071122 100%)",
+          "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)",
       }}
     >
       <Confetti active={confettiActive} />
@@ -275,6 +269,8 @@ export default function Home() {
         onLeaderboard={handleLeaderboard}
       />
 
+      <DailyVerseBanner onExplore={handleBible} />
+
       <div ref={gameRef} />
 
       <AnimatePresence mode="wait">
@@ -286,90 +282,32 @@ export default function Home() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            {/* Online multiplayer battle */}
-            <section className="mx-auto max-w-5xl px-5 pb-8">
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45 }}
-                className="relative overflow-hidden rounded-[28px] border border-blue-400/35 bg-gradient-to-br from-blue-500/20 via-white/[0.055] to-cyan-400/10 p-6 shadow-[0_24px_80px_rgba(0,0,0,.38)] sm:p-8"
-              >
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-400/20 blur-3xl"
-                />
-
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl"
-                />
-
-                <div className="relative">
-                  <div className="flex flex-col justify-between gap-7 lg:flex-row lg:items-center">
-                    <div className="max-w-2xl">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-blue-300/30 bg-blue-400/10 px-4 py-1.5 text-xs font-extrabold uppercase tracking-[0.2em] text-blue-200">
-                        <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-                        {onlineBattleText.eyebrow}
-                      </div>
-
-                      <h2 className="mt-4 font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl">
-                        🌍⚔️ {onlineBattleText.title}
-                      </h2>
-
-                      <p className="mt-3 max-w-xl text-sm leading-7 text-[#c5ccda] sm:text-base">
-                        {onlineBattleText.description}
-                      </p>
-
-                      <div className="mt-6 grid gap-3 text-sm text-[#d8deea] sm:grid-cols-3">
-                        <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
-                          <div className="text-xl">📱</div>
-                          <p className="mt-2">
-                            {onlineBattleText.sameQuestion}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
-                          <div className="text-xl">⚡</div>
-                          <p className="mt-2">
-                            {onlineBattleText.fastestWins}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl border border-white/10 bg-black/15 p-4">
-                          <div className="text-xl">🏆</div>
-                          <p className="mt-2">
-                            {onlineBattleText.tenQuestions}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="w-full shrink-0 lg:w-auto">
-                      <Link
-                        href="/multiplayer"
-                        className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-500 px-7 py-4 text-center text-base font-extrabold text-slate-950 shadow-[0_16px_40px_rgba(56,189,248,.3)] transition hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(56,189,248,.45)] lg:min-w-[260px]"
-                      >
-                        <span className="text-xl">⚔️</span>
-                        {onlineBattleText.createJoin}
-                      </Link>
-
-                      <div className="mt-3 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
-                        <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                        {onlineBattleText.online}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </section>
+            <PlayCards
+              onSinglePlayer={handlePlaySingle}
+              onDailyChallenge={handleDailyChallenge}
+              onChurchMode={handleChurch}
+            />
 
             {/* Local shared-screen Battle Arena */}
             <BattleLauncher onStart={handleBattleSetup} />
 
-            {/* Solo campaign categories */}
-            <CategoryGrid onSelect={handleSelectCategory} />
+            <ContinuePlaying
+              progress={campaignProgress}
+              onContinue={handleContinueCategory}
+            />
 
-            <ChallengesStrip />
+            <LeaderboardPreview
+              entries={entries}
+              onViewAll={handleLeaderboard}
+            />
+
+            <div ref={challengesRef}>
+              <ChallengesStrip />
+            </div>
+
+            <div ref={categoriesRef}>
+              <CategoryGrid onSelect={handleSelectCategory} />
+            </div>
 
             <div ref={bibleRef}>
               <BibleLearningSection />

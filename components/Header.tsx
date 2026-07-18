@@ -34,7 +34,10 @@ export default function Header({
 
   return (
     <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-b border-gold-500/15 bg-navy-950/60 px-5 py-4 backdrop-blur-sm sm:px-8">
-      <button onClick={onHome} className="flex items-center gap-2.5">
+      <button
+        onClick={onHome}
+        className="flex items-center gap-2.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+      >
         <svg viewBox="0 0 24 24" className="h-7 w-7 flex-shrink-0">
           <path
             d="M12 2v9M12 11c-2.5 0-4-1.6-4-4M12 11c2.5 0 4-1.6 4-4M12 11c-4 0-7 1.4-7 5v5h14v-5c0-3.6-3-5-7-5Z"
@@ -55,19 +58,34 @@ export default function Header({
 
       <div className="flex items-center gap-3 sm:gap-5">
         <nav className="hidden items-center gap-5 text-sm font-medium text-[#c6cbd6] lg:flex">
-          <button onClick={onHome} className="transition-colors hover:text-gold-500">
+          <button
+            onClick={onHome}
+            className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
             {t.nav.home}
           </button>
-          <button onClick={onCategories} className="transition-colors hover:text-gold-500">
+          <button
+            onClick={onCategories}
+            className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
             {t.nav.categories}
           </button>
-          <button onClick={onBible} className="transition-colors hover:text-gold-500">
+          <button
+            onClick={onBible}
+            className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
             {t.bible.heading}
           </button>
-          <button onClick={onChurch} className="transition-colors hover:text-gold-500">
+          <button
+            onClick={onChurch}
+            className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
             {t.church.heading}
           </button>
-          <button onClick={onLeaderboard} className="transition-colors hover:text-gold-500">
+          <button
+            onClick={onLeaderboard}
+            className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
             {t.nav.leaderboard}
           </button>
         </nav>
@@ -82,7 +100,7 @@ export default function Header({
 
         <button
           onClick={() => setProfileOpen(true)}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-500/15 font-display text-sm font-bold text-gold-400 transition-colors hover:bg-gold-500/25"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-500/15 font-display text-sm font-bold text-gold-400 outline-none transition-colors hover:bg-gold-500/25 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           title={isGuest ? t.common.guest : displayName}
         >
           {displayName.charAt(0)}
