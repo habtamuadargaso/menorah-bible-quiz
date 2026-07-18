@@ -165,6 +165,28 @@ export interface UIStrings {
     quizzesCompleted: string;
     totalXp: string;
     badgesHeading: string;
+    heroTagline: string;
+    xpProgressHeading: string;
+    totalGames: string;
+    questionsAnswered: string;
+    correctAnswers: string;
+    longestStreak: string;
+    currentStreak: string;
+    totalCoins: string;
+    dailyGoalHeading: string;
+    dailyGoalQuestionsLabel: string;
+    dailyGoalXpLabel: string;
+    dailyGoalComplete: string;
+    recentActivityHeading: string;
+    recentActivityEmpty: string;
+    favoriteCategoriesHeading: string;
+    favoriteCategoriesEmpty: string;
+    timesPlayed: string; // "{count}" placeholder
+    actionsHeading: string;
+    editProfile: string;
+    settings: string;
+    friends: string;
+    statisticsAction: string;
   };
   sound: {
     on: string;

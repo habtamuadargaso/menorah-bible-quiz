@@ -6,7 +6,6 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { loadProgress, levelForXp } from "@/lib/progress";
 import LanguageSelector from "./LanguageSelector";
 import SoundToggle from "./SoundToggle";
-import ProfileModal from "./ProfileModal";
 
 export default function Header({
   onHome,
@@ -14,23 +13,27 @@ export default function Header({
   onBible,
   onChurch,
   onLeaderboard,
+  onProfile,
+  stage,
 }: {
   onHome: () => void;
   onCategories: () => void;
   onBible: () => void;
   onChurch: () => void;
   onLeaderboard: () => void;
+  onProfile: () => void;
+  stage: string;
 }) {
   const { t } = useLanguage();
   const { user, isGuest } = useAuth();
   const displayName = user?.displayName ?? t.common.guest;
   const [level, setLevel] = useState(1);
-  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     setLevel(levelForXp(loadProgress().totalXp).level);
-    // re-read whenever the profile modal closes, in case XP just changed
-  }, [profileOpen]);
+    // re-read whenever the visible stage changes, in case XP just changed
+    // (e.g. navigating away from the result screen after a quiz)
+  }, [stage]);
 
   return (
     <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-b border-gold-500/15 bg-navy-950/60 px-5 py-4 backdrop-blur-sm sm:px-8">
@@ -99,15 +102,14 @@ export default function Header({
         <LanguageSelector />
 
         <button
-          onClick={() => setProfileOpen(true)}
+          onClick={onProfile}
           className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-500/15 font-display text-sm font-bold text-gold-400 outline-none transition-colors hover:bg-gold-500/25 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           title={isGuest ? t.common.guest : displayName}
+          aria-label={t.profile.title}
         >
           {displayName.charAt(0)}
         </button>
       </div>
-
-      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   );
 }
