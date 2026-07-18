@@ -19,6 +19,9 @@ import BattleSummary from "@/components/battle/BattleSummary";
 
 const ROUND_SECONDS = 15;
 const REVEAL_SECONDS = 4;
+// Consecutive failed room lookups required before we declare the room
+// truly not-found (see notFoundStreakRef below).
+const NOT_FOUND_THRESHOLD = 5;
 
 type RoomStatus = "waiting" | "playing" | "revealing" | "finished";
 
@@ -86,13 +89,20 @@ export default function OnlineBattlePage() {
   const [userId, setUserId] = useState("");
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(tb.loadingBattle);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessingRound, setIsProcessingRound] = useState(false);
   const previousQuestionRef = useRef(0);
   const streakRef = useRef(0);
   const lastStreakRoundRef = useRef<number | null>(null);
   const rewardsAwardedRef = useRef(false);
+  // A single missed lookup can happen for reasons that have nothing to do
+  // with the room genuinely being gone (a slow first auth check, a brief
+  // network hiccup, realtime firing a fetch a beat before the row is
+  // visible). Only declare the room truly not-found after several
+  // consecutive misses, so a valid room is never misreported.
+  const notFoundStreakRef = useRef(0);
+  const [confirmedNotFound, setConfirmedNotFound] = useState(false);
   const [battleRewards, setBattleRewards] = useState<{
     xpEarned: number;
     coinsEarned: number;
@@ -123,9 +133,21 @@ export default function OnlineBattlePage() {
         .maybeSingle();
       if (roomError) throw roomError;
       if (!roomData) {
-        setMessage(tb.roomNotFound);
+        notFoundStreakRef.current += 1;
+        if (notFoundStreakRef.current >= NOT_FOUND_THRESHOLD) {
+          setConfirmedNotFound(true);
+          setMessage(tb.roomNotFound);
+        } else {
+          // Still within the grace period — this looks exactly like normal
+          // loading to the player, never the "not found" wording, so a
+          // valid room never flashes a false error while it resolves.
+          setMessage(tb.loadingBattle);
+        }
         return;
       }
+
+      notFoundStreakRef.current = 0;
+      setConfirmedNotFound(false);
 
       const activeRoom = roomData as Room;
       setRoom(activeRoom);
@@ -196,9 +218,60 @@ export default function OnlineBattlePage() {
 
   useEffect(() => {
     void loadBattleState();
-    const intervalId = window.setInterval(() => void loadBattleState(), 700);
+    // Poll quickly until the room is first found (so a genuinely bad code
+    // reaches the confirmed-not-found threshold within a few seconds, not
+    // tens of seconds). Once the room has loaded, realtime (below) carries
+    // the fast path and this becomes a slower resilience fallback for the
+    // rare case a realtime event is missed (e.g. a tab resuming from
+    // background) — it's also what restores state after a refresh.
+    const intervalMs = room?.id ? 4000 : 700;
+    const intervalId = window.setInterval(() => void loadBattleState(), intervalMs);
     return () => window.clearInterval(intervalId);
-  }, [loadBattleState]);
+  }, [loadBattleState, room?.id]);
+
+  // Realtime: the room itself (status flips, current_question advances,
+  // the synchronized question_ends_at timestamp). Filtered by room code
+  // since we don't have the room's id until the first successful load.
+  useEffect(() => {
+    if (!code) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`battle-room-${code}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "rooms", filter: `code=eq.${code}` },
+        () => void loadBattleState()
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [code, loadBattleState]);
+
+  // Realtime: players joining/leaving/scoring, and every answer submitted
+  // by anyone in the room — this is what makes the player list, live
+  // status strip, and leaderboard update instantly instead of waiting for
+  // the next poll tick.
+  useEffect(() => {
+    if (!room?.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`battle-room-players-${room.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "room_players", filter: `room_id=eq.${room.id}` },
+        () => void loadBattleState()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "answers", filter: `room_id=eq.${room.id}` },
+        () => void loadBattleState()
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [room?.id, loadBattleState]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -385,6 +458,28 @@ export default function OnlineBattlePage() {
     revealing && mineThisRound
       ? { correct: mineThisRound.is_correct, pointsAwarded: mineThisRound.points_awarded, streak: streakRef.current }
       : null;
+
+  if (confirmedNotFound) {
+    return (
+      <main
+        className="flex min-h-screen w-full items-center justify-center px-4 py-8 text-center text-[#f3efe2] sm:px-8"
+        style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
+      >
+        <div className="rounded-card border border-white/10 bg-white/[0.04] p-8 shadow-premium">
+          <p className="text-lg font-semibold">{tb.roomNotFound}</p>
+          <motion.button
+            type="button"
+            onClick={() => router.push("/multiplayer")}
+            whileHover={reduceMotion ? undefined : { y: -2, scale: 1.02 }}
+            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+            className="mt-5 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-6 py-3 text-sm font-bold text-navy-900 shadow-gold outline-none transition-shadow hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
+            {tb.returnToMultiplayer}
+          </motion.button>
+        </div>
+      </main>
+    );
+  }
 
   if (room?.status === "finished") {
     return (
