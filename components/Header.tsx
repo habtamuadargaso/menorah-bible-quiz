@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { loadProgress, levelForXp } from "@/lib/progress";
@@ -91,6 +92,12 @@ export default function Header({
           >
             {t.nav.leaderboard}
           </button>
+          <Link
+            href="/leaderboard"
+            className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
+            {t.globalLeaderboard.navLabel}
+          </Link>
         </nav>
 
         <div className="hidden items-center gap-1.5 rounded-full border border-gold-500/25 px-3 py-1 text-xs font-semibold text-gold-400 sm:flex">

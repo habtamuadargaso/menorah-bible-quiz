@@ -325,4 +325,57 @@ export interface UIStrings {
     secondsShort: string;
     returnToMultiplayer: string;
   };
+  globalLeaderboard: {
+    navLabel: string;
+    heading: string;
+    subheading: string;
+    filterGlobal: string;
+    filterWeekly: string;
+    filterMonthly: string;
+    filterAllTime: string;
+    filterFriends: string;
+    filterChurch: string;
+    metricTotalXp: string;
+    metricBattleWins: string;
+    metricAccuracy: string;
+    metricCorrectAnswers: string;
+    metricWinStreak: string;
+    metricFastestResponse: string;
+    podiumHeading: string;
+    columnRank: string;
+    columnPlayer: string;
+    columnCountry: string;
+    columnChurch: string;
+    columnLevel: string;
+    columnWins: string;
+    columnStreak: string;
+    youBadge: string;
+    loading: string;
+    emptyHeading: string;
+    emptyBody: string;
+    errorHeading: string;
+    errorBody: string;
+    retry: string;
+    loadMore: string;
+    showingCount: string; // "{shown}" / "{total}" placeholders
+    yourGlobalRank: string;
+    yourWeeklyRank: string;
+    distanceToNextRank: string; // "{xp}" / "{rank}" placeholders
+    alreadyTopRank: string;
+    rankUp: string;
+    rankDown: string;
+    rankSame: string;
+    notRankedYet: string;
+    searchPlaceholder: string;
+    clearSearch: string;
+    noSearchResults: string;
+    previewFavoriteCategory: string;
+    previewBestStreak: string;
+    previewClose: string;
+    friendsEmptyHeading: string;
+    friendsEmptyBody: string;
+    churchEmptyHeading: string;
+    churchEmptyBody: string;
+    devModeBadge: string;
+  };
 }
