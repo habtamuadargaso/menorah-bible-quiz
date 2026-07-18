@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CategoryId } from "@/lib/categories";
 import { loadQuestionsForGame } from "@/lib/questions/loadQuestionsForGame";
@@ -40,6 +40,164 @@ function Heart({ filled }: { filled: boolean }) {
   );
 }
 
+// A small pill used for the Level / XP / Coins readouts in the header.
+function HeaderStat({
+  icon,
+  label,
+  tone = "gold",
+}: {
+  icon: ReactNode;
+  label: string;
+  tone?: "gold" | "purple";
+}) {
+  return (
+    <div
+      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+        tone === "gold"
+          ? "border-gold-500/25 bg-gold-500/10 text-gold-400"
+          : "border-purple-400/25 bg-purple-500/10 text-purple-200"
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </div>
+  );
+}
+
+// The large circular countdown. Purple track, gold progress arc, with a
+// gentle pulse in the last 5 seconds and an urgent pulse in the last 3 —
+// purely presentational; the countdown itself lives entirely in QuizCard.
+const CircularTimer = memo(function CircularTimer({
+  timeLeft,
+  timerPct,
+  timerColor,
+}: {
+  timeLeft: number;
+  timerPct: number;
+  timerColor: string;
+}) {
+  const urgent = timeLeft <= 3;
+  const warning = timeLeft <= 5;
+
+  return (
+    <motion.div
+      className="relative flex h-24 w-24 items-center justify-center rounded-full sm:h-28 sm:w-28"
+      animate={
+        urgent
+          ? { scale: [1, 1.08, 1] }
+          : warning
+          ? { scale: [1, 1.04, 1] }
+          : { scale: 1 }
+      }
+      transition={
+        warning
+          ? { duration: urgent ? 0.5 : 0.9, repeat: Infinity, ease: "easeInOut" }
+          : { duration: 0.25 }
+      }
+      role="timer"
+      aria-label={`${timeLeft} seconds remaining`}
+    >
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{ background: "conic-gradient(rgba(139,92,246,0.35) 100%, transparent 0)" }}
+      />
+      <div
+        className="absolute inset-[3px] rounded-full transition-[background] duration-300"
+        style={{
+          background: `conic-gradient(${timerColor} ${timerPct}%, rgba(255,255,255,0.08) 0)`,
+        }}
+      />
+      <div
+        className="absolute inset-[10px] flex items-center justify-center rounded-full bg-navy-950 text-2xl font-extrabold shadow-[inset_0_0_18px_rgba(0,0,0,0.4)] sm:text-3xl"
+        style={{ color: timerColor }}
+      >
+        {timeLeft}
+      </div>
+    </motion.div>
+  );
+});
+
+type AnswerState = "idle" | "correct" | "wrong" | "muted";
+
+// One answer choice. Memoized so ticking the timer every second doesn't
+// re-render all four buttons — only locked/selected changes do.
+const AnswerOption = memo(function AnswerOption({
+  label,
+  state,
+  disabled,
+  optionLetter,
+  choiceIndex,
+  onSelect,
+}: {
+  label: string;
+  state: AnswerState;
+  disabled: boolean;
+  optionLetter: string;
+  choiceIndex: number;
+  onSelect: (choiceIndex: number) => void;
+}) {
+  const stateClasses: Record<AnswerState, string> = {
+    idle: "border-white/15 bg-white/[0.04] text-[#f3efe2] hover:border-gold-500/50 hover:bg-white/[0.07]",
+    correct: "border-emerald-400/70 bg-emerald-500/15 text-[#f3efe2] shadow-[0_0_24px_rgba(52,211,153,0.35)]",
+    wrong: "border-red-400/70 bg-red-500/15 text-[#f3efe2] shadow-[0_0_20px_rgba(239,68,68,0.25)]",
+    muted: "border-white/10 bg-white/[0.02] text-[#7c8394]",
+  };
+
+  const ariaSuffix =
+    state === "correct" ? ", correct answer" : state === "wrong" ? ", your answer, incorrect" : "";
+
+  return (
+    <motion.button
+      type="button"
+      disabled={disabled}
+      onClick={() => onSelect(choiceIndex)}
+      aria-label={`${label}${ariaSuffix}`}
+      aria-pressed={state === "correct" || state === "wrong"}
+      whileHover={disabled ? undefined : { y: -2, scale: 1.015 }}
+      whileTap={disabled ? undefined : { scale: 0.98 }}
+      transition={{ duration: 0.2 }}
+      className={`flex min-h-[64px] items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-left text-[15px] font-medium outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${stateClasses[state]}`}
+    >
+      <span className="flex items-center gap-3">
+        <span
+          className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border text-xs font-bold ${
+            state === "correct"
+              ? "border-emerald-400/60 text-emerald-300"
+              : state === "wrong"
+              ? "border-red-400/60 text-red-300"
+              : "border-white/20 text-[#9aa1b0]"
+          }`}
+        >
+          {optionLetter}
+        </span>
+        <span>{label}</span>
+      </span>
+      {state === "correct" && (
+        <motion.svg
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.25 }}
+          viewBox="0 0 24 24"
+          className="h-5 w-5 flex-shrink-0 text-emerald-300"
+        >
+          <path d="M4 12.5 9.5 18 20 6" stroke="currentColor" strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </motion.svg>
+      )}
+      {state === "wrong" && (
+        <motion.svg
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.25 }}
+          viewBox="0 0 24 24"
+          className="h-5 w-5 flex-shrink-0 text-red-300"
+        >
+          <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth={2.4} fill="none" strokeLinecap="round" />
+        </motion.svg>
+      )}
+    </motion.button>
+  );
+});
+
 export default function QuizCard({
   categoryId,
   difficulty,
@@ -71,6 +229,16 @@ export default function QuizCard({
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [timeLeft, setTimeLeft] = useState(timePerQuestion);
   const autoNextRef = useRef<number | null>(null);
+  // Mirrors `timeLeft` so handleAnswer can read the latest value without
+  // needing timeLeft in its own dependency array — that keeps its identity
+  // (and therefore the memoized answer buttons) stable across every
+  // one-second timer tick, instead of recreating/re-rendering them 15
+  // times per question.
+  const timeLeftRef = useRef(timeLeft);
+
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+  }, [timeLeft]);
 
   const current: Question | undefined = questions[index];
   const isLast =
@@ -160,35 +328,39 @@ export default function QuizCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, locked, current]);
 
-  function handleAnswer(choiceIndex: number, autoAdvance = false) {
-    if (locked || !current) return;
-    const isCorrect = choiceIndex === current.correctIndex;
-    setLocked(true);
-    setSelected(choiceIndex);
-    if (isCorrect) {
-      playCorrectSound();
-      const answeredUnderFiveSeconds = timePerQuestion - timeLeft < 5;
-      const newStreak = streak + 1;
-      setStreak(newStreak);
-      setBestStreak((b) => Math.max(b, newStreak));
-      setScore((s) => s + 100 + newStreak * 20 + (answeredUnderFiveSeconds ? 50 : 0));
-      setCorrectCount((c) => c + 1);
-      if (answeredUnderFiveSeconds) setFastAnswers((c) => c + 1);
-    } else {
-      if (choiceIndex === -1) playTimeoutSound();
-      else playWrongSound();
-      setStreak(0);
-      setLives((l) => Math.max(0, l - 1));
-    }
+  const handleAnswer = useCallback(
+    function handleAnswer(choiceIndex: number, autoAdvance = false) {
+      if (locked || !current) return;
+      const isCorrect = choiceIndex === current.correctIndex;
+      setLocked(true);
+      setSelected(choiceIndex);
+      if (isCorrect) {
+        playCorrectSound();
+        const answeredUnderFiveSeconds = timePerQuestion - timeLeftRef.current < 5;
+        const newStreak = streak + 1;
+        setStreak(newStreak);
+        setBestStreak((b) => Math.max(b, newStreak));
+        setScore((s) => s + 100 + newStreak * 20 + (answeredUnderFiveSeconds ? 50 : 0));
+        setCorrectCount((c) => c + 1);
+        if (answeredUnderFiveSeconds) setFastAnswers((c) => c + 1);
+      } else {
+        if (choiceIndex === -1) playTimeoutSound();
+        else playWrongSound();
+        setStreak(0);
+        setLives((l) => Math.max(0, l - 1));
+      }
 
-    // If time runs out, automatically move forward so the game keeps flowing
-    // through all 10 questions without the player needing to click.
-    if (autoAdvance) {
-      autoNextRef.current = window.setTimeout(() => {
-        handleNext();
-      }, 1400);
-    }
-  }
+      // If time runs out, automatically move forward so the game keeps flowing
+      // through all 10 questions without the player needing to click.
+      if (autoAdvance) {
+        autoNextRef.current = window.setTimeout(() => {
+          handleNext();
+        }, 1400);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [locked, current, streak, timePerQuestion]
+  );
 
   function finish() {
     playFinishSound();
@@ -213,20 +385,24 @@ export default function QuizCard({
     });
   }
 
-  function handleNext() {
-    if (autoNextRef.current !== null) {
-      window.clearTimeout(autoNextRef.current);
-      autoNextRef.current = null;
-    }
-    if (isLast) {
-      finish();
-      return;
-    }
-    setIndex((i) => i + 1);
-    setSelected(null);
-    setLocked(false);
-    setTimeLeft(timePerQuestion);
-  }
+  const handleNext = useCallback(
+    function handleNext() {
+      if (autoNextRef.current !== null) {
+        window.clearTimeout(autoNextRef.current);
+        autoNextRef.current = null;
+      }
+      if (isLast) {
+        finish();
+        return;
+      }
+      setIndex((i) => i + 1);
+      setSelected(null);
+      setLocked(false);
+      setTimeLeft(timePerQuestion);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isLast, timePerQuestion]
+  );
 
   if (loadingQuestions) {
     return (
@@ -243,7 +419,7 @@ export default function QuizCard({
         <div className="mt-6">
           <button
             onClick={onExit}
-            className="rounded-full border border-gold-500/50 px-6 py-3 text-sm font-semibold text-gold-500 hover:bg-gold-500/10"
+            className="rounded-full border border-gold-500/50 px-6 py-3 text-sm font-semibold text-gold-500 outline-none transition-colors hover:bg-gold-500/10 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             {t.quiz.backToCategories}
           </button>
@@ -255,60 +431,69 @@ export default function QuizCard({
   const progressPct = Math.round(((index + 1) / questions.length) * 100);
   const timerPct = Math.round((timeLeft / timePerQuestion) * 100);
   const timerColor = timeLeft <= 5 ? "#e0655f" : "#e8c15f";
+  const optionLetters = ["A", "B", "C", "D"];
+  const tier = level <= 3 ? t.campaign.foundation : level <= 7 ? t.campaign.growingDisciple : t.campaign.scriptureMaster;
 
   return (
-    <section id="quiz" className="mx-auto max-w-xl px-5 pb-24 pt-4">
+    <section id="quiz" className="mx-auto max-w-2xl px-5 pb-24 pt-4">
       {usedFallback && (
         <div className="mb-4 rounded-xl border border-gold-500/25 bg-gold-500/5 px-4 py-2 text-center text-xs text-gold-300">
           {t.quiz.fallbackNotice}
         </div>
       )}
 
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-y-1 text-xs">
-        <span className="font-semibold uppercase tracking-wide text-gold-500">
-          {t.common.level} {level}/{MAX_GAME_LEVEL} · {level <= 3 ? t.campaign.foundation : level <= 7 ? t.campaign.growingDisciple : t.campaign.scriptureMaster} · {categoryText?.title} · {t.quiz.difficulty[difficulty]}
-        </span>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1" aria-label={t.common.lives}>
-            {Array.from({ length: MAX_LIVES }).map((_, i) => (
-              <Heart key={i} filled={i < lives} />
-            ))}
-          </div>
-          {streak >= 2 && (
-            <span className="font-semibold text-gold-500">
-              🔥 {streak} {t.quiz.streak}
-            </span>
-          )}
-          {fastAnswers > 0 && <span className="font-semibold text-gold-300">⚡ {fastAnswers}</span>}
-          <span className="text-[#9aa1b0]">
-            {t.common.level} {level} · {t.quiz.questionLabel} {index + 1} {t.quiz.ofLabel} {questions.length}
-          </span>
-          <button onClick={onExit} className="text-[#c6cbd6] hover:text-gold-500">
+      {/* premium header */}
+      <div className="mb-5 rounded-[22px] border border-white/10 bg-white/[0.03] p-4 shadow-premium backdrop-blur-md sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <button
+            onClick={onExit}
+            className="flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold text-[#c6cbd6] outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
+            <span aria-hidden>←</span>
             {t.quiz.quit}
           </button>
-        </div>
-      </div>
 
-      <div className="mb-7 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-        <motion.div
-          className="h-full rounded-full bg-gradient-to-r from-gold-600 to-gold-400"
-          animate={{ width: `${progressPct}%` }}
-          transition={{ duration: 0.4 }}
-        />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <HeaderStat tone="purple" icon={<span aria-hidden>⭐</span>} label={`${t.common.level} ${level}`} />
+            <HeaderStat
+              tone="gold"
+              icon={<span aria-hidden>✦</span>}
+              label={`${t.quiz.questionLabel} ${index + 1}/${questions.length}`}
+            />
+            <HeaderStat tone="gold" icon={<span aria-hidden>⚡</span>} label={`${t.common.xp} ${score}`} />
+            <HeaderStat tone="purple" icon={<span aria-hidden>🪙</span>} label={`${correctCount * 5}`} />
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-y-1 text-xs">
+          <span className="font-semibold uppercase tracking-wide text-[#9aa1b0]">
+            {tier} · {categoryText?.title} · {t.quiz.difficulty[difficulty]}
+          </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1" aria-label={t.common.lives}>
+              {Array.from({ length: MAX_LIVES }).map((_, i) => (
+                <Heart key={i} filled={i < lives} />
+              ))}
+            </div>
+            {streak >= 2 && (
+              <span className="font-semibold text-gold-500">
+                🔥 {streak} {t.quiz.streak}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+          <motion.div
+            className="h-full rounded-full bg-gradient-to-r from-purple-400 to-gold-400"
+            animate={{ width: `${progressPct}%` }}
+            transition={{ duration: 0.3 }}
+          />
+        </div>
       </div>
 
       <div className="mb-6 flex justify-center">
-        <div
-          className="flex h-16 w-16 items-center justify-center rounded-full"
-          style={{ background: `conic-gradient(${timerColor} ${timerPct}%, rgba(255,255,255,0.12) 0)` }}
-        >
-          <div
-            className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-navy-900 text-lg font-bold"
-            style={{ color: timerColor }}
-          >
-            {timeLeft}
-          </div>
-        </div>
+        <CircularTimer timeLeft={timeLeft} timerPct={timerPct} timerColor={timerColor} />
       </div>
 
       <AnimatePresence mode="wait">
@@ -318,12 +503,12 @@ export default function QuizCard({
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -24 }}
           transition={{ duration: 0.3 }}
-          className="rounded-[22px] border border-gold-500/20 bg-white/[0.045] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.35)] sm:p-9"
+          className="relative overflow-hidden rounded-card border border-gold-500/20 bg-glass-gold p-6 shadow-premium-lg backdrop-blur-md sm:p-9"
         >
           <div className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-[#8d94a3]">
             {t.quiz.difficulty[current.difficulty]}
           </div>
-          <div className="mb-7 text-center font-display text-2xl font-semibold leading-snug text-[#fbf6e8] sm:text-[28px]">
+          <div className="mb-7 text-center font-display text-2xl font-semibold leading-snug text-[#fbf6e8] sm:text-[28px] md:text-3xl">
             {current.question}
           </div>
 
@@ -331,23 +516,22 @@ export default function QuizCard({
             {current.choices.map((choice, i) => {
               const isCorrectChoice = i === current.correctIndex;
               const isSelected = selected === i;
-              let cls =
-                "flex items-center justify-between gap-2 rounded-2xl border px-5 py-4 text-left text-[15px] font-medium transition-colors ";
-              if (!locked) {
-                cls += "border-white/15 bg-white/[0.03] text-[#f3efe2] hover:border-gold-500/50 hover:bg-white/[0.06] cursor-pointer";
-              } else if (isCorrectChoice) {
-                cls += "border-gold-500 bg-gold-500/20 text-[#fbf6e8]";
-              } else if (isSelected) {
-                cls += "border-red-400/70 bg-red-500/15 text-[#f3efe2]";
-              } else {
-                cls += "border-white/10 bg-white/[0.02] text-[#7c8394]";
+              let state: AnswerState = "idle";
+              if (locked) {
+                if (isCorrectChoice) state = "correct";
+                else if (isSelected) state = "wrong";
+                else state = "muted";
               }
               return (
-                <button key={i} disabled={locked} onClick={() => handleAnswer(i)} className={cls}>
-                  <span>{choice}</span>
-                  {locked && isCorrectChoice && <span className="font-bold">✓</span>}
-                  {locked && isSelected && !isCorrectChoice && <span className="font-bold">✕</span>}
-                </button>
+                <AnswerOption
+                  key={i}
+                  label={choice}
+                  state={state}
+                  disabled={locked}
+                  optionLetter={optionLetters[i] ?? String(i + 1)}
+                  choiceIndex={i}
+                  onSelect={handleAnswer}
+                />
               );
             })}
           </div>
@@ -358,18 +542,25 @@ export default function QuizCard({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25 }}
                 className="mt-6 overflow-hidden"
               >
                 <div className="rounded-2xl border border-gold-500/25 bg-navy-900/60 p-5">
-                  <div className="mb-1 text-sm font-semibold text-gold-500">{current.reference}</div>
+                  <div className="mb-1.5 flex items-center gap-2 text-sm font-bold text-gold-500">
+                    <span aria-hidden>📖</span>
+                    {current.reference}
+                  </div>
                   <p className="text-sm leading-relaxed text-[#c6cbd6]">{current.explanation}</p>
                 </div>
-                <button
+                <motion.button
                   onClick={handleNext}
-                  className="mt-5 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 py-3.5 text-[15px] font-bold text-navy-900 shadow-gold transition-transform hover:-translate-y-0.5"
+                  whileHover={{ y: -2, scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-5 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 py-3.5 text-[15px] font-bold text-navy-900 shadow-gold outline-none transition-shadow duration-300 hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
                 >
                   {isLast ? t.quiz.seeResults : t.quiz.nextQuestion}
-                </button>
+                </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
