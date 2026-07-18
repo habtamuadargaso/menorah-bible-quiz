@@ -69,6 +69,27 @@ export const en: UIStrings = {
     restartButton: "Restart Quiz",
     backToCategoriesButton: "Back to Categories",
     leaderboardButton: "Leaderboard",
+    headline: {
+      perfect: "Perfect!",
+      levelComplete: "Level Complete!",
+      keepStudying: "Keep Studying!",
+    },
+    perfectRoundBanner: "Perfect round! Your bonus XP and coins are already included below.",
+    stats: {
+      wrongAnswers: "Wrong Answers",
+      timeBonus: "Time Bonus",
+      xpEarned: "XP Earned",
+      coinsEarned: "Coins Earned",
+      perfectBonusIncluded: "Perfect Bonus (Included)",
+    },
+    playerProgress: "Player Progress",
+    nextPlayerLevel: "Next player level",
+    fastSuffix: "fast",
+    encouragementHeading: "Word of Encouragement",
+    shareLabel: "Share your result",
+    shareButton: "Share",
+    shareCopied: "Copied!",
+    shareText: "I scored {score} points ({correct}/{total}) on {category} in {appName}!",
   },
   leaderboard: {
     heading: "Leaderboard",
@@ -86,6 +107,7 @@ export const en: UIStrings = {
     level: "Level",
     xp: "XP",
     lives: "Lives",
+    appName: "Menorah Bible Quiz",
   },
   difficultySection: {
     heading: "Choose Your Difficulty",
@@ -99,6 +121,7 @@ export const en: UIStrings = {
   achievements: {
     heading: "Badges",
     newBadge: "New Badge!",
+    newTag: "New",
     list: {
       first_quiz: { title: "First Steps", description: "Complete your first quiz" },
       perfect_score: { title: "Perfect Score", description: "Answer every question correctly" },

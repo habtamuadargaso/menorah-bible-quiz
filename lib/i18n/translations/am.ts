@@ -72,6 +72,27 @@ export const am: UIStrings = {
     restartButton: "ጥያቄ እንደገና ጀምር",
     backToCategoriesButton: "ወደ ምድቦች ተመለስ",
     leaderboardButton: "ደረጃ ሰንጠረዥ",
+    headline: {
+      perfect: "ፍጹም!",
+      levelComplete: "ደረጃ ተጠናቅቋል!",
+      keepStudying: "መማርዎን ይቀጥሉ!",
+    },
+    perfectRoundBanner: "ፍጹም ዙር! የጉርሻ ልምድ ነጥብዎና ሳንቲምዎ ከታች ባለው ውስጥ ተካትተዋል።",
+    stats: {
+      wrongAnswers: "የተሳሳቱ መልሶች",
+      timeBonus: "የጊዜ ጉርሻ",
+      xpEarned: "የተገኘ ልምድ ነጥብ",
+      coinsEarned: "የተገኙ ሳንቲሞች",
+      perfectBonusIncluded: "የፍጹምነት ጉርሻ (ተካትቷል)",
+    },
+    playerProgress: "የተጫዋች እድገት",
+    nextPlayerLevel: "ቀጣይ የተጫዋች ደረጃ",
+    fastSuffix: "ፈጣን",
+    encouragementHeading: "የማበረታቻ ቃል",
+    shareLabel: "ውጤትዎን ያጋሩ",
+    shareButton: "አጋራ",
+    shareCopied: "ተቀድቷል!",
+    shareText: "{score} ነጥብ ({correct}/{total}) በ{category} ውስጥ በ{appName} አግኝቻለሁ!",
   },
   leaderboard: {
     heading: "ደረጃ ሰንጠረዥ",
@@ -89,6 +110,7 @@ export const am: UIStrings = {
     level: "ደረጃ",
     xp: "ልምድ ነጥብ",
     lives: "ህይወቶች",
+    appName: "የመሲብ መጽሐፍ ቅዱስ ጥያቄ",
   },
   difficultySection: {
     heading: "የከበደት ደረጃ ይምረጡ",
@@ -102,6 +124,7 @@ export const am: UIStrings = {
   achievements: {
     heading: "ባጅዎች",
     newBadge: "አዲስ ባጅ!",
+    newTag: "አዲስ",
     list: {
       first_quiz: { title: "የመጀመሪያ እርምጃ", description: "የመጀመሪያ ጥያቄዎን ያጠናቅቁ" },
       perfect_score: { title: "ፍጹም ውጤት", description: "ሁሉንም ጥያቄዎች በትክክል ይመልሱ" },
