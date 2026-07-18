@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import type { ScoreEntry } from "@/lib/leaderboard";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import SectionBackdrop from "./SectionBackdrop";
 
 const AVATAR_THEMES = [
   "from-purple-400 to-purple-600",
@@ -30,7 +31,8 @@ export default function LeaderboardPreview({
   const rows = [...entries].sort((a, b) => b.score - a.score).slice(0, 5);
 
   return (
-    <section className="mx-auto max-w-3xl px-5 pb-14">
+    <section className="relative mx-auto max-w-3xl px-5 pb-14 pt-10">
+      <SectionBackdrop tint="purple" />
       <div className="rounded-card-lg border border-gold-500/25 bg-glass-gold p-6 shadow-premium-lg backdrop-blur-md sm:p-8">
         <div className="mb-6 flex items-center justify-between gap-3">
           <h2 className="font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl">

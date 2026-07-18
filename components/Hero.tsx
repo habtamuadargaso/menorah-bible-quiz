@@ -3,6 +3,16 @@
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
+const PARTICLES = [
+  { left: "12%", size: 3, duration: 9, delay: 0 },
+  { left: "22%", size: 2, duration: 11, delay: 1.5 },
+  { left: "38%", size: 2.5, duration: 8, delay: 3 },
+  { left: "58%", size: 2, duration: 10, delay: 0.8 },
+  { left: "72%", size: 3, duration: 12, delay: 2.2 },
+  { left: "85%", size: 2, duration: 9.5, delay: 4 },
+  { left: "48%", size: 2, duration: 10.5, delay: 5 },
+];
+
 export default function Hero({ onStart, onLeaderboard }: { onStart: () => void; onLeaderboard: () => void }) {
   const { t } = useLanguage();
 
@@ -23,6 +33,14 @@ export default function Hero({ onStart, onLeaderboard }: { onStart: () => void; 
           animate={{ scale: [1.05, 0.95, 1.05], opacity: [0.5, 0.8, 0.5] }}
           transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1 }}
         />
+        {/* extra depth layer: soft center glow tying the two side blobs together */}
+        <div
+          className="absolute inset-x-0 top-10 h-[520px]"
+          style={{
+            background:
+              "radial-gradient(45% 55% at 50% 30%, rgba(139,92,246,0.07) 0%, rgba(8,13,34,0) 70%)",
+          }}
+        />
         <div
           className="absolute inset-x-0 top-0 h-[70%]"
           style={{
@@ -30,6 +48,59 @@ export default function Hero({ onStart, onLeaderboard }: { onStart: () => void; 
               "radial-gradient(60% 60% at 50% 0%, rgba(232,193,95,0.08) 0%, rgba(8,13,34,0) 70%)",
           }}
         />
+
+        {/* radiating light rays behind the headline */}
+        <svg
+          viewBox="0 0 500 500"
+          className="absolute left-1/2 top-[6%] h-[500px] w-[500px] -translate-x-1/2 opacity-[0.07]"
+        >
+          {Array.from({ length: 12 }).map((_, i) => (
+            <line
+              key={i}
+              x1="250"
+              y1="120"
+              x2={250 + Math.cos((i * Math.PI) / 6) * 260}
+              y2={120 + Math.sin((i * Math.PI) / 6) * 260}
+              stroke="#e8c15f"
+              strokeWidth="1"
+            />
+          ))}
+        </svg>
+
+        {/* giant faint glowing menorah watermark behind the title */}
+        <svg
+          viewBox="0 0 24 24"
+          className="absolute left-1/2 top-[8%] h-[360px] w-[360px] -translate-x-1/2 opacity-[0.06] drop-shadow-[0_0_60px_rgba(232,193,95,0.4)]"
+        >
+          <path
+            d="M12 2v9M12 11c-2.5 0-4-1.6-4-4M12 11c2.5 0 4-1.6 4-4M9 5c-1.6 0-3 .8-3 2.5M15 5c1.6 0 3 .8 3 2.5M12 11c-4 0-7 1.4-7 5v5h14v-5c0-3.6-3-5-7-5Z"
+            stroke="#e8c15f"
+            strokeWidth={0.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </svg>
+
+        {/* floating particles drifting upward like embers */}
+        {PARTICLES.map((p, i) => (
+          <motion.span
+            key={i}
+            className="absolute bottom-0 rounded-full bg-gold-300/70"
+            style={{ left: p.left, width: p.size, height: p.size }}
+            animate={{
+              y: ["0%", "-420%"],
+              opacity: [0, 0.8, 0],
+            }}
+            transition={{
+              duration: p.duration,
+              delay: p.delay,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        ))}
+
         {/* vignette for depth */}
         <div
           className="absolute inset-0"
@@ -89,7 +160,7 @@ export default function Hero({ onStart, onLeaderboard }: { onStart: () => void; 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.15 }}
-        className="mx-auto mt-4 max-w-2xl font-display text-4xl font-bold leading-tight tracking-tight text-[#fbf6e8] sm:text-5xl md:text-6xl"
+        className="relative mx-auto mt-4 max-w-2xl font-display text-4xl font-bold leading-tight tracking-tight text-[#fbf6e8] sm:text-5xl md:text-6xl"
       >
         Menorah{" "}
         <span className="text-gold-500 drop-shadow-[0_0_28px_rgba(232,193,95,0.45)]">
@@ -121,18 +192,22 @@ export default function Hero({ onStart, onLeaderboard }: { onStart: () => void; 
         transition={{ duration: 0.6, delay: 0.34 }}
         className="mt-9 flex flex-wrap items-center justify-center gap-4"
       >
-        <button
+        <motion.button
           onClick={onStart}
-          className="rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-9 py-3.5 text-[15px] font-bold text-navy-900 shadow-gold outline-none transition-transform hover:-translate-y-0.5 hover:shadow-[0_0_42px_rgba(212,175,55,0.65)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          whileHover={{ y: -2, scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-9 py-3.5 text-[15px] font-bold text-navy-900 shadow-gold outline-none transition-shadow duration-300 hover:shadow-[0_0_50px_rgba(232,193,95,0.7)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           {t.hero.startButton}
-        </button>
-        <button
+        </motion.button>
+        <motion.button
           onClick={onLeaderboard}
-          className="rounded-full border border-gold-500/50 px-7 py-3.5 text-[15px] font-semibold text-gold-500 outline-none transition-colors hover:bg-gold-500/10 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          whileHover={{ y: -2, scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="rounded-full border border-gold-500/50 px-7 py-3.5 text-[15px] font-semibold text-gold-500 outline-none transition-all duration-300 hover:border-gold-400 hover:bg-gold-500/10 hover:shadow-[0_0_30px_rgba(232,193,95,0.35)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           {t.hero.leaderboardButton}
-        </button>
+        </motion.button>
       </motion.div>
 
       <div className="mx-auto mt-14 grid max-w-md grid-cols-3 gap-4">

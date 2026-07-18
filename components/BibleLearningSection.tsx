@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { getDailyVerse, getMemoryVerse, getVerseText } from "@/lib/bible/verses";
 import ComingSoonCard from "./ComingSoonCard";
+import SectionBackdrop from "./SectionBackdrop";
 
 function maskVerse(text: string) {
   // Blanks out every other word (keeps short words/punctuation-only tokens visible)
@@ -49,7 +50,8 @@ export default function BibleLearningSection() {
   const memoryText = getVerseText(memoryVerse, lang);
 
   return (
-    <section id="bible-learning" className="mx-auto max-w-5xl px-5 pb-20 pt-8">
+    <section id="bible-learning" className="relative mx-auto max-w-5xl px-5 pb-20 pt-10">
+      <SectionBackdrop tint="gold" />
       <div className="mb-10 text-center">
         <h2 className="font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl">{t.bible.heading}</h2>
         <p className="mt-2 text-[15px] text-[#a7aebd]">{t.bible.subheading}</p>

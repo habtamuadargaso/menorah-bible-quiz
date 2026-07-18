@@ -8,6 +8,7 @@ import type { CampaignProgress } from "@/lib/campaign";
 import { MAX_GAME_LEVEL } from "@/lib/levels";
 import { loadProgress, levelForXp } from "@/lib/progress";
 import CategoryIcon from "./CategoryIcon";
+import SectionBackdrop from "./SectionBackdrop";
 
 function ShimmerBar({
   pct,
@@ -77,7 +78,8 @@ export default function ContinuePlaying({
   const featuredPct = Math.round(((featured.level - 1) / MAX_GAME_LEVEL) * 100);
 
   return (
-    <section className="mx-auto max-w-6xl px-5 pb-14">
+    <section className="relative mx-auto max-w-6xl px-5 pb-14 pt-10">
+      <SectionBackdrop tint="gold" />
       <h2 className="mb-6 font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl">
         {isAmharic ? "ጨዋታዎን ይቀጥሉ" : "Continue Playing"}
       </h2>

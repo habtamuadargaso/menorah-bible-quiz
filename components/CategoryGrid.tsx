@@ -6,6 +6,145 @@ import { completeLevelCount } from "@/lib/questions";
 import { QUESTIONS_PER_LEVEL, MAX_GAME_LEVEL } from "@/lib/levels";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import CategoryIcon from "./CategoryIcon";
+import SectionBackdrop from "./SectionBackdrop";
+
+// Elegant, Bible-themed line-art motifs — one per category — so each
+// adventure card reads as a distinct place, not just a recolored icon.
+function CategoryMotif({ id, className }: { id: CategoryId; className?: string }) {
+  const common = { stroke: "currentColor", fill: "none" as const, strokeLinecap: "round" as const };
+
+  switch (id) {
+    case "old-testament":
+      // desert dunes under a distant sun
+      return (
+        <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
+          <circle cx="330" cy="40" r="22" {...common} strokeWidth={1} />
+          <path d="M0 110c60-30 100-30 140 0s100 30 140 0 100-30 120-10" {...common} strokeWidth={1.2} />
+          <path d="M0 130c60-24 100-24 140 0s100 24 140 0 100-24 120-8" {...common} strokeWidth={1} />
+        </svg>
+      );
+    case "new-testament":
+      // sunrise rays over a horizon
+      return (
+        <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
+          <path d="M200 90V10M140 95 100 30M260 95l40-65M90 110 30 70M310 110l60-40" {...common} strokeWidth={1.2} />
+          <path d="M0 112h400" {...common} strokeWidth={1} />
+        </svg>
+      );
+    case "life-of-jesus":
+      // radiant starburst
+      return (
+        <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
+          {Array.from({ length: 10 }).map((_, i) => {
+            const a = (i * Math.PI) / 5;
+            return (
+              <line
+                key={i}
+                x1={200}
+                y1={70}
+                x2={200 + Math.cos(a) * 110}
+                y2={70 + Math.sin(a) * 110}
+                {...common}
+                strokeWidth={1}
+              />
+            );
+          })}
+          <circle cx="200" cy="70" r="14" {...common} strokeWidth={1.3} />
+        </svg>
+      );
+    case "apostles":
+      // fishing net over gentle waves
+      return (
+        <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
+          {[20, 60, 100, 140].map((y) => (
+            <path key={`h${y}`} d={`M0 ${y}q50 20 100 0t100 0 100 0 100 0`} {...common} strokeWidth={0.8} />
+          ))}
+          {[40, 120, 200, 280, 360].map((x) => (
+            <line key={`v${x}`} x1={x} y1="0" x2={x} y2="140" {...common} strokeWidth={0.8} />
+          ))}
+        </svg>
+      );
+    case "bible-characters":
+      // scattered starfield
+      return (
+        <svg viewBox="0 0 400 140" className={className}>
+          {[
+            [30, 30, 2.4], [80, 70, 1.6], [130, 25, 2], [180, 90, 1.8], [230, 40, 2.6],
+            [270, 100, 1.6], [320, 30, 2.2], [360, 75, 1.8], [50, 110, 1.6], [300, 60, 2],
+          ].map(([cx, cy, r], i) => (
+            <circle key={i} cx={cx} cy={cy} r={r} fill="currentColor" stroke="none" />
+          ))}
+        </svg>
+      );
+    case "youth-challenge":
+      // dynamic energy chevrons
+      return (
+        <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
+          {[0, 1, 2, 3].map((i) => (
+            <path key={i} d={`M${-20 + i * 130} 140 100 20 ${220 + i * 130} 140`} {...common} strokeWidth={1.4} />
+          ))}
+        </svg>
+      );
+    case "psalms-proverbs":
+      // harp / lyre strings
+      return (
+        <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
+          <path d="M60 130C40 80 60 20 120 10" {...common} strokeWidth={1.4} />
+          <path d="M340 130C360 80 340 20 280 10" {...common} strokeWidth={1.4} />
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <line key={i} x1={122 + i * 24} y1="14" x2={112 + i * 24} y2="128" {...common} strokeWidth={0.9} />
+          ))}
+        </svg>
+      );
+    case "faith-prayer":
+      // soft clouds with gentle light
+      return (
+        <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
+          <path
+            d="M90 90a26 26 0 0 1 0-52 34 34 0 0 1 66-14 28 28 0 0 1 34 40 24 24 0 0 1-4 26Z"
+            {...common}
+            strokeWidth={1.1}
+          />
+          <path
+            d="M230 110a20 20 0 0 1 2-40 26 26 0 0 1 50-8 22 22 0 0 1 24 32Z"
+            {...common}
+            strokeWidth={1}
+          />
+        </svg>
+      );
+    case "gospel-challenge":
+      // layered flame
+      return (
+        <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
+          <path
+            d="M200 20c26 30 40 52 40 76a40 40 0 0 1-80 0c0-10 3-18 8-24 2 10 8 14 13 14-5-24 5-42 19-66Z"
+            {...common}
+            strokeWidth={1.2}
+          />
+          <path
+            d="M200 50c14 18 22 32 22 46a22 22 0 0 1-44 0c0-14 8-28 22-46Z"
+            {...common}
+            strokeWidth={0.9}
+          />
+        </svg>
+      );
+    case "hard-questions":
+    default:
+      // a quiet constellation of question marks
+      return (
+        <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
+          {[
+            [60, 60], [180, 40], [300, 70], [140, 100], [340, 30],
+          ].map(([cx, cy], i) => (
+            <g key={i} transform={`translate(${cx} ${cy})`}>
+              <path d="M-6-4a7 7 0 1 1 9 6c-3 1.5-4 3-4 6" {...common} strokeWidth={1.1} />
+              <circle cy="16" r="0.8" fill="currentColor" stroke="none" />
+            </g>
+          ))}
+        </svg>
+      );
+  }
+}
 
 export default function CategoryGrid({ onSelect }: { onSelect: (categoryId: CategoryId) => void }) {
   const { t, lang } = useLanguage();
@@ -18,7 +157,8 @@ export default function CategoryGrid({ onSelect }: { onSelect: (categoryId: Cate
       : `${readyLevels}/${MAX_GAME_LEVEL} levels ready · ${QUESTIONS_PER_LEVEL} questions per game`;
 
   return (
-    <section id="categories" className="mx-auto max-w-5xl px-5 pb-20 pt-4">
+    <section id="categories" className="relative mx-auto max-w-5xl px-5 pb-20 pt-10">
+      <SectionBackdrop tint="purple" />
       <div className="mb-10 text-center">
         <h2 className="font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl">
           {t.categoriesSection.heading}
@@ -60,11 +200,11 @@ export default function CategoryGrid({ onSelect }: { onSelect: (categoryId: Cate
               >
                 <div
                   aria-hidden
-                  className={`absolute h-48 w-48 opacity-[0.14] transition-transform duration-500 group-hover:scale-110 ${
+                  className={`absolute inset-0 opacity-[0.22] transition-transform duration-500 group-hover:scale-105 ${
                     isPurple ? "text-purple-300" : "text-gold-400"
                   }`}
                 >
-                  <CategoryIcon icon={category.icon} className="h-full w-full" />
+                  <CategoryMotif id={category.id} className="h-full w-full" />
                 </div>
 
                 <span

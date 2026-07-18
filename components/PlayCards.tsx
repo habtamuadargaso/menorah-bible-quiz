@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import SectionBackdrop from "./SectionBackdrop";
 
 type CardTheme = "gold" | "purple";
 type CardIconName = "single" | "online" | "daily" | "church";
@@ -147,7 +148,8 @@ export default function PlayCards({
   ];
 
   return (
-    <section className="mx-auto max-w-6xl px-5 pb-14">
+    <section className="relative mx-auto max-w-6xl px-5 pb-14 pt-10">
+      <SectionBackdrop tint="purple" />
       <div className="mb-8 text-center">
         <h2 className="font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl">
           {isAmharic ? "ጀብዱዎን ይምረጡ" : "Choose Your Adventure"}
