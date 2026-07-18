@@ -10,10 +10,17 @@ const config: Config = {
     extend: {
       colors: {
         navy: {
-          950: "#050b1c",
+          950: "#080d22",
           900: "#0b1f3a",
           800: "#12294f",
           700: "#1b3763",
+        },
+        purple: {
+          300: "#c9b6ff",
+          400: "#a78bfa",
+          500: "#8b5cf6",
+          600: "#7c3aed",
+          700: "#6524b8",
         },
         gold: {
           300: "#f5d998",
@@ -30,6 +37,8 @@ const config: Config = {
       boxShadow: {
         gold: "0 0 30px rgba(212,175,55,0.45)",
         "gold-lg": "0 20px 60px rgba(212,175,55,0.25)",
+        purple: "0 0 30px rgba(139,92,246,0.45)",
+        "purple-lg": "0 20px 60px rgba(139,92,246,0.25)",
       },
       keyframes: {
         glowPulse: {
