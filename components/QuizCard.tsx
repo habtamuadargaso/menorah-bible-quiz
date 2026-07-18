@@ -154,6 +154,8 @@ const AnswerOption = memo(function AnswerOption({
 
   const ariaSuffix =
     state === "correct" ? ", correct answer" : state === "wrong" ? ", your answer, incorrect" : "";
+  const reduceMotion = useReducedMotion();
+  const shake = state === "wrong" && !reduceMotion;
 
   return (
     <motion.button
@@ -162,9 +164,10 @@ const AnswerOption = memo(function AnswerOption({
       onClick={() => onSelect(choiceIndex)}
       aria-label={`${label}${ariaSuffix}`}
       aria-pressed={state === "correct" || state === "wrong"}
-      whileHover={disabled ? undefined : { y: -3, scale: 1.02 }}
-      whileTap={disabled ? undefined : { scale: 0.97 }}
-      transition={{ duration: 0.22, ease: "easeOut" }}
+      whileHover={disabled ? undefined : { y: -3, scale: 1.02, transition: { duration: 0.22, ease: "easeOut" } }}
+      whileTap={disabled ? undefined : { scale: 0.97, transition: { duration: 0.22, ease: "easeOut" } }}
+      animate={shake ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
+      transition={shake ? { duration: 0.4, ease: "easeInOut" } : { duration: 0.22, ease: "easeOut" }}
       className={`relative flex min-h-[64px] items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-left text-[15px] font-medium outline-none transition-[background-color,border-color,box-shadow] duration-200 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${stateClasses[state]}`}
     >
       {/* one-shot result ripple, plays once when this option resolves to correct/wrong */}
@@ -302,7 +305,7 @@ export default function QuizCard({
   // a heart-loss shake). Every value below is only READ from the real
   // game state above; nothing here writes back into it, so none of the
   // actual scoring, lives, or timer logic is touched.
-  const [rewardToast, setRewardToast] = useState<{ key: number; xp: number; coins: number } | null>(null);
+  const [rewardToast, setRewardToast] = useState<{ key: number; points: number; coins: number } | null>(null);
   const [confettiKey, setConfettiKey] = useState<number | null>(null);
   const [livesShakeKey, setLivesShakeKey] = useState(0);
   const prevScoreRef = useRef(score);
@@ -317,7 +320,7 @@ export default function QuizCard({
     if (scoreDelta <= 0) return;
 
     const key = Date.now();
-    setRewardToast({ key, xp: scoreDelta, coins: correctDelta * 5 });
+    setRewardToast({ key, points: scoreDelta, coins: correctDelta * 5 });
     if (!reduceMotion) setConfettiKey(key);
     const toastTimer = window.setTimeout(() => setRewardToast(null), 1300);
     const confettiTimer = window.setTimeout(() => setConfettiKey(null), 1000);
@@ -590,7 +593,7 @@ export default function QuizCard({
               icon={<span aria-hidden>✦</span>}
               label={`${t.quiz.questionLabel} ${index + 1}/${questions.length}`}
             />
-            <HeaderStat tone="gold" icon={<span aria-hidden>⚡</span>} label={`${t.common.xp} ${score}`} />
+            <HeaderStat tone="gold" icon={<span aria-hidden>⚡</span>} label={`${t.result.score} ${score}`} />
             <HeaderStat tone="purple" icon={<span aria-hidden>🪙</span>} label={`${correctCount * 5}`} />
           </div>
         </div>
@@ -607,7 +610,7 @@ export default function QuizCard({
                 transition={{ duration: 0.4, ease: "easeOut" }}
                 className="pointer-events-none absolute left-1/2 top-1 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-gold-400/40 bg-navy-950/90 px-4 py-1.5 text-sm font-bold shadow-gold"
               >
-                <span className="text-gold-300">⚡ +{rewardToast.xp} {t.common.xp}</span>
+                <span className="text-gold-300">⚡ +{rewardToast.points} {t.result.score}</span>
                 <span className="text-purple-200">🪙 +{rewardToast.coins}</span>
               </motion.div>
             )}
@@ -628,7 +631,7 @@ export default function QuizCard({
               }
               transition={{ duration: 0.4 }}
               className="flex items-center gap-1"
-              aria-label={t.common.lives}
+              aria-label={`${lives} of ${MAX_LIVES} ${t.common.lives.toLowerCase()} remaining`}
             >
               {Array.from({ length: MAX_LIVES }).map((_, i) => (
                 <Heart key={i} filled={i < lives} />
@@ -695,8 +698,13 @@ export default function QuizCard({
                 {t.quiz.difficulty[current.difficulty]}
               </span>
             </div>
-            <div className="mb-8 text-center font-display text-2xl font-bold leading-snug tracking-tight text-[#fbf6e8] sm:text-[28px] md:text-3xl">
+            <div className="mb-3 text-center font-display text-2xl font-bold leading-snug tracking-tight text-[#fbf6e8] sm:text-[28px] md:text-3xl">
               {current.question}
+            </div>
+
+            <div className="mb-6 flex items-center justify-center gap-2 text-sm font-bold text-gold-500">
+              <span aria-hidden>📖</span>
+              {current.reference}
             </div>
 
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
@@ -733,10 +741,6 @@ export default function QuizCard({
                   className="mt-6 overflow-hidden"
                 >
                   <div className="rounded-2xl border border-gold-500/25 bg-navy-900/60 p-5 shadow-premium">
-                    <div className="mb-1.5 flex items-center gap-2 text-sm font-bold text-gold-500">
-                      <span aria-hidden>📖</span>
-                      {current.reference}
-                    </div>
                     <p className="text-sm leading-relaxed text-[#c6cbd6]">{current.explanation}</p>
                   </div>
                   <motion.button
