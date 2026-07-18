@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { CategoryId } from "@/lib/categories";
 import { loadQuestionsForGame } from "@/lib/questions/loadQuestionsForGame";
 import type { Question, Difficulty } from "@/lib/questions/types";
@@ -29,7 +29,7 @@ export interface QuizResult {
 
 function Heart({ filled }: { filled: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4">
+    <svg viewBox="0 0 24 24" className="h-4 w-4 sm:h-[18px] sm:w-[18px]">
       <path
         d="M12 20s-7-4.35-9.5-8.8C.7 7.6 2.4 4 6 4c2 0 3.3 1.1 4 2.2C10.7 5.1 12 4 14 4c3.6 0 5.3 3.6 3.5 7.2C19 15.65 12 20 12 20Z"
         fill={filled ? "#e0655f" : "none"}
@@ -51,16 +51,24 @@ function HeaderStat({
   tone?: "gold" | "purple";
 }) {
   return (
-    <div
-      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold ${
+    <motion.div
+      whileHover={{ y: -1 }}
+      transition={{ duration: 0.2 }}
+      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-[0_4px_14px_rgba(0,0,0,0.25)] ${
         tone === "gold"
           ? "border-gold-500/25 bg-gold-500/10 text-gold-400"
           : "border-purple-400/25 bg-purple-500/10 text-purple-200"
       }`}
     >
-      {icon}
+      <span
+        className={`flex h-4 w-4 items-center justify-center text-[13px] ${
+          tone === "gold" ? "drop-shadow-[0_0_6px_rgba(232,193,95,0.6)]" : "drop-shadow-[0_0_6px_rgba(139,92,246,0.6)]"
+        }`}
+      >
+        {icon}
+      </span>
       <span>{label}</span>
-    </div>
+    </motion.div>
   );
 }
 
@@ -94,6 +102,7 @@ const CircularTimer = memo(function CircularTimer({
           ? { duration: urgent ? 0.5 : 0.9, repeat: Infinity, ease: "easeInOut" }
           : { duration: 0.25 }
       }
+      style={{ filter: `drop-shadow(0 0 18px ${timerColor}55)` }}
       role="timer"
       aria-label={`${timeLeft} seconds remaining`}
     >
@@ -137,9 +146,9 @@ const AnswerOption = memo(function AnswerOption({
   onSelect: (choiceIndex: number) => void;
 }) {
   const stateClasses: Record<AnswerState, string> = {
-    idle: "border-white/15 bg-white/[0.04] text-[#f3efe2] hover:border-gold-500/50 hover:bg-white/[0.07]",
-    correct: "border-emerald-400/70 bg-emerald-500/15 text-[#f3efe2] shadow-[0_0_24px_rgba(52,211,153,0.35)]",
-    wrong: "border-red-400/70 bg-red-500/15 text-[#f3efe2] shadow-[0_0_20px_rgba(239,68,68,0.25)]",
+    idle: "border-white/15 bg-white/[0.04] text-[#f3efe2] hover:border-gold-500/50 hover:bg-white/[0.07] hover:shadow-[0_0_28px_rgba(232,193,95,0.22)]",
+    correct: "border-emerald-400/70 bg-emerald-500/15 text-[#f3efe2] shadow-[0_0_28px_rgba(52,211,153,0.4)]",
+    wrong: "border-red-400/70 bg-red-500/15 text-[#f3efe2] shadow-[0_0_22px_rgba(239,68,68,0.28)]",
     muted: "border-white/10 bg-white/[0.02] text-[#7c8394]",
   };
 
@@ -153,12 +162,27 @@ const AnswerOption = memo(function AnswerOption({
       onClick={() => onSelect(choiceIndex)}
       aria-label={`${label}${ariaSuffix}`}
       aria-pressed={state === "correct" || state === "wrong"}
-      whileHover={disabled ? undefined : { y: -2, scale: 1.015 }}
-      whileTap={disabled ? undefined : { scale: 0.98 }}
-      transition={{ duration: 0.2 }}
-      className={`flex min-h-[64px] items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-left text-[15px] font-medium outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${stateClasses[state]}`}
+      whileHover={disabled ? undefined : { y: -3, scale: 1.02 }}
+      whileTap={disabled ? undefined : { scale: 0.97 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
+      className={`relative flex min-h-[64px] items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-left text-[15px] font-medium outline-none transition-[background-color,border-color,box-shadow] duration-200 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${stateClasses[state]}`}
     >
-      <span className="flex items-center gap-3">
+      {/* one-shot result ripple, plays once when this option resolves to correct/wrong */}
+      <AnimatePresence>
+        {(state === "correct" || state === "wrong") && (
+          <motion.span
+            key="ripple"
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-2xl"
+            style={{ border: `2px solid ${state === "correct" ? "#34d399" : "#f87171"}` }}
+            initial={{ opacity: 0.55, scale: 0.9 }}
+            animate={{ opacity: 0, scale: 1.12 }}
+            transition={{ duration: 0.55, ease: "easeOut" }}
+          />
+        )}
+      </AnimatePresence>
+
+      <span className="relative flex items-center gap-3">
         <span
           className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border text-xs font-bold ${
             state === "correct"
@@ -176,9 +200,9 @@ const AnswerOption = memo(function AnswerOption({
         <motion.svg
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.25 }}
+          transition={{ duration: 0.28, ease: "backOut" }}
           viewBox="0 0 24 24"
-          className="h-5 w-5 flex-shrink-0 text-emerald-300"
+          className="relative h-5 w-5 flex-shrink-0 text-emerald-300"
         >
           <path d="M4 12.5 9.5 18 20 6" stroke="currentColor" strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </motion.svg>
@@ -187,9 +211,9 @@ const AnswerOption = memo(function AnswerOption({
         <motion.svg
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.25 }}
+          transition={{ duration: 0.28, ease: "backOut" }}
           viewBox="0 0 24 24"
-          className="h-5 w-5 flex-shrink-0 text-red-300"
+          className="relative h-5 w-5 flex-shrink-0 text-red-300"
         >
           <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth={2.4} fill="none" strokeLinecap="round" />
         </motion.svg>
@@ -197,6 +221,39 @@ const AnswerOption = memo(function AnswerOption({
     </motion.button>
   );
 });
+
+// A brief burst of color when a correct answer lands — purely decorative,
+// triggered from outside by remounting with a new `burstKey`.
+const CONFETTI_PARTICLES = Array.from({ length: 14 }).map((_, i) => {
+  const angle = (i / 14) * Math.PI * 2;
+  const distance = 70 + (i % 3) * 24;
+  const colors = ["#e8c15f", "#a78bfa", "#34d399"];
+  return {
+    x: Math.cos(angle) * distance,
+    y: Math.sin(angle) * distance * 0.7 - 10,
+    rotate: (i % 2 === 0 ? 1 : -1) * (110 + i * 12),
+    color: colors[i % colors.length],
+    delay: (i % 5) * 0.025,
+    round: i % 2 === 0,
+  };
+});
+
+function ConfettiBurst({ burstKey }: { burstKey: number }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+      {CONFETTI_PARTICLES.map((p, i) => (
+        <motion.span
+          key={`${burstKey}-${i}`}
+          className={`absolute h-2 w-2 ${p.round ? "rounded-full" : "rounded-sm"}`}
+          style={{ backgroundColor: p.color }}
+          initial={{ x: 0, y: 0, opacity: 1, scale: 0.6, rotate: 0 }}
+          animate={{ x: p.x, y: p.y, opacity: 0, scale: 1, rotate: p.rotate }}
+          transition={{ duration: 0.9, delay: p.delay, ease: "easeOut" }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function QuizCard({
   categoryId,
@@ -214,6 +271,7 @@ export default function QuizCard({
   const { t, lang } = useLanguage();
   const categoryText = t.categories[categoryId];
   const timePerQuestion = getLevelConfig(level).timerSeconds;
+  const reduceMotion = useReducedMotion();
 
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -239,6 +297,42 @@ export default function QuizCard({
   useEffect(() => {
     timeLeftRef.current = timeLeft;
   }, [timeLeft]);
+
+  // ---- Purely-decorative reward feedback (confetti / floating XP+coins /
+  // a heart-loss shake). Every value below is only READ from the real
+  // game state above; nothing here writes back into it, so none of the
+  // actual scoring, lives, or timer logic is touched.
+  const [rewardToast, setRewardToast] = useState<{ key: number; xp: number; coins: number } | null>(null);
+  const [confettiKey, setConfettiKey] = useState<number | null>(null);
+  const [livesShakeKey, setLivesShakeKey] = useState(0);
+  const prevScoreRef = useRef(score);
+  const prevCorrectRef = useRef(correctCount);
+  const prevLivesRef = useRef(lives);
+
+  useEffect(() => {
+    const scoreDelta = score - prevScoreRef.current;
+    const correctDelta = correctCount - prevCorrectRef.current;
+    prevScoreRef.current = score;
+    prevCorrectRef.current = correctCount;
+    if (scoreDelta <= 0) return;
+
+    const key = Date.now();
+    setRewardToast({ key, xp: scoreDelta, coins: correctDelta * 5 });
+    if (!reduceMotion) setConfettiKey(key);
+    const toastTimer = window.setTimeout(() => setRewardToast(null), 1300);
+    const confettiTimer = window.setTimeout(() => setConfettiKey(null), 1000);
+    return () => {
+      window.clearTimeout(toastTimer);
+      window.clearTimeout(confettiTimer);
+    };
+  }, [score, correctCount, reduceMotion]);
+
+  useEffect(() => {
+    if (lives < prevLivesRef.current) {
+      setLivesShakeKey((k) => k + 1);
+    }
+    prevLivesRef.current = lives;
+  }, [lives]);
 
   const current: Question | undefined = questions[index];
   const isLast =
@@ -435,7 +529,43 @@ export default function QuizCard({
   const tier = level <= 3 ? t.campaign.foundation : level <= 7 ? t.campaign.growingDisciple : t.campaign.scriptureMaster;
 
   return (
-    <section id="quiz" className="mx-auto max-w-2xl px-5 pb-24 pt-4">
+    <motion.section
+      id="quiz"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+      className="relative mx-auto max-w-2xl overflow-hidden px-5 pb-24 pt-4"
+    >
+      {/* animated ambient backdrop: drifting glows + soft floating particles */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <motion.div
+          className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl"
+          animate={reduceMotion ? undefined : { opacity: [0.5, 0.9, 0.5], scale: [1, 1.08, 1] }}
+          transition={reduceMotion ? undefined : { duration: 9, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute -right-20 top-56 h-64 w-64 rounded-full bg-gold-500/10 blur-3xl"
+          animate={reduceMotion ? undefined : { opacity: [0.4, 0.8, 0.4], scale: [1.05, 0.95, 1.05] }}
+          transition={reduceMotion ? undefined : { duration: 11, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+        />
+        {!reduceMotion &&
+          [
+            { left: "12%", size: 3, duration: 10, delay: 0 },
+            { left: "78%", size: 2, duration: 12, delay: 2 },
+            { left: "45%", size: 2.5, duration: 9, delay: 4 },
+            { left: "88%", size: 2, duration: 11, delay: 1 },
+            { left: "25%", size: 1.6, duration: 13, delay: 3.5 },
+          ].map((p, i) => (
+            <motion.span
+              key={i}
+              className="absolute bottom-0 rounded-full bg-gold-300/50"
+              style={{ left: p.left, width: p.size, height: p.size }}
+              animate={{ y: ["0%", "-1400%"], opacity: [0, 0.7, 0] }}
+              transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: "easeInOut" }}
+            />
+          ))}
+      </div>
+
       {usedFallback && (
         <div className="mb-4 rounded-xl border border-gold-500/25 bg-gold-500/5 px-4 py-2 text-center text-xs text-gold-300">
           {t.quiz.fallbackNotice}
@@ -443,7 +573,7 @@ export default function QuizCard({
       )}
 
       {/* premium header */}
-      <div className="mb-5 rounded-[22px] border border-white/10 bg-white/[0.03] p-4 shadow-premium backdrop-blur-md sm:p-5">
+      <div className="mb-5 rounded-[22px] border border-white/10 bg-white/[0.04] p-4 shadow-premium-lg backdrop-blur-md sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button
             onClick={onExit}
@@ -465,30 +595,84 @@ export default function QuizCard({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-y-1 text-xs">
+        {/* floating "+XP / +coins" toast, plays once per correct answer */}
+        <div className="relative">
+          <AnimatePresence>
+            {rewardToast && (
+              <motion.div
+                key={rewardToast.key}
+                initial={{ opacity: 0, y: 6, scale: 0.9 }}
+                animate={{ opacity: 1, y: -6, scale: 1 }}
+                exit={{ opacity: 0, y: -18 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="pointer-events-none absolute left-1/2 top-1 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-gold-400/40 bg-navy-950/90 px-4 py-1.5 text-sm font-bold shadow-gold"
+              >
+                <span className="text-gold-300">⚡ +{rewardToast.xp} {t.common.xp}</span>
+                <span className="text-purple-200">🪙 +{rewardToast.coins}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-y-2 text-xs">
           <span className="font-semibold uppercase tracking-wide text-[#9aa1b0]">
             {tier} · {categoryText?.title} · {t.quiz.difficulty[difficulty]}
           </span>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1" aria-label={t.common.lives}>
+          <div className="flex items-center gap-4">
+            <motion.div
+              key={livesShakeKey}
+              animate={
+                reduceMotion || livesShakeKey === 0
+                  ? undefined
+                  : { x: [0, -4, 4, -3, 3, 0] }
+              }
+              transition={{ duration: 0.4 }}
+              className="flex items-center gap-1"
+              aria-label={t.common.lives}
+            >
               {Array.from({ length: MAX_LIVES }).map((_, i) => (
                 <Heart key={i} filled={i < lives} />
               ))}
-            </div>
-            {streak >= 2 && (
-              <span className="font-semibold text-gold-500">
-                🔥 {streak} {t.quiz.streak}
-              </span>
-            )}
+            </motion.div>
+            <AnimatePresence>
+              {streak >= 2 && (
+                <motion.span
+                  key={streak}
+                  initial={{ opacity: 0, scale: 0.7, y: -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.7 }}
+                  transition={{ duration: 0.25, ease: "backOut" }}
+                  className="flex items-center gap-1 rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-1 font-bold text-gold-400 shadow-[0_0_16px_rgba(232,193,95,0.35)]"
+                >
+                  <motion.span
+                    aria-hidden
+                    animate={reduceMotion ? undefined : { scale: [1, 1.15, 1] }}
+                    transition={reduceMotion ? undefined : { duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    🔥
+                  </motion.span>
+                  {streak} {t.quiz.streak}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
-        <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
           <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-purple-400 to-gold-400"
+            className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-purple-400 to-gold-400"
             animate={{ width: `${progressPct}%` }}
-            transition={{ duration: 0.3 }}
-          />
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {!reduceMotion && (
+              <motion.div
+                aria-hidden
+                className="absolute inset-y-0 w-8 bg-white/40 blur-sm"
+                animate={{ x: ["-100%", "260%"] }}
+                transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.4, ease: "easeInOut" }}
+              />
+            )}
+          </motion.div>
         </div>
       </div>
 
@@ -496,76 +680,82 @@ export default function QuizCard({
         <CircularTimer timeLeft={timeLeft} timerPct={timerPct} timerColor={timerColor} />
       </div>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={current.id}
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -24 }}
-          transition={{ duration: 0.3 }}
-          className="relative overflow-hidden rounded-card border border-gold-500/20 bg-glass-gold p-6 shadow-premium-lg backdrop-blur-md sm:p-9"
-        >
-          <div className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-[#8d94a3]">
-            {t.quiz.difficulty[current.difficulty]}
-          </div>
-          <div className="mb-7 text-center font-display text-2xl font-semibold leading-snug text-[#fbf6e8] sm:text-[28px] md:text-3xl">
-            {current.question}
-          </div>
+      <div className="relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={current.id}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="relative overflow-hidden rounded-card border border-gold-500/20 bg-glass-gold p-6 shadow-premium-lg backdrop-blur-md sm:p-9"
+          >
+            <div className="mb-3 flex justify-center">
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#8d94a3]">
+                {t.quiz.difficulty[current.difficulty]}
+              </span>
+            </div>
+            <div className="mb-8 text-center font-display text-2xl font-bold leading-snug tracking-tight text-[#fbf6e8] sm:text-[28px] md:text-3xl">
+              {current.question}
+            </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {current.choices.map((choice, i) => {
-              const isCorrectChoice = i === current.correctIndex;
-              const isSelected = selected === i;
-              let state: AnswerState = "idle";
-              if (locked) {
-                if (isCorrectChoice) state = "correct";
-                else if (isSelected) state = "wrong";
-                else state = "muted";
-              }
-              return (
-                <AnswerOption
-                  key={i}
-                  label={choice}
-                  state={state}
-                  disabled={locked}
-                  optionLetter={optionLetters[i] ?? String(i + 1)}
-                  choiceIndex={i}
-                  onSelect={handleAnswer}
-                />
-              );
-            })}
-          </div>
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              {current.choices.map((choice, i) => {
+                const isCorrectChoice = i === current.correctIndex;
+                const isSelected = selected === i;
+                let state: AnswerState = "idle";
+                if (locked) {
+                  if (isCorrectChoice) state = "correct";
+                  else if (isSelected) state = "wrong";
+                  else state = "muted";
+                }
+                return (
+                  <AnswerOption
+                    key={i}
+                    label={choice}
+                    state={state}
+                    disabled={locked}
+                    optionLetter={optionLetters[i] ?? String(i + 1)}
+                    choiceIndex={i}
+                    onSelect={handleAnswer}
+                  />
+                );
+              })}
+            </div>
 
-          <AnimatePresence>
-            {locked && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.25 }}
-                className="mt-6 overflow-hidden"
-              >
-                <div className="rounded-2xl border border-gold-500/25 bg-navy-900/60 p-5">
-                  <div className="mb-1.5 flex items-center gap-2 text-sm font-bold text-gold-500">
-                    <span aria-hidden>📖</span>
-                    {current.reference}
-                  </div>
-                  <p className="text-sm leading-relaxed text-[#c6cbd6]">{current.explanation}</p>
-                </div>
-                <motion.button
-                  onClick={handleNext}
-                  whileHover={{ y: -2, scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ duration: 0.2 }}
-                  className="mt-5 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 py-3.5 text-[15px] font-bold text-navy-900 shadow-gold outline-none transition-shadow duration-300 hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            <AnimatePresence>
+              {locked && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  className="mt-6 overflow-hidden"
                 >
-                  {isLast ? t.quiz.seeResults : t.quiz.nextQuestion}
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </AnimatePresence>
-    </section>
+                  <div className="rounded-2xl border border-gold-500/25 bg-navy-900/60 p-5 shadow-premium">
+                    <div className="mb-1.5 flex items-center gap-2 text-sm font-bold text-gold-500">
+                      <span aria-hidden>📖</span>
+                      {current.reference}
+                    </div>
+                    <p className="text-sm leading-relaxed text-[#c6cbd6]">{current.explanation}</p>
+                  </div>
+                  <motion.button
+                    onClick={handleNext}
+                    whileHover={{ y: -2, scale: 1.015 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="mt-5 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 py-3.5 text-[15px] font-bold text-navy-900 shadow-gold outline-none transition-shadow duration-300 hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+                  >
+                    {isLast ? t.quiz.seeResults : t.quiz.nextQuestion}
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </AnimatePresence>
+
+        {confettiKey !== null && <ConfettiBurst burstKey={confettiKey} />}
+      </div>
+    </motion.section>
   );
 }
