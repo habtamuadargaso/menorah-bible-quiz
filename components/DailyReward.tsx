@@ -34,7 +34,7 @@ export default function DailyReward() {
       initial={{ opacity: 0, y: 14 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="rounded-[22px] border border-gold-500/25 bg-gradient-to-br from-gold-500/12 to-white/[0.035] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.28)]"
+      className="rounded-card-sm border border-gold-500/25 bg-glass-gold p-5 shadow-premium"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -46,9 +46,9 @@ export default function DailyReward() {
         <button
           onClick={handleClaim}
           disabled={!ready}
-          className={`rounded-full px-6 py-3 text-sm font-bold transition ${
+          className={`rounded-full px-6 py-3 text-sm font-bold outline-none transition ${
             ready
-              ? "bg-gradient-to-br from-gold-300 to-gold-600 text-navy-900 shadow-gold hover:-translate-y-0.5"
+              ? "bg-gradient-to-br from-gold-300 to-gold-600 text-navy-900 shadow-gold hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
               : "cursor-not-allowed border border-white/15 text-[#8d94a3]"
           }`}
         >

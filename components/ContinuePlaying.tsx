@@ -9,6 +9,35 @@ import { MAX_GAME_LEVEL } from "@/lib/levels";
 import { loadProgress, levelForXp } from "@/lib/progress";
 import CategoryIcon from "./CategoryIcon";
 
+function ShimmerBar({
+  pct,
+  gradient,
+  delay = 0,
+}: {
+  pct: number;
+  gradient: string;
+  delay?: number;
+}) {
+  return (
+    <div className="relative mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+      <motion.div
+        initial={{ width: 0 }}
+        whileInView={{ width: `${Math.max(4, pct)}%` }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8, ease: "easeOut", delay }}
+        className={`h-full rounded-full bg-gradient-to-r ${gradient}`}
+      />
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 w-10 bg-white/30 blur-sm"
+        style={{ mixBlendMode: "overlay" }}
+        animate={{ x: ["-15%", "130%"] }}
+        transition={{ duration: 2.2, repeat: Infinity, repeatDelay: 3, ease: "easeInOut", delay }}
+      />
+    </div>
+  );
+}
+
 export default function ContinuePlaying({
   progress,
   onContinue,
@@ -49,7 +78,7 @@ export default function ContinuePlaying({
 
   return (
     <section className="mx-auto max-w-6xl px-5 pb-14">
-      <h2 className="mb-5 font-display text-2xl font-bold text-[#fbf6e8]">
+      <h2 className="mb-6 font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl">
         {isAmharic ? "ጨዋታዎን ይቀጥሉ" : "Continue Playing"}
       </h2>
 
@@ -58,7 +87,7 @@ export default function ContinuePlaying({
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5 }}
-        className="relative overflow-hidden rounded-[32px] border border-purple-400/25 bg-gradient-to-br from-purple-500/15 via-white/[0.05] to-gold-500/10 p-7 shadow-[0_28px_80px_rgba(0,0,0,.36)] backdrop-blur-md sm:p-9"
+        className="relative overflow-hidden rounded-card-lg border border-purple-400/25 bg-glass-purple p-8 shadow-premium-lg backdrop-blur-md sm:p-10"
       >
         {/* giant faint category artwork watermark */}
         <div
@@ -68,7 +97,7 @@ export default function ContinuePlaying({
           <CategoryIcon icon={featured.category.icon} className="h-56 w-56" />
         </div>
 
-        <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-5">
             <div className="relative flex-shrink-0">
               <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-purple-300/30 bg-gradient-to-br from-purple-400/25 to-gold-500/10 shadow-purple">
@@ -86,7 +115,7 @@ export default function ContinuePlaying({
               <h3 className="mt-1 font-display text-2xl font-bold text-[#fbf6e8] sm:text-3xl">
                 {featuredText.title}
               </h3>
-              <div className="mt-1 text-sm text-[#a7aebd]">
+              <div className="mt-1.5 text-sm text-[#a7aebd]">
                 {isAmharic
                   ? `ደረጃ ${featured.level} ከ ${MAX_GAME_LEVEL} · ተጫዋች ደረጃ ${playerLevel}`
                   : `Level ${featured.level} of ${MAX_GAME_LEVEL} · Player Level ${playerLevel}`}
@@ -99,35 +128,19 @@ export default function ContinuePlaying({
               <span>{isAmharic ? "የካምፔይን እድገት" : "Campaign Progress"}</span>
               <span className="font-semibold text-gold-400">{featuredPct}%</span>
             </div>
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
-              <motion.div
-                initial={{ width: 0 }}
-                whileInView={{ width: `${Math.max(6, featuredPct)}%` }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-gold-500"
-              />
-            </div>
+            <ShimmerBar pct={featuredPct} gradient="from-purple-400 to-gold-500" />
 
-            <div className="mt-4 flex items-center justify-between text-xs text-[#9aa1b0]">
+            <div className="mt-5 flex items-center justify-between text-xs text-[#9aa1b0]">
               <span>{isAmharic ? "ወደ ቀጣይ ደረጃ ልምድ" : "XP to Next Level"}</span>
               <span className="font-semibold text-purple-300">
                 {xpIntoLevel}/{xpForNextLevel}
               </span>
             </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-              <motion.div
-                initial={{ width: 0 }}
-                whileInView={{ width: `${Math.max(4, xpPct)}%` }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
-                className="h-full rounded-full bg-gradient-to-r from-purple-300 to-purple-500"
-              />
-            </div>
+            <ShimmerBar pct={xpPct} gradient="from-purple-300 to-purple-500" delay={0.15} />
 
             <button
               onClick={() => onContinue(featured.category.id, featured.level)}
-              className="mt-5 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-6 py-3 text-sm font-bold text-navy-950 shadow-gold transition-transform hover:-translate-y-0.5"
+              className="mt-7 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-6 py-3 text-sm font-bold text-navy-950 shadow-gold outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
             >
               {isAmharic ? "ቀጥል →" : "Resume →"}
             </button>
@@ -136,7 +149,7 @@ export default function ContinuePlaying({
       </motion.div>
 
       {rest.length > 0 && (
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rest.slice(0, 2).map(({ category, level }, i) => {
             const text = t.categories[category.id];
             const pct = Math.round(((level - 1) / MAX_GAME_LEVEL) * 100);
@@ -147,9 +160,9 @@ export default function ContinuePlaying({
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.05 }}
-                whileHover={{ y: -4 }}
+                whileHover={{ y: -6, scale: 1.02 }}
                 onClick={() => onContinue(category.id, level)}
-                className="group rounded-[22px] border border-white/10 bg-white/[0.04] p-5 text-left shadow-[0_16px_44px_rgba(0,0,0,.3)] transition-colors hover:border-purple-400/40"
+                className="group rounded-card-sm border border-white/10 bg-white/[0.04] p-5 text-left shadow-premium outline-none transition-colors hover:border-purple-400/40 focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-purple-500/15">

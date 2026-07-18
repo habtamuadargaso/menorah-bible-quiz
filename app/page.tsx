@@ -269,7 +269,7 @@ export default function Home() {
         onLeaderboard={handleLeaderboard}
       />
 
-      <DailyVerseBanner />
+      <DailyVerseBanner onExplore={handleBible} />
 
       <div ref={gameRef} />
 

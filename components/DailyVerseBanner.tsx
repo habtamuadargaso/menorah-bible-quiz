@@ -14,7 +14,7 @@ const STAR_DOTS = [
   { top: "60%", left: "92%", delay: 2 },
 ];
 
-export default function DailyVerseBanner() {
+export default function DailyVerseBanner({ onExplore }: { onExplore?: () => void }) {
   const { lang } = useLanguage();
   const verse = useMemo(() => getDailyVerse(), []);
   const text = getVerseText(verse, lang);
@@ -84,7 +84,7 @@ export default function DailyVerseBanner() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="relative overflow-hidden rounded-[32px] border border-purple-400/25 bg-gradient-to-br from-purple-500/15 via-white/[0.05] to-gold-500/10 p-8 text-center shadow-[0_28px_90px_rgba(0,0,0,.4)] backdrop-blur-md sm:p-12"
+          className="relative overflow-hidden rounded-card-lg border border-purple-400/25 bg-glass-purple p-8 text-center shadow-premium-lg backdrop-blur-md sm:p-12"
         >
           {/* slow shine sweep */}
           <motion.div
@@ -112,13 +112,23 @@ export default function DailyVerseBanner() {
               <span className="text-gold-400">&rdquo;</span>
             </p>
 
-            <div className="mt-6 flex items-center justify-center gap-3">
+            <div className="mt-7 flex items-center justify-center gap-3">
               <span className="h-px w-8 bg-gradient-to-r from-transparent to-purple-300/60" />
               <span className="text-sm font-semibold uppercase tracking-[0.14em] text-purple-300">
                 {verse.reference}
               </span>
               <span className="h-px w-8 bg-gradient-to-l from-transparent to-purple-300/60" />
             </div>
+
+            {onExplore && (
+              <button
+                onClick={onExplore}
+                className="mt-8 inline-flex items-center gap-2 rounded-full border border-gold-500/40 px-6 py-2.5 text-sm font-semibold text-gold-400 outline-none transition-colors hover:bg-gold-500/10 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+              >
+                {isAmharic ? "ተጨማሪ የመጽሐፍ ቅዱስ ገፅታዎችን ያስሱ" : "Explore Bible Features"}
+                <span aria-hidden>→</span>
+              </button>
+            )}
           </div>
         </motion.div>
       </div>

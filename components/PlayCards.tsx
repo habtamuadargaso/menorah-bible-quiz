@@ -78,8 +78,8 @@ export default function PlayCards({
 
   function actionClass(theme: CardTheme) {
     return theme === "gold"
-      ? "inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-bold text-navy-950 shadow-gold transition-transform group-hover:-translate-y-0.5"
-      : "inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 px-5 py-2.5 text-sm font-bold text-white shadow-purple transition-transform group-hover:-translate-y-0.5";
+      ? "inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-bold text-navy-950 shadow-gold outline-none transition-transform group-hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+      : "inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 px-5 py-2.5 text-sm font-bold text-white shadow-purple outline-none transition-transform group-hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950";
   }
 
   const cards: PlayCard[] = [
@@ -148,6 +148,17 @@ export default function PlayCards({
 
   return (
     <section className="mx-auto max-w-6xl px-5 pb-14">
+      <div className="mb-8 text-center">
+        <h2 className="font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl">
+          {isAmharic ? "ጀብዱዎን ይምረጡ" : "Choose Your Adventure"}
+        </h2>
+        <p className="mt-2 text-[15px] text-[#a7aebd]">
+          {isAmharic
+            ? "ብቻዎን ይጫወቱ፣ ከጓደኞችዎ ጋር ይወዳደሩ፣ ወይም ቤተ ክርስቲያንዎን ያሳትፉ።"
+            : "Play solo, battle friends live, or bring your church along."}
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card, i) => (
           <motion.div
@@ -156,11 +167,11 @@ export default function PlayCards({
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-40px" }}
             transition={{ duration: 0.45, delay: i * 0.06 }}
-            whileHover={{ y: -8, scale: 1.015 }}
-            className={`group relative flex flex-col overflow-hidden rounded-[28px] border shadow-[0_20px_60px_rgba(0,0,0,.32)] backdrop-blur-md transition-colors ${
+            whileHover={{ y: -6, scale: 1.02 }}
+            className={`group relative flex flex-col overflow-hidden rounded-card border shadow-premium backdrop-blur-md transition-colors ${
               card.theme === "gold"
-                ? "border-gold-500/25 bg-gradient-to-b from-gold-500/[0.12] via-white/[0.045] to-white/[0.02] hover:border-gold-500/55"
-                : "border-purple-400/25 bg-gradient-to-b from-purple-500/[0.18] via-white/[0.045] to-white/[0.02] hover:border-purple-400/55"
+                ? "border-gold-500/25 bg-glass-gold hover:border-gold-500/55"
+                : "border-purple-400/25 bg-glass-purple hover:border-purple-400/55"
             }`}
           >
             {/* top inner highlight edge for glass feel */}

@@ -8,10 +8,10 @@ export default function BattleLauncher({ onStart }: { onStart: () => void }) {
   return (
     <section className="mx-auto max-w-5xl px-5 pb-12">
       <motion.button
-        whileHover={{ y: -4, scale: 1.01 }}
+        whileHover={{ y: -6, scale: 1.015 }}
         whileTap={{ scale: .99 }}
         onClick={onStart}
-        className="w-full rounded-[24px] border border-gold-500/35 bg-gradient-to-r from-gold-500/12 via-white/[0.045] to-gold-500/12 p-6 text-left shadow-[0_20px_60px_rgba(0,0,0,.32)] sm:p-8"
+        className="w-full rounded-card border border-gold-500/35 bg-glass-gold p-6 text-left shadow-premium outline-none transition-colors hover:border-gold-500/55 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 sm:p-8"
       >
         <div className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
           <div>

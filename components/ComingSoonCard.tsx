@@ -21,8 +21,8 @@ export default function ComingSoonCard({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
       transition={{ duration: 0.4 }}
-      whileHover={{ y: -4 }}
-      className="relative overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.03] p-6 opacity-90 transition-colors hover:border-gold-500/25 hover:opacity-100"
+      whileHover={{ y: -6, scale: 1.02 }}
+      className="relative overflow-hidden rounded-card-sm border border-white/10 bg-white/[0.03] p-6 opacity-90 shadow-premium transition-colors hover:border-gold-500/25 hover:opacity-100"
     >
       <div className="absolute right-4 top-4 rounded-full border border-gold-500/30 bg-navy-950/70 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-gold-400">
         {t.common.comingSoon}

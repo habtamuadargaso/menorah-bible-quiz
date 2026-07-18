@@ -62,8 +62,8 @@ export default function BibleLearningSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-40px" }}
           transition={{ duration: 0.4 }}
-          whileHover={{ y: -4 }}
-          className="rounded-[22px] border border-gold-500/25 bg-white/[0.04] p-6 shadow-[0_16px_44px_rgba(0,0,0,.28)] transition-colors hover:border-gold-500/45"
+          whileHover={{ y: -6, scale: 1.02 }}
+          className="rounded-card-sm border border-gold-500/25 bg-glass-gold p-6 shadow-premium transition-colors hover:border-gold-500/45"
         >
           <div
             className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl"
@@ -84,8 +84,8 @@ export default function BibleLearningSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-40px" }}
           transition={{ duration: 0.4, delay: 0.05 }}
-          whileHover={{ y: -4 }}
-          className="rounded-[22px] border border-gold-500/25 bg-white/[0.04] p-6 shadow-[0_16px_44px_rgba(0,0,0,.28)] transition-colors hover:border-gold-500/45"
+          whileHover={{ y: -6, scale: 1.02 }}
+          className="rounded-card-sm border border-gold-500/25 bg-glass-gold p-6 shadow-premium transition-colors hover:border-gold-500/45"
         >
           <div
             className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl"
@@ -111,7 +111,7 @@ export default function BibleLearningSection() {
           <div className="mt-3 text-sm font-semibold text-gold-400">{memoryVerse.reference}</div>
           <button
             onClick={() => setRevealed((r) => !r)}
-            className="mt-4 rounded-full border border-gold-500/50 px-5 py-2 text-sm font-semibold text-gold-500 transition-colors hover:bg-gold-500/10"
+            className="mt-4 rounded-full border border-gold-500/50 px-5 py-2 text-sm font-semibold text-gold-500 outline-none transition-colors hover:bg-gold-500/10 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             {revealed ? t.bible.memoryVerse.hideAgain : t.bible.memoryVerse.reveal}
           </button>
