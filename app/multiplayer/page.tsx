@@ -2,9 +2,12 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { LANGUAGES, type LangCode } from "@/lib/i18n/locales";
+import { CATEGORIES, type CategoryId } from "@/lib/categories";
+import HomeOptionCard from "@/components/multiplayer/HomeOptionCard";
 
 function generateRoomCode(length = 6): string {
   const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -14,35 +17,46 @@ function generateRoomCode(length = 6): string {
   }).join("");
 }
 
-function getErrorMessage(error: unknown): string {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof error.message === "string"
-  ) {
-    return error.message;
-  }
+// A difficulty picker maps to a representative campaign level — the rooms
+// table only stores game_level (unchanged schema), so "Difficulty" here is
+// just a friendlier label over that same existing column.
+const DIFFICULTY_LEVELS: Array<{ id: "Easy" | "Medium" | "Hard"; level: number }> = [
+  { id: "Easy", level: 1 },
+  { id: "Medium", level: 4 },
+  { id: "Hard", level: 8 },
+];
 
-  return "Something went wrong. Please try again.";
-}
+const MAX_PLAYER_OPTIONS = [2, 4, 6, 8];
 
 export default function MultiplayerPage() {
   const router = useRouter();
-  const { lang, setLang } = useLanguage();
+  const { t, lang, setLang } = useLanguage();
+  const reduceMotion = useReducedMotion();
+  const tm = t.multiplayerLobby;
+
+  function getErrorMessage(error: unknown): string {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "message" in error &&
+      typeof error.message === "string"
+    ) {
+      return error.message;
+    }
+    return tm.errorGeneric;
+  }
 
   const [playerName, setPlayerName] = useState("");
   const [roomCode, setRoomCode] = useState("");
+  const [categoryId, setCategoryId] = useState<CategoryId>("old-testament");
+  const [difficulty, setDifficulty] = useState<"Easy" | "Medium" | "Hard">("Easy");
+  const [maxPlayers, setMaxPlayers] = useState(8);
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSwitchingPlayer, setIsSwitchingPlayer] =
-    useState(false);
+  const [isSwitchingPlayer, setIsSwitchingPlayer] = useState(false);
 
   useEffect(() => {
-    const savedName = window.localStorage.getItem(
-      "menorah-player-name"
-    );
-
+    const savedName = window.localStorage.getItem("menorah-player-name");
     if (savedName) {
       setPlayerName(savedName);
     }
@@ -50,118 +64,57 @@ export default function MultiplayerPage() {
 
   async function getAuthenticatedUser() {
     const supabase = createClient();
-
     const {
       data: { user: currentUser },
       error: getUserError,
     } = await supabase.auth.getUser();
 
     if (currentUser) {
-      return {
-        supabase,
-        user: currentUser,
-      };
+      return { supabase, user: currentUser };
     }
 
     if (getUserError) {
-      console.info(
-        "No current guest session:",
-        getUserError.message
-      );
+      console.info("No current guest session:", getUserError.message);
     }
 
-    const { data, error } =
-      await supabase.auth.signInAnonymously();
+    const { data, error } = await supabase.auth.signInAnonymously();
+    if (error) throw error;
+    if (!data.user) throw new Error("Unable to create guest player.");
 
-    if (error) {
-      throw error;
-    }
-
-    if (!data.user) {
-      throw new Error("Unable to create guest player.");
-    }
-
-    return {
-      supabase,
-      user: data.user,
-    };
+    return { supabase, user: data.user };
   }
 
   async function ensurePlayerProfile(
     name: string
-  ): Promise<{
-    supabase: ReturnType<typeof createClient>;
-    userId: string;
-  }> {
-    const { supabase, user } =
-      await getAuthenticatedUser();
+  ): Promise<{ supabase: ReturnType<typeof createClient>; userId: string }> {
+    const { supabase, user } = await getAuthenticatedUser();
 
-    const { error } = await supabase
-      .from("profiles")
-      .upsert(
-        {
-          id: user.id,
-          display_name: name,
-          language: lang,
-        },
-        {
-          onConflict: "id",
-        }
-      );
-
-    if (error) {
-      throw error;
-    }
-
-    window.localStorage.setItem(
-      "menorah-player-name",
-      name
+    const { error } = await supabase.from("profiles").upsert(
+      { id: user.id, display_name: name, language: lang },
+      { onConflict: "id" }
     );
+    if (error) throw error;
 
-    return {
-      supabase,
-      userId: user.id,
-    };
+    window.localStorage.setItem("menorah-player-name", name);
+    return { supabase, userId: user.id };
   }
 
   async function switchPlayer() {
     setIsSwitchingPlayer(true);
-    setStatus("Creating a new guest player...");
-
+    setStatus(tm.switchingPlayer);
     try {
       const supabase = createClient();
+      const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+      if (signOutError) throw signOutError;
 
-      const { error: signOutError } =
-        await supabase.auth.signOut({
-          scope: "local",
-        });
-
-      if (signOutError) {
-        throw signOutError;
-      }
-
-      window.localStorage.removeItem(
-        "menorah-player-name"
-      );
-
-      const { data, error: signInError } =
-        await supabase.auth.signInAnonymously();
-
-      if (signInError) {
-        throw signInError;
-      }
-
-      if (!data.user) {
-        throw new Error(
-          "Unable to create a new guest player."
-        );
-      }
+      window.localStorage.removeItem("menorah-player-name");
+      const { data, error: signInError } = await supabase.auth.signInAnonymously();
+      if (signInError) throw signInError;
+      if (!data.user) throw new Error("Unable to create a new guest player.");
 
       setPlayerName("");
       setRoomCode("");
-      setStatus(
-        "New player session created. Enter a new player name."
-      );
+      setStatus("");
     } catch (error: unknown) {
       console.error("Switch player error:", error);
       setStatus(getErrorMessage(error));
@@ -170,46 +123,36 @@ export default function MultiplayerPage() {
     }
   }
 
-  async function handleCreateRoom(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  async function handleCreateRoom(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const cleanName = playerName.trim();
-
     if (!cleanName) {
-      setStatus("Please enter your player name.");
+      setStatus(tm.errorEnterName);
       return;
     }
 
     setIsLoading(true);
-    setStatus("Creating your room...");
+    setStatus(tm.creatingRoom);
 
     try {
-      const { supabase, userId } =
-        await ensurePlayerProfile(cleanName);
+      const { supabase, userId } = await ensurePlayerProfile(cleanName);
+      const selectedLevel = DIFFICULTY_LEVELS.find((d) => d.id === difficulty)?.level ?? 1;
 
-      let createdRoom:
-        | {
-            id: string;
-            code: string;
-          }
-        | null = null;
+      let createdRoom: { id: string; code: string } | null = null;
 
       for (let attempt = 0; attempt < 5; attempt += 1) {
         const generatedCode = generateRoomCode();
-
         const { data, error } = await supabase
           .from("rooms")
           .insert({
             code: generatedCode,
             host_id: userId,
-            category_id: "old-testament",
-            game_level: 1,
+            category_id: categoryId,
+            game_level: selectedLevel,
             language: lang,
             status: "waiting",
             current_question: 0,
-            max_players: 8,
+            max_players: maxPlayers,
           })
           .select("id, code")
           .single();
@@ -218,40 +161,29 @@ export default function MultiplayerPage() {
           createdRoom = data;
           break;
         }
-
         if (error && error.code !== "23505") {
           throw error;
         }
       }
 
       if (!createdRoom) {
-        throw new Error(
-          "Unable to generate a unique room code. Please try again."
-        );
+        throw new Error(tm.errorUniqueCode);
       }
 
-      const { error: playerError } = await supabase
-        .from("room_players")
-        .insert({
-          room_id: createdRoom.id,
-          player_id: userId,
-          display_name: cleanName,
-          score: 0,
-          is_ready: true,
-        });
+      const { error: playerError } = await supabase.from("room_players").insert({
+        room_id: createdRoom.id,
+        player_id: userId,
+        display_name: cleanName,
+        score: 0,
+        is_ready: true,
+      });
 
       if (playerError) {
-        await supabase
-          .from("rooms")
-          .delete()
-          .eq("id", createdRoom.id);
-
+        await supabase.from("rooms").delete().eq("id", createdRoom.id);
         throw playerError;
       }
 
-      router.push(
-        `/multiplayer/lobby/${createdRoom.code}`
-      );
+      router.push(`/multiplayer/lobby/${createdRoom.code}`);
     } catch (error: unknown) {
       console.error("Create room error:", error);
       setStatus(getErrorMessage(error));
@@ -260,102 +192,62 @@ export default function MultiplayerPage() {
     }
   }
 
-  async function handleJoinRoom(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  async function handleJoinRoom(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const cleanName = playerName.trim();
-    const cleanCode = roomCode
-      .trim()
-      .toUpperCase();
+    const cleanCode = roomCode.trim().toUpperCase();
 
     if (!cleanName) {
-      setStatus("Please enter your player name.");
+      setStatus(tm.errorEnterName);
       return;
     }
-
     if (cleanCode.length !== 6) {
-      setStatus("Enter the 6-character room code.");
+      setStatus(tm.errorEnterCode);
       return;
     }
 
     setIsLoading(true);
-    setStatus("Finding the room...");
+    setStatus(tm.joiningRoom);
 
     try {
-      const { supabase, userId } =
-        await ensurePlayerProfile(cleanName);
+      const { supabase, userId } = await ensurePlayerProfile(cleanName);
 
-      const { data: room, error: roomError } =
-        await supabase
-          .from("rooms")
-          .select(
-            "id, code, host_id, status, max_players, language"
-          )
-          .eq("code", cleanCode)
-          .maybeSingle();
+      const { data: room, error: roomError } = await supabase
+        .from("rooms")
+        .select("id, code, host_id, status, max_players, language")
+        .eq("code", cleanCode)
+        .maybeSingle();
 
-      if (roomError) {
-        throw roomError;
-      }
+      if (roomError) throw roomError;
+      if (!room) throw new Error(tm.errorRoomNotFound);
+      if (room.status !== "waiting") throw new Error(tm.errorRoomStarted);
 
-      if (!room) {
-        throw new Error(
-          "Room not found. Check the code and try again."
-        );
-      }
+      const { count, error: countError } = await supabase
+        .from("room_players")
+        .select("*", { count: "exact", head: true })
+        .eq("room_id", room.id);
 
-      if (room.status !== "waiting") {
-        throw new Error(
-          "This game has already started."
-        );
-      }
-
-      const { count, error: countError } =
-        await supabase
-          .from("room_players")
-          .select("*", {
-            count: "exact",
-            head: true,
-          })
-          .eq("room_id", room.id);
-
-      if (countError) {
-        throw countError;
-      }
-
-      if (
-        typeof count === "number" &&
-        count >= room.max_players
-      ) {
-        throw new Error("This room is full.");
+      if (countError) throw countError;
+      if (typeof count === "number" && count >= room.max_players) {
+        throw new Error(tm.errorRoomFull);
       }
 
       setLang((room.language ?? "en") as LangCode);
 
-      const { error: joinError } = await supabase
-        .from("room_players")
-        .upsert(
-          {
-            room_id: room.id,
-            player_id: userId,
-            display_name: cleanName,
-            score: 0,
-            is_ready: true,
-          },
-          {
-            onConflict: "room_id,player_id",
-          }
-        );
-
-      if (joinError) {
-        throw joinError;
-      }
-
-      router.push(
-        `/multiplayer/lobby/${cleanCode}`
+      const { error: joinError } = await supabase.from("room_players").upsert(
+        {
+          room_id: room.id,
+          player_id: userId,
+          display_name: cleanName,
+          score: 0,
+          is_ready: true,
+        },
+        { onConflict: "room_id,player_id" }
       );
+
+      if (joinError) throw joinError;
+
+      router.push(`/multiplayer/lobby/${cleanCode}`);
     } catch (error: unknown) {
       console.error("Join room error:", error);
       setStatus(getErrorMessage(error));
@@ -364,182 +256,214 @@ export default function MultiplayerPage() {
     }
   }
 
+  const selectClass =
+    "w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-[#f3efe2] outline-none transition-colors focus:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950";
+
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-12 text-white">
-      <div className="mx-auto max-w-4xl">
-        <header className="mb-10 text-center">
-          <p className="mb-2 text-sm font-semibold uppercase tracking-[0.3em] text-amber-400">
-            Menorah Bible Quiz
-          </p>
+    <main
+      className="min-h-screen w-full px-4 py-12 text-[#f3efe2] sm:px-8"
+      style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
+    >
+      <div className="mx-auto max-w-5xl">
+        <motion.header
+          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -14 }}
+          animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.4 }}
+          className="mb-10 text-center"
+        >
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.3em] text-gold-500">{tm.eyebrow}</p>
+          <h1 className="font-display text-4xl font-bold text-[#fbf6e8] sm:text-5xl">{tm.heading}</h1>
+          <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-[#a7aebd]">{tm.subheading}</p>
+        </motion.header>
 
-          <h1 className="text-4xl font-bold sm:text-5xl">
-            Online Bible Battle
-          </h1>
-
-          <p className="mx-auto mt-4 max-w-xl text-slate-300">
-            Create a room or join your family,
-            friends, or church members using a room
-            code.
-          </p>
-        </header>
-
-        <section className="mb-6 rounded-3xl border border-white/15 bg-white/5 p-6 backdrop-blur">
-          <label
-            htmlFor="player-name"
-            className="mb-2 block font-semibold"
-          >
-            Player name
-          </label>
-
-          <label htmlFor="battle-language" className="mb-2 mt-5 block font-semibold">
-            Game language
-          </label>
-          <select
-            id="battle-language"
-            value={lang}
-            onChange={(event) => setLang(event.target.value as LangCode)}
-            className="mb-5 w-full rounded-xl border border-white/20 bg-slate-900 px-4 py-3 outline-none focus:border-amber-400"
-          >
-            {LANGUAGES.map((language) => (
-              <option key={language.code} value={language.code}>
-                {language.nativeName} — {language.englishName}
-              </option>
-            ))}
-          </select>
-
-          <input
-            id="player-name"
-            type="text"
-            value={playerName}
-            onChange={(event) =>
-              setPlayerName(event.target.value)
-            }
-            maxLength={30}
-            placeholder="Enter your name"
-            className="w-full rounded-xl border border-white/20 bg-slate-900 px-4 py-3 outline-none focus:border-amber-400"
-          />
+        {/* player setup */}
+        <motion.section
+          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
+          animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.4, delay: 0.1 }}
+          className="mb-6 rounded-card border border-white/10 bg-white/[0.04] p-6 shadow-premium backdrop-blur-md sm:p-7"
+        >
+          <div className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-gold-400">{tm.playerSetupHeading}</div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="player-name" className="mb-1.5 block text-xs font-semibold text-[#c6cbd6]">
+                {tm.playerNameLabel}
+              </label>
+              <input
+                id="player-name"
+                type="text"
+                value={playerName}
+                onChange={(event) => setPlayerName(event.target.value)}
+                maxLength={30}
+                placeholder={tm.playerNamePlaceholder}
+                className={selectClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="battle-language" className="mb-1.5 block text-xs font-semibold text-[#c6cbd6]">
+                {tm.languageLabel}
+              </label>
+              <select
+                id="battle-language"
+                value={lang}
+                onChange={(event) => setLang(event.target.value as LangCode)}
+                className={selectClass}
+              >
+                {LANGUAGES.map((language) => (
+                  <option key={language.code} value={language.code} className="bg-navy-900">
+                    {language.nativeName} — {language.englishName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <button
             type="button"
             onClick={switchPlayer}
-            disabled={
-              isLoading || isSwitchingPlayer
-            }
-            className="mt-4 w-full rounded-xl border border-red-400/40 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isLoading || isSwitchingPlayer}
+            className="mt-4 text-xs font-semibold text-[#8d94a3] underline decoration-dotted underline-offset-4 outline-none transition-colors hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSwitchingPlayer
-              ? "Switching Player..."
-              : "Change / Switch Player"}
+            {isSwitchingPlayer ? tm.switchingPlayer : tm.switchPlayerButton}
           </button>
+          <p className="mt-1 text-[11px] text-[#6b7284]">{tm.switchPlayerHint}</p>
+        </motion.section>
 
-          <p className="mt-3 text-center text-xs text-slate-400">
-            Use this when testing multiple players in
-            the same browser.
-          </p>
-        </section>
+        <div className="grid gap-6 md:grid-cols-3">
+          <form onSubmit={handleCreateRoom}>
+            <HomeOptionCard icon="👑" title={tm.createRoomTitle} description={tm.createRoomDescription} tone="gold" delay={0.15}>
+              <div className="grid gap-3">
+                <div>
+                  <label htmlFor="create-category" className="mb-1 block text-[11px] font-semibold text-[#c6cbd6]">
+                    {tm.categoryLabel}
+                  </label>
+                  <select
+                    id="create-category"
+                    value={categoryId}
+                    onChange={(event) => setCategoryId(event.target.value as CategoryId)}
+                    className={selectClass}
+                  >
+                    {CATEGORIES.map((c) => (
+                      <option key={c.id} value={c.id} className="bg-navy-900">
+                        {t.categories[c.id]?.title ?? c.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="create-difficulty" className="mb-1 block text-[11px] font-semibold text-[#c6cbd6]">
+                      {tm.difficultyLabel}
+                    </label>
+                    <select
+                      id="create-difficulty"
+                      value={difficulty}
+                      onChange={(event) => setDifficulty(event.target.value as "Easy" | "Medium" | "Hard")}
+                      className={selectClass}
+                    >
+                      {DIFFICULTY_LEVELS.map((d) => (
+                        <option key={d.id} value={d.id} className="bg-navy-900">
+                          {t.quiz.difficulty[d.id]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="create-max-players" className="mb-1 block text-[11px] font-semibold text-[#c6cbd6]">
+                      {tm.maxPlayersLabel}
+                    </label>
+                    <select
+                      id="create-max-players"
+                      value={maxPlayers}
+                      onChange={(event) => setMaxPlayers(Number(event.target.value))}
+                      className={selectClass}
+                    >
+                      {MAX_PLAYER_OPTIONS.map((n) => (
+                        <option key={n} value={n} className="bg-navy-900">
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <form
-            onSubmit={handleCreateRoom}
-            className="rounded-3xl border border-amber-400/40 bg-amber-400/10 p-7"
-          >
-            <div className="mb-4 text-4xl">
-              👑
-            </div>
-
-            <h2 className="text-2xl font-bold">
-              Create Room
-            </h2>
-
-            <p className="mt-2 text-sm text-slate-300">
-              Become the host and invite other players
-              using your room code.
-            </p>
-
-            <button
-              type="submit"
-              disabled={
-                isLoading || isSwitchingPlayer
-              }
-              className="mt-7 w-full rounded-xl bg-amber-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoading
-                ? "Please wait..."
-                : "Create Battle Room"}
-            </button>
+              <motion.button
+                type="submit"
+                disabled={isLoading || isSwitchingPlayer}
+                whileHover={reduceMotion || isLoading ? undefined : { y: -2, scale: 1.02 }}
+                whileTap={reduceMotion || isLoading ? undefined : { scale: 0.98 }}
+                className="mt-4 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-3.5 text-sm font-bold text-navy-900 shadow-gold outline-none transition-shadow hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoading ? tm.creatingRoom : tm.createRoomButton}
+              </motion.button>
+            </HomeOptionCard>
           </form>
 
-          <form
-            onSubmit={handleJoinRoom}
-            className="rounded-3xl border border-blue-400/30 bg-blue-400/10 p-7"
-          >
-            <div className="mb-4 text-4xl">
-              ⚔️
-            </div>
+          <form onSubmit={handleJoinRoom}>
+            <HomeOptionCard icon="⚔️" title={tm.joinRoomTitle} description={tm.joinRoomDescription} tone="purple" delay={0.2}>
+              <label htmlFor="room-code" className="sr-only">
+                {tm.roomCodeLabel}
+              </label>
+              <motion.input
+                id="room-code"
+                type="text"
+                value={roomCode}
+                onChange={(event) =>
+                  setRoomCode(
+                    event.target.value
+                      .toUpperCase()
+                      .replace(/[^A-Z0-9]/g, "")
+                      .slice(0, 6)
+                  )
+                }
+                placeholder={tm.roomCodePlaceholder}
+                maxLength={6}
+                whileFocus={reduceMotion ? undefined : { scale: 1.02 }}
+                className="w-full rounded-xl border border-purple-400/30 bg-white/5 px-4 py-3 text-center font-display text-xl font-bold uppercase tracking-[0.35em] text-[#f3efe2] outline-none transition-colors focus:border-purple-400 focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+              />
 
-            <h2 className="text-2xl font-bold">
-              Join Room
-            </h2>
-
-            <p className="mt-2 text-sm text-slate-300">
-              Enter the six-character code shared by
-              the room host.
-            </p>
-
-            <label
-              htmlFor="room-code"
-              className="sr-only"
-            >
-              Room code
-            </label>
-
-            <input
-              id="room-code"
-              type="text"
-              value={roomCode}
-              onChange={(event) =>
-                setRoomCode(
-                  event.target.value
-                    .toUpperCase()
-                    .replace(/[^A-Z0-9]/g, "")
-                    .slice(0, 6)
-                )
-              }
-              placeholder="ABC123"
-              maxLength={6}
-              className="mt-5 w-full rounded-xl border border-white/20 bg-slate-900 px-4 py-3 text-center text-xl font-bold uppercase tracking-[0.35em] outline-none focus:border-blue-400"
-            />
-
-            <button
-              type="submit"
-              disabled={
-                isLoading || isSwitchingPlayer
-              }
-              className="mt-4 w-full rounded-xl bg-blue-500 px-5 py-3 font-bold transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoading
-                ? "Please wait..."
-                : "Join Battle Room"}
-            </button>
+              <motion.button
+                type="submit"
+                disabled={isLoading || isSwitchingPlayer}
+                whileHover={reduceMotion || isLoading ? undefined : { y: -2, scale: 1.02 }}
+                whileTap={reduceMotion || isLoading ? undefined : { scale: 0.98 }}
+                className="mt-4 w-full rounded-full bg-gradient-to-br from-purple-500 to-purple-700 px-5 py-3.5 text-sm font-bold text-white shadow-purple outline-none transition-shadow hover:shadow-[0_0_36px_rgba(139,92,246,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoading ? tm.joiningRoom : tm.joinRoomButton}
+              </motion.button>
+            </HomeOptionCard>
           </form>
+
+          <HomeOptionCard
+            icon="⚡"
+            title={tm.quickMatchTitle}
+            description={tm.quickMatchDescription}
+            tone="purple"
+            comingSoon
+            comingSoonLabel={t.common.comingSoon}
+            delay={0.25}
+          />
         </div>
 
         {status && (
-          <div
+          <motion.div
             role="status"
-            className="mt-6 rounded-xl border border-white/15 bg-white/5 px-5 py-4 text-center text-sm"
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-6 rounded-xl border border-white/15 bg-white/5 px-5 py-4 text-center text-sm text-[#c6cbd6]"
           >
             {status}
-          </div>
+          </motion.div>
         )}
 
         <div className="mt-8 text-center">
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="rounded-xl border border-white/15 px-5 py-3 font-semibold text-slate-300 transition hover:bg-white/5"
+            className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-[#c6cbd6] outline-none transition-colors hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
-            Back to Home
+            {tm.backToHome}
           </button>
         </div>
       </div>
