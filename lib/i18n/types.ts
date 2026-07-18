@@ -84,6 +84,27 @@ export interface UIStrings {
     restartButton: string;
     backToCategoriesButton: string;
     leaderboardButton: string;
+    headline: {
+      perfect: string;
+      levelComplete: string;
+      keepStudying: string;
+    };
+    perfectRoundBanner: string;
+    stats: {
+      wrongAnswers: string;
+      timeBonus: string;
+      xpEarned: string;
+      coinsEarned: string;
+      perfectBonusIncluded: string;
+    };
+    playerProgress: string;
+    nextPlayerLevel: string;
+    fastSuffix: string;
+    encouragementHeading: string;
+    shareLabel: string;
+    shareButton: string;
+    shareCopied: string;
+    shareText: string; // "{score} points ({correct}/{total})", "{category}", "{appName}" placeholders
   };
   leaderboard: {
     heading: string;
@@ -101,6 +122,7 @@ export interface UIStrings {
     level: string;
     xp: string;
     lives: string;
+    appName: string;
   };
   difficultySection: {
     heading: string;
@@ -114,6 +136,7 @@ export interface UIStrings {
   achievements: {
     heading: string;
     newBadge: string;
+    newTag: string;
     list: Record<AchievementId, { title: string; description: string }>;
   };
   bible: {
