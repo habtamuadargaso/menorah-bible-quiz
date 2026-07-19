@@ -21,7 +21,9 @@ function JoinBattleForm() {
   useEffect(() => {
     const savedName = getSavedPlayerName();
     if (savedName) setPlayerName(savedName);
-    const codeFromUrl = searchParams.get("code");
+    // Accept either ?room= (used by the host dashboard's QR code) or the
+    // original ?code= param, so existing links/QR codes keep working.
+    const codeFromUrl = searchParams.get("room") ?? searchParams.get("code");
     if (codeFromUrl) {
       setRoomCode(
         codeFromUrl

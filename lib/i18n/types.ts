@@ -350,6 +350,16 @@ export interface UIStrings {
     notHostError: string;
     loadingHost: string;
     noOneAnsweredCorrectly: string;
+    dashboardEyebrow: string;
+    gameInformationHeading: string;
+    hostControlsHeading: string;
+    cancelRoomButton: string;
+    livePlayerListHeading: string;
+    playersConnectedLabel: string;
+    readyPlayersLabel: string;
+    readyCountLabel: string; // "{ready}" / "{total}" placeholders
+    maximumPlayersLabel: string;
+    scoreLabel: string;
   };
   multiplayerPlayer: {
     joinedAsLabel: string; // "{name}" placeholder

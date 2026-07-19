@@ -1,11 +1,53 @@
 "use client";
 
+import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { UIStrings } from "@/lib/i18n/types";
 import type { CategoryId } from "@/lib/categories";
-import type { RoomPlayerState } from "@/lib/liveBattleRoom";
+import type { LangCode } from "@/lib/i18n/locales";
+import { LANGUAGES } from "@/lib/i18n/locales";
+import { difficultyForLevel } from "@/lib/levels";
+import { isConnected, type RoomPlayerState } from "@/lib/liveBattleRoom";
 import RoomJoinCard from "../shared/RoomJoinCard";
-import ConnectedPlayerList from "../shared/ConnectedPlayerList";
+import HostPlayerRoster from "./HostPlayerRoster";
+
+function StatTile({
+  icon,
+  label,
+  value,
+  delay,
+  reduceMotion,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  delay: number;
+  reduceMotion: boolean | null;
+}) {
+  return (
+    <motion.div
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0.2 : 0.35, delay }}
+      className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-center shadow-[0_4px_18px_rgba(0,0,0,0.18)] transition-colors hover:border-gold-500/30 hover:bg-white/[0.06]"
+    >
+      <div className="text-lg" aria-hidden>
+        {icon}
+      </div>
+      <div className="mt-1 font-display text-xl font-bold text-gold-300">{value}</div>
+      <div className="mt-0.5 text-[11px] uppercase tracking-wide text-[#9aa1b0]">{label}</div>
+    </motion.div>
+  );
+}
+
+function InfoTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-center">
+      <div className="text-[11px] uppercase tracking-wide text-[#9aa1b0]">{label}</div>
+      <div className="mt-1 truncate font-display text-sm font-bold text-gold-300">{value}</div>
+    </div>
+  );
+}
 
 export default function HostLobby({
   t,
@@ -16,6 +58,8 @@ export default function HostLobby({
   categoryId,
   level,
   questionCount,
+  maxPlayers,
+  language,
   canStart,
   isStarting,
   onStart,
@@ -30,6 +74,8 @@ export default function HostLobby({
   categoryId: CategoryId;
   level: number;
   questionCount: number;
+  maxPlayers: number;
+  language: LangCode;
   canStart: boolean;
   isStarting: boolean;
   onStart: () => void;
@@ -40,6 +86,22 @@ export default function HostLobby({
   const th = t.multiplayerHost;
   const tm = t.multiplayerLobby;
   const categoryLabel = t.categories[categoryId]?.title ?? categoryId;
+  const difficultyLabel = t.quiz.difficulty[difficultyForLevel(level)];
+  const languageLabel = LANGUAGES.find((l) => l.code === language)?.nativeName ?? language;
+
+  const connectedCount = players.filter((p) => isConnected(p.lastSeenAt)).length;
+  const readyCount = players.filter((p) => p.isReady).length;
+
+  const [copied, setCopied] = useState(false);
+  async function handleCopyRoomCode() {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard unavailable — nothing to do
+    }
+  }
 
   return (
     <main
@@ -55,7 +117,21 @@ export default function HostLobby({
         >
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-gold-500">{tm.eyebrow}</p>
           <h1 className="mt-2 font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl lg:text-5xl">{t.battle.title}</h1>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.25em] text-purple-300">{th.dashboardEyebrow}</p>
         </motion.header>
+
+        {/* Players Connected / Ready Players / Maximum Players */}
+        <div className="mb-6 grid grid-cols-3 gap-3">
+          <StatTile icon="👥" label={th.playersConnectedLabel} value={String(connectedCount)} delay={0} reduceMotion={reduceMotion} />
+          <StatTile
+            icon="✅"
+            label={th.readyPlayersLabel}
+            value={`${readyCount}/${players.length}`}
+            delay={0.05}
+            reduceMotion={reduceMotion}
+          />
+          <StatTile icon="🎟️" label={th.maximumPlayersLabel} value={String(maxPlayers)} delay={0.1} reduceMotion={reduceMotion} />
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
           <div className="flex flex-col gap-6">
@@ -71,61 +147,86 @@ export default function HostLobby({
               shareLabel={tm.shareButton}
             />
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-center">
-                <div className="text-[11px] uppercase tracking-wide text-[#9aa1b0]">{tm.categoryLabel}</div>
-                <div className="mt-1 truncate font-display text-sm font-bold text-gold-300">{categoryLabel}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-center">
-                <div className="text-[11px] uppercase tracking-wide text-[#9aa1b0]">{th.levelLabel}</div>
-                <div className="mt-1 font-display text-sm font-bold text-gold-300">{level}</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 text-center">
-                <div className="text-[11px] uppercase tracking-wide text-[#9aa1b0]">{th.questionCountLabel}</div>
-                <div className="mt-1 font-display text-sm font-bold text-gold-300">{questionCount}</div>
+            <div>
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-gold-400">{th.gameInformationHeading}</h2>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <InfoTile label={tm.languageLabel} value={languageLabel} />
+                <InfoTile label={tm.categoryLabel} value={categoryLabel} />
+                <InfoTile label={tm.difficultyLabel} value={difficultyLabel} />
+                <InfoTile label={th.questionCountLabel} value={String(questionCount)} />
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <motion.button
-                type="button"
-                onClick={onStart}
-                disabled={!canStart || isStarting}
-                whileHover={reduceMotion || !canStart ? undefined : { y: -2, scale: 1.02 }}
-                whileTap={reduceMotion || !canStart ? undefined : { scale: 0.98 }}
-                className="flex-1 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-6 py-4 text-base font-bold text-navy-900 shadow-gold outline-none transition-shadow hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isStarting ? tm.startingBattle : th.startBattleButton}
-              </motion.button>
-              <button
-                type="button"
-                onClick={onEndRoom}
-                className="rounded-full border border-red-400/40 px-6 py-4 text-sm font-bold text-red-300 outline-none transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
-              >
-                {th.endRoomButton}
-              </button>
+            <div className="rounded-card border border-white/10 bg-white/[0.04] p-5 shadow-premium">
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-gold-400">{th.hostControlsHeading}</h2>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <motion.button
+                  type="button"
+                  onClick={onStart}
+                  disabled={!canStart || isStarting}
+                  whileHover={reduceMotion || !canStart ? undefined : { y: -2, scale: 1.02 }}
+                  whileTap={reduceMotion || !canStart ? undefined : { scale: 0.98 }}
+                  className="flex-1 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-6 py-4 text-base font-bold text-navy-900 shadow-gold outline-none transition-shadow hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isStarting ? tm.startingBattle : th.startBattleButton}
+                </motion.button>
+                <button
+                  type="button"
+                  onClick={onEndRoom}
+                  className="rounded-full border border-red-400/40 px-6 py-4 text-sm font-bold text-red-300 outline-none transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+                >
+                  {th.cancelRoomButton}
+                </button>
+                <motion.button
+                  type="button"
+                  onClick={handleCopyRoomCode}
+                  whileHover={reduceMotion ? undefined : { y: -2, scale: 1.02 }}
+                  whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                  className="rounded-full border border-white/15 bg-white/[0.03] px-6 py-4 text-sm font-bold text-[#c6cbd6] outline-none transition-colors hover:bg-white/[0.07] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+                >
+                  {copied ? `✓ ${tm.copiedMessage}` : `📋 ${tm.copyCodeButton}`}
+                </motion.button>
+              </div>
+              <div className="mt-3 flex flex-col items-center justify-between gap-1 text-xs text-[#8d94a3] sm:flex-row">
+                <span>{th.readyCountLabel.replace("{ready}", String(readyCount)).replace("{total}", String(players.length))}</span>
+                {!canStart && <span>{tm.minPlayersHint}</span>}
+              </div>
             </div>
-            {!canStart && <p className="text-center text-xs text-[#8d94a3] sm:text-left">{tm.minPlayersHint}</p>}
           </div>
 
           <div className="rounded-card border border-white/10 bg-white/[0.04] p-6 shadow-premium backdrop-blur-md">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-[#fbf6e8]">{th.waitingPlayersHeading}</h2>
+              <h2 className="font-display text-lg font-bold text-[#fbf6e8]">{th.livePlayerListHeading}</h2>
               <span className="rounded-full border border-white/15 px-3 py-1 text-xs font-bold text-[#c6cbd6]">
                 {th.connectedPlayersLabel.replace("{count}", String(players.length))}
               </span>
             </div>
 
             {players.length === 0 ? (
-              <p className="py-8 text-center text-sm text-[#8d94a3]">{th.noPlayersYet}</p>
+              <motion.div
+                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center gap-2 py-10 text-center"
+              >
+                <motion.span
+                  aria-hidden
+                  className="text-3xl"
+                  animate={reduceMotion ? undefined : { y: [0, -6, 0] }}
+                  transition={reduceMotion ? undefined : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  🕯️
+                </motion.span>
+                <p className="text-sm text-[#8d94a3]">{th.noPlayersYet}</p>
+              </motion.div>
             ) : (
-              <ConnectedPlayerList
+              <HostPlayerRoster
                 players={players}
                 hostId={hostId}
                 hostLabel={tm.hostBadge}
                 readyLabel={tm.readyBadge}
                 waitingLabel={tm.waitingBadge}
                 disconnectedLabel={t.battleShared.disconnectedLabel}
+                scoreLabel={th.scoreLabel}
                 onRemove={onRemovePlayer}
                 removeLabel={th.removePlayerButton}
               />

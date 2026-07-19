@@ -363,8 +363,12 @@ export default function HostRoomPage() {
   }
 
   const joinUrl =
-    typeof window !== "undefined" ? `${window.location.origin}/multiplayer/join?code=${room.code}` : `/multiplayer/join?code=${room.code}`;
+    typeof window !== "undefined" ? `${window.location.origin}/multiplayer/join?room=${room.code}` : `/multiplayer/join?room=${room.code}`;
   const connectedCount = players.filter((p) => p.playerId !== room.hostId && isConnected(p.lastSeenAt)).length;
+  // Start Game only enables once at least 2 players have joined and every
+  // one of them (host included, though the host row is always ready) is
+  // marked ready.
+  const canStartBattle = players.length >= 2 && players.every((p) => p.isReady);
   // The host's own room_players row exists so they can be listed/removed in
   // the lobby, but the host never competes — leaderboards and final results
   // should only ever rank the actual players.
@@ -392,7 +396,9 @@ export default function HostRoomPage() {
           categoryId={room.categoryId}
           level={room.gameLevel}
           questionCount={room.questionCount}
-          canStart={players.length >= 2}
+          maxPlayers={room.maxPlayers}
+          language={room.language}
+          canStart={canStartBattle}
           isStarting={isStarting}
           onStart={handleStart}
           onEndRoom={handleEndRoom}
