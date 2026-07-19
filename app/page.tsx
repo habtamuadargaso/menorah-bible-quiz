@@ -28,10 +28,7 @@ import Footer from "@/components/Footer";
 import Confetti from "@/components/Confetti";
 import CampaignMap from "@/components/CampaignMap";
 import BattleLauncher from "@/components/BattleLauncher";
-import BattleSetup, {
-  type BattleConfig,
-} from "@/components/BattleSetup";
-import BattleArena from "@/components/BattleArena";
+import { useRouter } from "next/navigation";
 
 import {
   loadLeaderboard,
@@ -64,12 +61,11 @@ type Stage =
   | "quiz"
   | "result"
   | "leaderboard"
-  | "profile"
-  | "battle-setup"
-  | "battle";
+  | "profile";
 
 export default function Home() {
   const { lang } = useLanguage();
+  const router = useRouter();
 
   const [stage, setStage] =
     useState<Stage>("categories");
@@ -88,8 +84,6 @@ export default function Home() {
     useState(false);
   const [campaignProgress, setCampaignProgress] =
     useState<CampaignProgress>({});
-  const [battleConfig, setBattleConfig] =
-    useState<BattleConfig | null>(null);
 
   const gameRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<HTMLDivElement>(null);
@@ -236,14 +230,7 @@ export default function Home() {
   }
 
   function handleBattleSetup() {
-    setStage("battle-setup");
-    scrollTo(gameRef);
-  }
-
-  function handleStartBattle(config: BattleConfig) {
-    setBattleConfig(config);
-    setStage("battle");
-    scrollTo(gameRef);
+    router.push("/multiplayer");
   }
 
   function handleBible() {
@@ -303,7 +290,6 @@ export default function Home() {
               onChurchMode={handleChurch}
             />
 
-            {/* Local shared-screen Battle Arena */}
             <BattleLauncher onStart={handleBattleSetup} />
 
             <ContinuePlaying
@@ -417,47 +403,6 @@ export default function Home() {
           </motion.div>
         )}
 
-        {stage === "battle-setup" && (
-          <motion.div
-            key="battle-setup"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <BattleSetup
-              onStart={handleStartBattle}
-              onBack={() => setStage("categories")}
-            />
-          </motion.div>
-        )}
-
-        {stage === "battle" && battleConfig && (
-          <motion.div
-            key={`battle-${lang}-${battleConfig.categoryId}-${battleConfig.level}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <BattleArena
-              config={battleConfig}
-              onExit={() => setStage("categories")}
-              onRematch={() => {
-                setBattleConfig({
-                  ...battleConfig,
-                  players: battleConfig.players.map(
-                    (player) => ({
-                      ...player,
-                    })
-                  ),
-                });
-
-                setStage("battle-setup");
-              }}
-            />
-          </motion.div>
-        )}
       </AnimatePresence>
 
       <Footer />

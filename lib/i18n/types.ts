@@ -298,32 +298,89 @@ export interface UIStrings {
     countdownGo: string;
     loadingLobby: string;
     roomNotFoundMessage: string;
+    joinPageHeading: string;
+    joinPageSubheading: string;
   };
-  liveBattle: {
-    roomLabel: string;
-    questionProgress: string; // "{current}" / "{total}" placeholders
-    remainingPlayers: string;
-    loadingBattle: string;
-    roomNotFound: string;
-    battleComplete: string;
-    waitingForQuestion: string;
-    translationUnavailable: string;
-    chooseAnswer: string;
-    answerLockedWaiting: string;
-    roundResults: string;
-    correctAnswerLabel: string;
-    streakLabel: string;
-    statusWaiting: string;
-    statusAnswered: string;
-    statusCorrect: string;
-    statusIncorrect: string;
-    statusDisconnected: string;
-    nextQuestionIn: string;
-    winnerHeading: string;
-    topThreeHeading: string;
-    reactionTimeLabel: string;
+  battleShared: {
+    connectedLabel: string;
+    reconnectingLabel: string;
+    disconnectedLabel: string;
+    phaseWaiting: string;
+    phaseCountdown: string;
+    phaseQuestion: string;
+    phaseReveal: string;
+    phaseLeaderboard: string;
+    phaseFinished: string;
+    phaseChangedAnnouncement: string; // "{phase}" placeholder
     secondsShort: string;
-    returnToMultiplayer: string;
+    timeUpLabel: string;
+  };
+  multiplayerHost: {
+    joinUrlLabel: string;
+    qrHeading: string;
+    qrHint: string;
+    connectedPlayersLabel: string; // "{count}" placeholder
+    levelLabel: string;
+    questionCountLabel: string;
+    startBattleButton: string;
+    endRoomButton: string;
+    endRoomConfirm: string;
+    restartBattleButton: string;
+    removePlayerButton: string;
+    removePlayerConfirm: string; // "{name}" placeholder
+    waitingPlayersHeading: string;
+    noPlayersYet: string;
+    audienceViewLabel: string;
+    answeredCountLabel: string; // "{answered}" / "{total}" placeholders
+    revealHeading: string;
+    distributionHeading: string;
+    fastestCorrectLabel: string;
+    topPlayersHeading: string;
+    nextQuestionCountdown: string; // "{seconds}" placeholder
+    continueButton: string;
+    finalWinnerHeading: string;
+    finalTopThreeHeading: string;
+    finalLeaderboardHeading: string;
+    finalAccuracyLabel: string;
+    finalFastestResponseLabel: string;
+    finalXpLabel: string;
+    finalRewardsLabel: string;
+    newBattleButton: string;
+    backToMultiplayerButton: string;
+    notHostError: string;
+    loadingHost: string;
+    noOneAnsweredCorrectly: string;
+  };
+  multiplayerPlayer: {
+    joinedAsLabel: string; // "{name}" placeholder
+    connectedPlayersHeading: string;
+    yourScoreLabel: string;
+    yourStreakLabel: string;
+    answerSubmittedMessage: string;
+    waitingForOthersMessage: string;
+    youAnsweredAria: string;
+    correctMessage: string;
+    incorrectMessage: string;
+    correctAnswerWasLabel: string;
+    pointsEarnedLabel: string;
+    responseTimeLabel: string;
+    currentRankHeading: string;
+    currentRankLabel: string; // "{rank}" / "{total}" placeholders
+    waitingForNextMessage: string;
+    finalRankLabel: string;
+    finalScoreLabel: string;
+    finalAccuracyLabel: string;
+    finalCorrectAnswersLabel: string;
+    finalAvgResponseTimeLabel: string;
+    playAgainButton: string;
+    leaveButton: string;
+    errorInvalidCode: string;
+    errorRoomFinished: string;
+    errorDuplicateName: string;
+    errorAnswerFailed: string;
+    errorExpiredRoom: string;
+    reconnectingMessage: string;
+    hostDisconnectedMessage: string;
   };
   globalLeaderboard: {
     navLabel: string;
