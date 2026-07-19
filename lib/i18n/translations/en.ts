@@ -357,6 +357,13 @@ export const en: UIStrings = {
     readyCountLabel: "Ready: {ready} / {total}",
     maximumPlayersLabel: "Maximum Players",
     scoreLabel: "Score",
+    liveGameStatusLabel: "Live Status",
+    leaderboardPreviewHeading: "Global Champions",
+    leaderboardPreviewHint: "Top players while everyone gets ready",
+    leaderboardPreviewLoading: "Loading leaderboard…",
+    leaderboardPreviewUnavailable: "Leaderboard unavailable right now.",
+    leaderboardPreviewEmpty: "No ranked players yet.",
+    viewFullLeaderboardButton: "View Full Leaderboard",
   },
   multiplayerPlayer: {
     joinedAsLabel: "Playing as {name}",

@@ -360,6 +360,13 @@ export const am: UIStrings = {
     readyCountLabel: "ዝግጁ፦ {ready} / {total}",
     maximumPlayersLabel: "ከፍተኛ ተጫዋቾች",
     scoreLabel: "ነጥብ",
+    liveGameStatusLabel: "የቀጥታ ሁኔታ",
+    leaderboardPreviewHeading: "ዓለም አቀፍ ሻምፒዮኖች",
+    leaderboardPreviewHint: "ሁሉም ዝግጁ እስኪሆኑ ድረስ ምርጥ ተጫዋቾች",
+    leaderboardPreviewLoading: "የደረጃ ሰንጠረዥ እየተጫነ ነው…",
+    leaderboardPreviewUnavailable: "የደረጃ ሰንጠረዥ አሁን አይገኝም።",
+    leaderboardPreviewEmpty: "እስካሁን ደረጃ የተሰጣቸው ተጫዋቾች የሉም።",
+    viewFullLeaderboardButton: "ሙሉ ደረጃ ሰንጠረዥን ይመልከቱ",
   },
   multiplayerPlayer: {
     joinedAsLabel: "እንደ {name} እየተጫወቱ ነው",

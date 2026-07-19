@@ -400,6 +400,7 @@ export default function HostRoomPage() {
           language={room.language}
           canStart={canStartBattle}
           isStarting={isStarting}
+          connectionState={connectionState}
           onStart={handleStart}
           onEndRoom={handleEndRoom}
           onRemovePlayer={handleRemovePlayer}

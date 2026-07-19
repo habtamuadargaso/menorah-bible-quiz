@@ -9,7 +9,9 @@ import { LANGUAGES } from "@/lib/i18n/locales";
 import { difficultyForLevel } from "@/lib/levels";
 import { isConnected, type RoomPlayerState } from "@/lib/liveBattleRoom";
 import RoomJoinCard from "../shared/RoomJoinCard";
+import ConnectionStatus from "../shared/ConnectionStatus";
 import HostPlayerRoster from "./HostPlayerRoster";
+import HostLeaderboardPreview from "./HostLeaderboardPreview";
 
 function StatTile({
   icon,
@@ -72,6 +74,7 @@ export default function HostLobby({
   language,
   canStart,
   isStarting,
+  connectionState,
   onStart,
   onEndRoom,
   onRemovePlayer,
@@ -88,6 +91,7 @@ export default function HostLobby({
   language: LangCode;
   canStart: boolean;
   isStarting: boolean;
+  connectionState: "connected" | "reconnecting" | "disconnected";
   onStart: () => void;
   onEndRoom: () => void;
   onRemovePlayer: (playerId: string) => void;
@@ -134,6 +138,14 @@ export default function HostLobby({
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-gold-500 2xl:text-sm">{tm.eyebrow}</p>
           <h1 className="mt-2 font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl lg:text-5xl 2xl:text-6xl">{t.battle.title}</h1>
           <p className="mt-1 text-xs font-semibold uppercase tracking-[0.25em] text-purple-300 2xl:text-sm">{th.dashboardEyebrow}</p>
+          <div className="mt-3 flex justify-center">
+            <ConnectionStatus
+              state={connectionState}
+              connectedLabel={`${th.liveGameStatusLabel}: ${t.battleShared.connectedLabel}`}
+              reconnectingLabel={`${th.liveGameStatusLabel}: ${t.battleShared.reconnectingLabel}`}
+              disconnectedLabel={`${th.liveGameStatusLabel}: ${t.battleShared.disconnectedLabel}`}
+            />
+          </div>
         </motion.header>
 
         {/* Players Connected / Ready Players / Maximum Players */}
@@ -215,54 +227,58 @@ export default function HostLobby({
             </div>
           </div>
 
-          <div className="rounded-card border border-white/10 bg-white/[0.04] p-6 shadow-premium backdrop-blur-md 2xl:p-7">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-[#fbf6e8] 2xl:text-xl">{th.livePlayerListHeading}</h2>
-              <span className="rounded-full border border-white/15 px-3 py-1 text-xs font-bold text-[#c6cbd6]">
-                {th.connectedPlayersLabel.replace("{count}", String(players.length))}
-              </span>
+          <div className="flex flex-col gap-6">
+            <div className="rounded-card border border-white/10 bg-white/[0.04] p-6 shadow-premium backdrop-blur-md 2xl:p-7">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-display text-lg font-bold text-[#fbf6e8] 2xl:text-xl">{th.livePlayerListHeading}</h2>
+                <span className="rounded-full border border-white/15 px-3 py-1 text-xs font-bold text-[#c6cbd6]">
+                  {th.connectedPlayersLabel.replace("{count}", String(players.length))}
+                </span>
+              </div>
+
+              {players.length > 0 && (
+                <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                  <motion.div
+                    initial={false}
+                    animate={{ width: `${(readyCount / players.length) * 100}%` }}
+                    transition={{ duration: reduceMotion ? 0 : 0.4, ease: "easeOut" }}
+                    className={`h-full rounded-full ${allPlayersReady ? "bg-emerald-400" : "bg-gold-400"}`}
+                  />
+                </div>
+              )}
+
+              {players.length === 0 ? (
+                <motion.div
+                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center gap-2 py-10 text-center"
+                >
+                  <motion.span
+                    aria-hidden
+                    className="text-3xl"
+                    animate={reduceMotion ? undefined : { y: [0, -6, 0] }}
+                    transition={reduceMotion ? undefined : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    🕯️
+                  </motion.span>
+                  <p className="text-sm text-[#8d94a3]">{th.noPlayersYet}</p>
+                </motion.div>
+              ) : (
+                <HostPlayerRoster
+                  players={players}
+                  hostId={hostId}
+                  hostLabel={tm.hostBadge}
+                  readyLabel={tm.readyBadge}
+                  waitingLabel={tm.waitingBadge}
+                  disconnectedLabel={t.battleShared.disconnectedLabel}
+                  scoreLabel={th.scoreLabel}
+                  onRemove={onRemovePlayer}
+                  removeLabel={th.removePlayerButton}
+                />
+              )}
             </div>
 
-            {players.length > 0 && (
-              <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
-                <motion.div
-                  initial={false}
-                  animate={{ width: `${(readyCount / players.length) * 100}%` }}
-                  transition={{ duration: reduceMotion ? 0 : 0.4, ease: "easeOut" }}
-                  className={`h-full rounded-full ${allPlayersReady ? "bg-emerald-400" : "bg-gold-400"}`}
-                />
-              </div>
-            )}
-
-            {players.length === 0 ? (
-              <motion.div
-                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center gap-2 py-10 text-center"
-              >
-                <motion.span
-                  aria-hidden
-                  className="text-3xl"
-                  animate={reduceMotion ? undefined : { y: [0, -6, 0] }}
-                  transition={reduceMotion ? undefined : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  🕯️
-                </motion.span>
-                <p className="text-sm text-[#8d94a3]">{th.noPlayersYet}</p>
-              </motion.div>
-            ) : (
-              <HostPlayerRoster
-                players={players}
-                hostId={hostId}
-                hostLabel={tm.hostBadge}
-                readyLabel={tm.readyBadge}
-                waitingLabel={tm.waitingBadge}
-                disconnectedLabel={t.battleShared.disconnectedLabel}
-                scoreLabel={th.scoreLabel}
-                onRemove={onRemovePlayer}
-                removeLabel={th.removePlayerButton}
-              />
-            )}
+            <HostLeaderboardPreview t={t} />
           </div>
         </div>
       </div>

@@ -360,6 +360,13 @@ export interface UIStrings {
     readyCountLabel: string; // "{ready}" / "{total}" placeholders
     maximumPlayersLabel: string;
     scoreLabel: string;
+    liveGameStatusLabel: string;
+    leaderboardPreviewHeading: string;
+    leaderboardPreviewHint: string;
+    leaderboardPreviewLoading: string;
+    leaderboardPreviewUnavailable: string;
+    leaderboardPreviewEmpty: string;
+    viewFullLeaderboardButton: string;
   };
   multiplayerPlayer: {
     joinedAsLabel: string; // "{name}" placeholder
