@@ -9,6 +9,9 @@ export async function loadQuestionById(
 ): Promise<LoadedQuestion | null> {
   const supabase = createClient();
 
+  // See loadQuestions.ts: correct_index/explanation are no longer directly
+  // SELECT-able, so the answer key is fetched separately via the
+  // get_question_answer_keys RPC (safe for solo play, phase-gated for battle).
   const { data, error } = await supabase
     .from("questions")
     .select(`
@@ -18,16 +21,13 @@ export async function loadQuestionById(
       book,
       chapter,
       difficulty,
-      correct_index,
       reference,
       question_translations!inner (
-        language_code,
         question_text,
         choice_1,
         choice_2,
         choice_3,
         choice_4,
-        explanation,
         reflection
       )
     `)
@@ -44,7 +44,6 @@ export async function loadQuestionById(
       book: string;
       chapter: number | null;
       difficulty: string;
-      correct_index: number;
       reference: string;
       question_translations: Array<{
         question_text: string;
@@ -52,26 +51,32 @@ export async function loadQuestionById(
         choice_2: string;
         choice_3: string;
         choice_4: string;
-        explanation: string;
         reflection: string | null;
       }>;
     };
     const tr = row.question_translations[0];
     if (tr) {
-      return {
-        id: row.id,
-        level: row.level,
-        category: row.category,
-        book: row.book,
-        chapter: row.chapter,
-        difficulty: row.difficulty,
-        correctIndex: row.correct_index,
-        reference: row.reference,
-        question: tr.question_text,
-        choices: [tr.choice_1, tr.choice_2, tr.choice_3, tr.choice_4],
-        explanation: tr.explanation,
-        reflection: tr.reflection,
-      };
+      const { data: answerKeyData, error: answerKeyError } = await supabase.rpc(
+        "get_question_answer_keys",
+        { p_question_ids: [row.id], p_lang: languageCode }
+      );
+      const answerKey = (!answerKeyError && answerKeyData?.[0]) || null;
+      if (answerKey && answerKey.correct_index !== null) {
+        return {
+          id: row.id,
+          level: row.level,
+          category: row.category,
+          book: row.book,
+          chapter: row.chapter,
+          difficulty: row.difficulty,
+          correctIndex: answerKey.correct_index,
+          reference: row.reference,
+          question: tr.question_text,
+          choices: [tr.choice_1, tr.choice_2, tr.choice_3, tr.choice_4],
+          explanation: answerKey.explanation ?? "",
+          reflection: tr.reflection,
+        };
+      }
     }
   }
 

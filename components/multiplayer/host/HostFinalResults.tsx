@@ -1,19 +1,19 @@
 "use client";
 
 import type { UIStrings } from "@/lib/i18n/types";
-import type { AnswerRow, RoomPlayerState } from "@/lib/liveBattleRoom";
+import type { FinalStats, RoomPlayerState } from "@/lib/liveBattleRoom";
 import BattleSummary from "@/components/battle/BattleSummary";
 import type { BattleLeaderboardEntry } from "@/components/battle/BattleLeaderboard";
 
 export default function HostFinalResults({
   t,
   players,
-  allAnswers,
+  stats,
   onNewBattle,
 }: {
   t: UIStrings;
   players: RoomPlayerState[];
-  allAnswers: AnswerRow[];
+  stats: FinalStats;
   onNewBattle: () => void;
 }) {
   const th = t.multiplayerHost;
@@ -22,11 +22,8 @@ export default function HostFinalResults({
     .sort((a, b) => b.score - a.score)
     .map((p) => ({ id: p.id, name: p.displayName, score: p.score, isYou: false }));
 
-  const totalAnswers = allAnswers.length;
-  const correctAnswers = allAnswers.filter((a) => a.isCorrect).length;
-  const accuracyPct = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
-  const correctResponses = allAnswers.filter((a) => a.isCorrect);
-  const fastestMs = correctResponses.length > 0 ? Math.min(...correctResponses.map((a) => a.responseTimeMs)) : 0;
+  const accuracyPct = stats.totalAnswers > 0 ? Math.round((stats.correctAnswers / stats.totalAnswers) * 100) : 0;
+  const fastestMs = stats.fastestCorrectResponseMs ?? 0;
   const winnerScore = entries[0]?.score ?? 0;
 
   return (

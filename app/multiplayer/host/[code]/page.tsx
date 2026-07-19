@@ -6,22 +6,24 @@ import { AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { createClient } from "@/lib/supabase/client";
 import {
-  ROUND_SECONDS,
   advancePhase,
   ensureAnonymousSession,
   endRoom,
-  fetchAllRoomAnswers,
-  fetchAnswersForQuestion,
+  fetchAnswerCount,
+  fetchFinalStats,
+  fetchRevealAnswers,
   fetchRoomByCode,
   fetchRoomPlayers,
   fetchRoomQuestion,
   isConnected,
   removePlayer,
   resolveRound,
+  resolveRoundIfExpired,
   seedRoomQuestions,
   startBattle,
   startHeartbeat,
   type AnswerRow,
+  type FinalStats,
   type RoomPlayerState,
   type RoomQuestionView,
   type RoomState,
@@ -33,6 +35,10 @@ import HostRoundReveal from "@/components/multiplayer/host/HostRoundReveal";
 import HostLeaderboard from "@/components/multiplayer/host/HostLeaderboard";
 import HostFinalResults from "@/components/multiplayer/host/HostFinalResults";
 
+const ANSWER_COUNT_POLL_MS = 1500;
+
+const EMPTY_FINAL_STATS: FinalStats = { totalAnswers: 0, correctAnswers: 0, fastestCorrectResponseMs: null };
+
 export default function HostRoomPage() {
   const params = useParams<{ code: string }>();
   const router = useRouter();
@@ -42,8 +48,9 @@ export default function HostRoomPage() {
   const [room, setRoom] = useState<RoomState | null>(null);
   const [players, setPlayers] = useState<RoomPlayerState[]>([]);
   const [question, setQuestion] = useState<RoomQuestionView | null>(null);
-  const [answers, setAnswers] = useState<AnswerRow[]>([]);
-  const [allAnswers, setAllAnswers] = useState<AnswerRow[]>([]);
+  const [answeredCount, setAnsweredCount] = useState(0);
+  const [revealAnswers, setRevealAnswers] = useState<AnswerRow[]>([]);
+  const [finalStats, setFinalStats] = useState<FinalStats>(EMPTY_FINAL_STATS);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
@@ -59,23 +66,46 @@ export default function HostRoomPage() {
     }
   }, []);
 
+  // "N of M answered" is polled via the get_answer_count() RPC rather than
+  // a realtime subscription on `answers` — see the migration's section 2/9:
+  // that table only lets a client SELECT its own row now, so a live
+  // per-player answer feed isn't something the host can (or should) see.
+  const refreshAnswerCount = useCallback(async (roomQuestionId: string) => {
+    try {
+      setAnsweredCount(await fetchAnswerCount(roomQuestionId));
+    } catch (err) {
+      console.error("Failed to load answer count:", err);
+    }
+  }, []);
+
   const refreshQuestion = useCallback(async (roomId: string, lang: RoomState["language"]) => {
     try {
       const q = await fetchRoomQuestion(roomId, lang);
       setQuestion(q);
-      if (q) {
-        try {
-          setAnswers(await fetchAnswersForQuestion(q.roomQuestionId));
-        } catch (err) {
-          console.error("Failed to load answers:", err);
-        }
-      }
+      if (q) await refreshAnswerCount(q.roomQuestionId);
     } catch (err) {
       console.error("Failed to load question:", err);
     }
+  }, [refreshAnswerCount]);
+
+  const refreshRevealAnswers = useCallback(async (roomQuestionId: string) => {
+    try {
+      setRevealAnswers(await fetchRevealAnswers(roomQuestionId));
+    } catch (err) {
+      console.error("Failed to load reveal answers:", err);
+    }
   }, []);
 
-  // Initial load + realtime subscriptions.
+  const refreshFinalStats = useCallback(async (roomId: string) => {
+    try {
+      setFinalStats(await fetchFinalStats(roomId));
+    } catch (err) {
+      console.error("Failed to load final stats:", err);
+    }
+  }, []);
+
+  // Initial load + realtime subscriptions (rooms/room_players only — see
+  // note above on `answers`).
   useEffect(() => {
     if (!code) return;
     let cancelled = false;
@@ -100,11 +130,15 @@ export default function HostRoomPage() {
         if (cancelled) return;
         setRoom(initialRoom);
         await refreshPlayers(initialRoom.id);
-        if (initialRoom.status === "question" || initialRoom.status === "reveal") {
+        if (initialRoom.status === "question") {
           await refreshQuestion(initialRoom.id, initialRoom.language);
+        } else if (initialRoom.status === "reveal") {
+          const q = await fetchRoomQuestion(initialRoom.id, initialRoom.language);
+          setQuestion(q);
+          if (q) await refreshRevealAnswers(q.roomQuestionId);
         }
         if (initialRoom.status === "finished") {
-          setAllAnswers(await fetchAllRoomAnswers(initialRoom.id));
+          await refreshFinalStats(initialRoom.id);
         }
         stopHeartbeat = startHeartbeat(initialRoom.id, userId);
         setIsLoading(false);
@@ -137,9 +171,11 @@ export default function HostRoomPage() {
                 resolvedForQuestionRef.current = null;
                 await refreshQuestion(initialRoom.id, initialRoom.language);
               } else if (nextStatus === "reveal") {
-                await refreshQuestion(initialRoom.id, initialRoom.language);
+                const q = await fetchRoomQuestion(initialRoom.id, initialRoom.language);
+                setQuestion(q);
+                if (q) await refreshRevealAnswers(q.roomQuestionId);
               } else if (nextStatus === "finished") {
-                setAllAnswers(await fetchAllRoomAnswers(initialRoom.id));
+                await refreshFinalStats(initialRoom.id);
               }
             }
           )
@@ -148,29 +184,6 @@ export default function HostRoomPage() {
             { event: "*", schema: "public", table: "room_players", filter: `room_id=eq.${initialRoom.id}` },
             () => {
               void refreshPlayers(initialRoom.id);
-            }
-          )
-          .on(
-            "postgres_changes",
-            { event: "INSERT", schema: "public", table: "answers", filter: `room_id=eq.${initialRoom.id}` },
-            (payload) => {
-              const row = payload.new as Record<string, unknown>;
-              setAnswers((prev) => {
-                if (prev.some((a) => a.id === row.id)) return prev;
-                return [
-                  ...prev,
-                  {
-                    id: row.id as string,
-                    roomQuestionId: row.room_question_id as string,
-                    playerId: row.player_id as string,
-                    selectedAnswer: row.selected_answer as number,
-                    isCorrect: row.is_correct as boolean,
-                    responseTimeMs: row.response_time_ms as number,
-                    pointsAwarded: row.points_awarded as number,
-                    submittedAt: row.submitted_at as string,
-                  },
-                ];
-              });
             }
           )
           .subscribe((status) => {
@@ -202,31 +215,46 @@ export default function HostRoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
 
-  // Auto-resolve the round: when the timer runs out, or every connected
-  // player has answered — whichever comes first. resolve_round() is a
-  // safe no-op once the room has already left "question", so it's fine
-  // if both triggers fire close together.
+  // Poll the answered count while a question is live — replaces the old
+  // realtime subscription on `answers` (see refreshAnswerCount above).
+  useEffect(() => {
+    if (!room || room.status !== "question" || !question) return;
+    const id = window.setInterval(() => void refreshAnswerCount(question.roomQuestionId), ANSWER_COUNT_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [room, question, refreshAnswerCount]);
+
+  // Auto-resolve the round: once every connected player has answered, the
+  // host explicitly ends it early (resolveRound, host-only). Once the
+  // deadline itself passes, resolveRoundIfExpired is used instead — the
+  // same call any player's own client makes as a host-disconnect safety
+  // net (see the player page), so the host's tab isn't a special case
+  // required for the round to ever end. Both are safe no-ops once the
+  // room has already left "question".
   useEffect(() => {
     if (!room || room.status !== "question" || !room.questionEndsAt || !question) return;
     if (resolvedForQuestionRef.current === question.roomQuestionId) return;
 
     const answeringPlayers = players.filter((p) => p.playerId !== room.hostId && isConnected(p.lastSeenAt));
-    const allAnswered = answeringPlayers.length > 0 && answers.length >= answeringPlayers.length;
-
+    const allAnswered = answeringPlayers.length > 0 && answeredCount >= answeringPlayers.length;
     const msRemaining = new Date(room.questionEndsAt).getTime() - Date.now();
 
-    if (allAnswered || msRemaining <= 0) {
+    if (allAnswered) {
       resolvedForQuestionRef.current = question.roomQuestionId;
       void resolveRound(room.id).catch((err) => console.error("resolveRound failed:", err));
+      return;
+    }
+    if (msRemaining <= 0) {
+      resolvedForQuestionRef.current = question.roomQuestionId;
+      void resolveRoundIfExpired(room.id).catch((err) => console.error("resolveRoundIfExpired failed:", err));
       return;
     }
 
     const timeout = window.setTimeout(() => {
       resolvedForQuestionRef.current = question.roomQuestionId;
-      void resolveRound(room.id).catch((err) => console.error("resolveRound failed:", err));
+      void resolveRoundIfExpired(room.id).catch((err) => console.error("resolveRoundIfExpired failed:", err));
     }, msRemaining + 250);
     return () => window.clearTimeout(timeout);
-  }, [room, question, answers, players]);
+  }, [room, question, answeredCount, players]);
 
   async function handleStart() {
     if (!room) return;
@@ -294,8 +322,9 @@ export default function HostRoomPage() {
     if (!room) return;
     try {
       await advancePhase(room.id, "waiting");
-      setAllAnswers([]);
-      setAnswers([]);
+      setFinalStats(EMPTY_FINAL_STATS);
+      setRevealAnswers([]);
+      setAnsweredCount(0);
       setQuestion(null);
     } catch (err) {
       console.error("Restart battle failed:", err);
@@ -383,7 +412,7 @@ export default function HostRoomPage() {
           categoryLabel={t.categories[room.categoryId]?.title ?? room.categoryId}
           levelLabel={`${t.multiplayerHost.levelLabel} ${room.gameLevel}`}
           questionEndsAt={room.questionEndsAt}
-          answeredCount={answers.length}
+          answeredCount={answeredCount}
           totalPlayers={connectedCount}
           connectionState={connectionState}
         />
@@ -391,7 +420,7 @@ export default function HostRoomPage() {
       break;
     case "reveal":
       content = question ? (
-        <HostRoundReveal t={t} question={question} answers={answers} players={players} onContinue={handleRevealContinue} />
+        <HostRoundReveal t={t} question={question} answers={revealAnswers} players={players} onContinue={handleRevealContinue} />
       ) : null;
       break;
     case "leaderboard":
@@ -406,7 +435,7 @@ export default function HostRoomPage() {
       );
       break;
     case "finished":
-      content = <HostFinalResults t={t} players={competitivePlayers} allAnswers={allAnswers} onNewBattle={handleNewBattle} />;
+      content = <HostFinalResults t={t} players={competitivePlayers} stats={finalStats} onNewBattle={handleNewBattle} />;
       break;
     default:
       content = null;

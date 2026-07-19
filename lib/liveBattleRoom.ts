@@ -2,16 +2,17 @@
 //
 // This replaces the old local shared-screen battle (BattleSetup/BattleArena,
 // removed) as the app's real multiplayer mode. It talks to the existing
-// rooms/room_players/room_questions/answers/profiles tables plus the new
-// secure RPCs added in supabase/migrations/20260719_online_live_battle.sql
-// (submit_answer, resolve_round, advance_phase, start_battle,
-// get_room_question) — scoring and phase transitions are never computed or
-// trusted client-side; this module only ever asks the database to do them.
+// rooms/room_players/room_questions/answers/profiles tables plus the secure
+// RPCs added in supabase/migrations/20260719_online_live_battle.sql
+// (submit_answer, resolve_round, resolve_round_if_expired, advance_phase,
+// start_battle, get_room_question, get_answer_count, get_my_answer,
+// get_reveal_answers, get_final_leaderboard) — scoring, phase transitions,
+// and every cross-player answer read are never computed or read directly
+// client-side; this module only ever asks the database to do them.
 import { createClient } from "@/lib/supabase/client";
 import type { LangCode } from "@/lib/i18n/locales";
 import type { CategoryId } from "@/lib/categories";
 import { loadQuestionsForLevel } from "@/lib/questions/loadQuestions";
-import { questionsForLevel } from "@/lib/questions";
 
 export type RoomPhase = "waiting" | "countdown" | "question" | "reveal" | "leaderboard" | "finished";
 
@@ -298,14 +299,18 @@ export async function fetchRoomQuestion(roomId: string, lang: LangCode): Promise
   };
 }
 
+// The "answers" table now only lets a player SELECT their own row directly
+// (see the migration) — every cross-player read below goes through a
+// SECURITY DEFINER RPC instead of a raw table query, so there is no path
+// (this module or a raw REST call) that can read another player's
+// selection before it's meant to be visible.
+
+/** Safe at any phase — never reveals what anyone chose, just how many. */
 export async function fetchAnswerCount(roomQuestionId: string): Promise<number> {
   const supabase = createClient();
-  const { count, error } = await supabase
-    .from("answers")
-    .select("*", { count: "exact", head: true })
-    .eq("room_question_id", roomQuestionId);
+  const { data, error } = await supabase.rpc("get_answer_count", { p_room_question_id: roomQuestionId });
   if (error) throw error;
-  return count ?? 0;
+  return typeof data === "number" ? data : 0;
 }
 
 export interface AnswerRow {
@@ -319,20 +324,46 @@ export interface AnswerRow {
   submittedAt: string;
 }
 
-const ANSWER_COLUMNS =
-  "id, room_question_id, player_id, selected_answer, is_correct, response_time_ms, points_awarded, submitted_at";
+export interface MyAnswer {
+  selectedAnswer: number;
+  isCorrect: boolean;
+  responseTimeMs: number;
+  pointsAwarded: number;
+  submittedAt: string;
+}
 
-function mapAnswerRow(a: {
-  id: string;
-  room_question_id: string;
-  player_id: string;
-  selected_answer: number;
-  is_correct: boolean;
-  response_time_ms: number;
-  points_awarded: number;
-  submitted_at: string;
-}): AnswerRow {
+/** The caller's own answer for one question — safe at any phase. */
+export async function fetchMyAnswer(roomQuestionId: string): Promise<MyAnswer | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_my_answer", { p_room_question_id: roomQuestionId });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
   return {
+    selectedAnswer: row.selected_answer,
+    isCorrect: row.is_correct,
+    responseTimeMs: row.response_time_ms,
+    pointsAwarded: row.points_awarded,
+    submittedAt: row.submitted_at,
+  };
+}
+
+/** All of the caller's own answers across the whole battle, for the final
+ * personal-stats screen (accuracy, correct count, avg response time). This
+ * is a plain table query, not an RPC — it's safe purely because "Players
+ * can read own answers" (the migration's section 2) restricts every SELECT
+ * on `answers` to `player_id = auth.uid()` regardless of how the query is
+ * filtered, so passing `playerId` here is for the caller's own clarity, not
+ * for security; the database enforces it either way. */
+export async function fetchMyAnswers(roomId: string, playerId: string): Promise<AnswerRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("answers")
+    .select("id, room_question_id, player_id, selected_answer, is_correct, response_time_ms, points_awarded, submitted_at")
+    .eq("room_id", roomId)
+    .eq("player_id", playerId);
+  if (error) throw error;
+  return (data ?? []).map((a) => ({
     id: a.id,
     roomQuestionId: a.room_question_id,
     playerId: a.player_id,
@@ -341,36 +372,81 @@ function mapAnswerRow(a: {
     responseTimeMs: a.response_time_ms,
     pointsAwarded: a.points_awarded,
     submittedAt: a.submitted_at,
+  }));
+}
+
+/** Every player's answer for one question — only returns rows once that
+ * question's round has actually ended; throws before that. Used for the
+ * host's reveal screen (distribution + fastest correct player). */
+export async function fetchRevealAnswers(roomQuestionId: string): Promise<AnswerRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_reveal_answers", { p_room_question_id: roomQuestionId });
+  if (error) throw error;
+  return ((data ?? []) as Array<{
+    player_id: string;
+    selected_answer: number;
+    is_correct: boolean;
+    response_time_ms: number;
+    points_awarded: number;
+    submitted_at: string;
+  }>).map((a) => ({
+    id: `${roomQuestionId}-${a.player_id}`,
+    roomQuestionId,
+    playerId: a.player_id,
+    selectedAnswer: a.selected_answer,
+    isCorrect: a.is_correct,
+    responseTimeMs: a.response_time_ms,
+    pointsAwarded: a.points_awarded,
+    submittedAt: a.submitted_at,
+  }));
+}
+
+export interface FinalLeaderboardRow {
+  playerId: string;
+  displayName: string;
+  score: number;
+  currentStreak: number;
+  rank: number;
+}
+
+/** Final scoreboard, host row excluded, ranked server-side. */
+export async function fetchFinalLeaderboard(roomId: string): Promise<FinalLeaderboardRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_final_leaderboard", { p_room_id: roomId });
+  if (error) throw error;
+  return ((data ?? []) as Array<{
+    player_id: string;
+    display_name: string;
+    score: number;
+    current_streak: number;
+    rank: number;
+  }>).map((r) => ({
+    playerId: r.player_id,
+    displayName: r.display_name,
+    score: r.score,
+    currentStreak: r.current_streak,
+    rank: r.rank,
+  }));
+}
+
+export interface FinalStats {
+  totalAnswers: number;
+  correctAnswers: number;
+  fastestCorrectResponseMs: number | null;
+}
+
+/** Room-wide totals only (accuracy %, fastest response) — never a
+ * per-player breakdown. Only returns rows once the room is finished. */
+export async function fetchFinalStats(roomId: string): Promise<FinalStats> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_final_stats", { p_room_id: roomId });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    totalAnswers: row?.total_answers ?? 0,
+    correctAnswers: row?.correct_answers ?? 0,
+    fastestCorrectResponseMs: row?.fastest_correct_response_ms ?? null,
   };
-}
-
-export async function fetchAnswersForQuestion(roomQuestionId: string): Promise<AnswerRow[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("answers")
-    .select(ANSWER_COLUMNS)
-    .eq("room_question_id", roomQuestionId)
-    .order("submitted_at", { ascending: true });
-  if (error) throw error;
-  return (data ?? []).map(mapAnswerRow);
-}
-
-export async function fetchAllRoomAnswers(roomId: string): Promise<AnswerRow[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase.from("answers").select(ANSWER_COLUMNS).eq("room_id", roomId);
-  if (error) throw error;
-  return (data ?? []).map(mapAnswerRow);
-}
-
-export async function fetchMyAnswers(roomId: string, playerId: string): Promise<AnswerRow[]> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("answers")
-    .select(ANSWER_COLUMNS)
-    .eq("room_id", roomId)
-    .eq("player_id", playerId);
-  if (error) throw error;
-  return (data ?? []).map(mapAnswerRow);
 }
 
 export async function submitAnswer(
@@ -407,29 +483,25 @@ export function startHeartbeat(roomId: string, playerId: string): () => void {
 }
 
 /** Chooses the room's 10 (or configured) question ids and inserts
- * room_questions — same local/DB question-bank fallback the app already
- * uses for solo play. Must run before start_battle() (which verifies the
- * rows already exist). */
+ * room_questions. Online Live Battle only ever uses question IDs verified
+ * to exist (and be published) in Supabase — unlike solo play, it never
+ * falls back to the local/offline question bank, because a local-only id
+ * has no row in `questions` and would silently fail to join in
+ * get_room_question(), starting a battle with a question nobody can ever
+ * see. If there aren't enough real database questions for this level, the
+ * battle must not be created — the caller (the create-room flow) surfaces
+ * this as an error instead of a broken room. Must run before
+ * start_battle() (which independently re-verifies every row it inserted
+ * still joins to a real, published question). */
 export async function seedRoomQuestions(room: RoomState): Promise<void> {
   const supabase = createClient();
-  let ids: string[] = [];
+  const dbQuestions = await loadQuestionsForLevel(room.gameLevel, room.language);
+  const ids = dbQuestions.slice(0, room.questionCount).map((q) => q.id);
 
-  try {
-    const dbQuestions = await loadQuestionsForLevel(room.gameLevel, room.language);
-    ids = dbQuestions.slice(0, room.questionCount).map((q) => q.id);
-  } catch (error) {
-    console.warn("Database question load failed; using local bank.", error);
-  }
   if (ids.length < room.questionCount) {
-    const local = questionsForLevel(room.language, room.categoryId, room.gameLevel).questions;
-    ids = local.slice(0, room.questionCount).map((q) => q.id);
-  }
-  if (ids.length < room.questionCount) {
-    const english = questionsForLevel("en", room.categoryId, room.gameLevel).questions;
-    ids = english.slice(0, room.questionCount).map((q) => q.id);
-  }
-  if (ids.length < room.questionCount) {
-    throw new Error("This level needs more questions before the battle can start.");
+    throw new Error(
+      `This level only has ${ids.length} online question(s) available — Online Live Battle needs at least ${room.questionCount}. Add more questions in Supabase or choose a different level.`
+    );
   }
 
   await supabase.from("room_questions").delete().eq("room_id", room.id);
@@ -444,9 +516,21 @@ export async function startBattle(roomId: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Host-only early resolution (e.g. once everyone has answered). */
 export async function resolveRound(roomId: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.rpc("resolve_round", { p_room_id: roomId });
+  if (error) throw error;
+}
+
+/** Callable by ANY room member, not just the host — it is a server-verified
+ * no-op unless the question's deadline has genuinely passed. Every
+ * connected client (host and players) calls this once its own synced
+ * countdown reaches zero, so a round still resolves even if the host has
+ * disconnected — see the migration's section 4 for the full rationale. */
+export async function resolveRoundIfExpired(roomId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("resolve_round_if_expired", { p_room_id: roomId });
   if (error) throw error;
 }
 

@@ -12,8 +12,10 @@ import {
   fetchRoomPlayers,
   fetchRoomQuestion,
   getSavedPlayerName,
+  isConnected,
   joinBattleRoom,
   leaveRoom,
+  resolveRoundIfExpired,
   startHeartbeat,
   submitAnswer,
   toggleReady,
@@ -204,6 +206,26 @@ export default function PlayerRoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
 
+  // Safety net for a disconnected host: resolve_round_if_expired() is a
+  // server-verified no-op unless the question's deadline has genuinely
+  // passed, so it's safe for every player's client (not just the host's) to
+  // call it once their own synced countdown reaches zero. If the host is
+  // present, its own resolveRound() call normally wins the race and this
+  // becomes a harmless no-op; if the host has disconnected, the round still
+  // resolves the moment any connected player's timer expires, instead of
+  // the room staying stuck until the host reconnects.
+  useEffect(() => {
+    if (!room || room.status !== "question" || !room.questionEndsAt) return;
+    const msRemaining = new Date(room.questionEndsAt).getTime() - Date.now();
+    const timeout = window.setTimeout(
+      () => {
+        void resolveRoundIfExpired(room.id).catch((err) => console.error("resolveRoundIfExpired failed:", err));
+      },
+      Math.max(0, msRemaining) + 500
+    );
+    return () => window.clearTimeout(timeout);
+  }, [room]);
+
   async function handleToggleReady() {
     if (!room || !myPlayerId) return;
     const mine = players.find((p) => p.playerId === myPlayerId);
@@ -299,6 +321,17 @@ export default function PlayerRoomPage() {
   // the lobby — they never compete, so leave them out of rank/leaderboard views.
   const competitivePlayers = players.filter((p) => p.playerId !== room.hostId);
 
+  // Orchestration (starting the battle, advancing reveal -> leaderboard ->
+  // next question) is host-driven — there is no backend scheduler in this
+  // project to take over if the host's browser disconnects. The one
+  // exception is the question timer itself (resolveRoundIfExpired above,
+  // which any connected player's client can trigger once it genuinely
+  // expires). For every other phase, surface the host's connection state
+  // clearly instead of leaving the player looking at a silently frozen
+  // screen with no explanation.
+  const hostPlayer = players.find((p) => p.playerId === room.hostId);
+  const hostDisconnected = room.status !== "finished" && hostPlayer !== undefined && !isConnected(hostPlayer.lastSeenAt);
+
   const phaseLabelKey = `phase${room.status.charAt(0).toUpperCase()}${room.status.slice(1)}` as
     | "phaseWaiting"
     | "phaseCountdown"
@@ -374,6 +407,15 @@ export default function PlayerRoomPage() {
       <div aria-live="polite" className="sr-only">
         {phaseAnnouncement}
       </div>
+      {hostDisconnected && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-x-0 top-0 z-50 border-b border-amber-400/30 bg-amber-500/15 px-4 py-2 text-center text-xs font-semibold text-amber-200 backdrop-blur-sm"
+        >
+          {t.multiplayerPlayer.hostDisconnectedMessage}
+        </div>
+      )}
       <AnimatePresence mode="wait">
         <div key={room.status}>{content}</div>
       </AnimatePresence>

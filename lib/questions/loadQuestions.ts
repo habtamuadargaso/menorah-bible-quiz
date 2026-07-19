@@ -22,7 +22,6 @@ type QuestionRow = {
   book: string;
   chapter: number | null;
   difficulty: string;
-  correct_index: number;
   reference: string;
   question_translations: Array<{
     language_code: string;
@@ -31,11 +30,26 @@ type QuestionRow = {
     choice_2: string;
     choice_3: string;
     choice_4: string;
-    explanation: string;
     reflection: string | null;
   }>;
 };
 
+type AnswerKeyRow = {
+  question_id: string;
+  correct_index: number | null;
+  explanation: string | null;
+};
+
+/**
+ * Solo play needs the correct answer client-side (it grades instantly, no
+ * server round-trip per question), but `questions.correct_index` /
+ * `question_translations.explanation` are no longer directly SELECT-able —
+ * see supabase/migrations/20260719_online_live_battle.sql. Instead we fetch
+ * the public question content directly, then fetch the answer keys in one
+ * batched call to the `get_question_answer_keys` RPC, which is safe for
+ * solo play (no room context blocks it) while still refusing to hand a
+ * live-battle player the answer to a round that hasn't been revealed yet.
+ */
 export async function loadQuestionsForLevel(
   level: number,
   languageCode: string
@@ -51,7 +65,6 @@ export async function loadQuestionsForLevel(
       book,
       chapter,
       difficulty,
-      correct_index,
       reference,
       question_translations!inner (
         language_code,
@@ -60,7 +73,6 @@ export async function loadQuestionsForLevel(
         choice_2,
         choice_3,
         choice_4,
-        explanation,
         reflection
       )
     `)
@@ -76,11 +88,24 @@ export async function loadQuestionsForLevel(
   }
 
   const rows = (data ?? []) as QuestionRow[];
+  if (rows.length === 0) return [];
+
+  const { data: answerKeyData, error: answerKeyError } = await supabase.rpc(
+    "get_question_answer_keys",
+    { p_question_ids: rows.map((row) => row.id), p_lang: languageCode }
+  );
+  if (answerKeyError) {
+    throw new Error(answerKeyError.message);
+  }
+  const answerKeys = new Map<string, AnswerKeyRow>(
+    ((answerKeyData ?? []) as AnswerKeyRow[]).map((row) => [row.question_id, row])
+  );
 
   return rows.flatMap((row) => {
     const translation = row.question_translations[0];
+    const answerKey = answerKeys.get(row.id);
 
-    if (!translation) {
+    if (!translation || !answerKey || answerKey.correct_index === null) {
       return [];
     }
 
@@ -92,7 +117,7 @@ export async function loadQuestionsForLevel(
         book: row.book,
         chapter: row.chapter,
         difficulty: row.difficulty,
-        correctIndex: row.correct_index,
+        correctIndex: answerKey.correct_index,
         reference: row.reference,
         question: translation.question_text,
         choices: [
@@ -101,7 +126,7 @@ export async function loadQuestionsForLevel(
           translation.choice_3,
           translation.choice_4,
         ],
-        explanation: translation.explanation,
+        explanation: answerKey.explanation ?? "",
         reflection: translation.reflection,
       },
     ];
