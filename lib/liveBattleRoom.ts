@@ -156,10 +156,18 @@ export async function createBattleRoom({
     room_id: created.id,
     player_id: userId,
     display_name: hostName,
-    score: 0,
     is_ready: true,
+    last_seen_at: new Date().toISOString(),
   });
+
   if (playerError) {
+    console.error("HOST ROOM_PLAYER INSERT ERROR", {
+      code: playerError.code,
+      message: playerError.message,
+      details: playerError.details,
+      hint: playerError.hint,
+    });
+
     await supabase.from("rooms").delete().eq("id", created.id);
     throw playerError;
   }
@@ -197,11 +205,24 @@ export async function joinBattleRoom({
     throw new RoomError("ROOM_FULL", "This room is full.");
   }
 
-  const { error: joinError } = await supabase.from("room_players").upsert(
-    { room_id: room.id, player_id: userId, display_name: playerName, score: 0, is_ready: true },
-    { onConflict: "room_id,player_id" }
-  );
-  if (joinError) throw joinError;
+  const { error: joinError } = await supabase.from("room_players").insert({
+    room_id: room.id,
+    player_id: userId,
+    display_name: playerName,
+    is_ready: true,
+    last_seen_at: new Date().toISOString(),
+  });
+
+  if (joinError && joinError.code !== "23505") {
+    console.error("JOIN ROOM_PLAYER INSERT ERROR", {
+      code: joinError.code,
+      message: joinError.message,
+      details: joinError.details,
+      hint: joinError.hint,
+    });
+
+    throw joinError;
+  }
 
   return { roomId: room.id, language: room.language as LangCode };
 }
