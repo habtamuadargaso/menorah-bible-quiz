@@ -89,10 +89,10 @@ export default function PlayCards({
       theme: "gold",
       icon: "single",
       eyebrow: isAmharic ? "ካምፔይን" : "Campaign",
-      title: isAmharic ? "ብቻዬን ተጫወት" : "Solo Quiz",
+      title: isAmharic ? "ብቻዬን ተጫወት" : "Single Player",
       description: isAmharic
         ? "በራስዎ ፍጥነት 10 ደረጃዎችን ያልፉ።"
-        : "Play alone and strengthen your Bible knowledge.",
+        : "Play through 10 levels at your own pace.",
       action: (
         <button onClick={onSinglePlayer} className={actionClass("gold")}>
           {isAmharic ? "ተጫወት" : "Play Now"}
@@ -107,7 +107,7 @@ export default function PlayCards({
       title: isAmharic ? "የመስመር ላይ ውድድር" : "Friends Battle",
       description: isAmharic
         ? "ክፍል ፍጠሩ ወይም ተቀላቀሉ እና ከጓደኞችዎ ጋር ይወዳደሩ።"
-        : "Create a private room and play with family and friends anywhere in the world.",
+        : "Create or join a room and battle friends live.",
       action: (
         <Link href="/multiplayer" className={actionClass("purple")}>
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -138,7 +138,7 @@ export default function PlayCards({
       title: isAmharic ? "የቤተ ክርስቲያን ሁነታ" : "Church Mode",
       description: isAmharic
         ? "ለአጥቢያ ቤተ ክርስቲያን፣ ለወጣቶች ቡድን እና ለሰንበት ት/ቤት የተዘጋጀ።"
-        : "Host a live Bible competition with QR code joining, TV/projector display, and real-time leaderboard.",
+        : "Built for congregations, youth groups, and Sunday school.",
       action: (
         <button onClick={onChurchMode} className={actionClass("purple")}>
           {isAmharic ? "ያስሱ" : "Explore"}

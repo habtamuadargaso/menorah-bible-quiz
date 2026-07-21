@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { createClient } from "@/lib/supabase/client";
 import {
+  advancePhaseIfExpired,
   ensureAnonymousSession,
   fetchMyAnswers,
   fetchRoomByCode,
@@ -56,17 +57,49 @@ export default function PlayerRoomPage() {
     }
   }, []);
 
+  // Phase transitions fire in quick succession (question -> reveal is only
+  // ROUND_SECONDS, reveal -> leaderboard -> countdown -> question(next) can
+  // be under 15s total), and each one kicks off its own independent
+  // fetchRoomQuestion() network round-trip. Nothing about Supabase realtime
+  // or fetch guarantees those round-trips SETTLE in the order they were
+  // ISSUED — a slow "reveal question N" response can resolve after a
+  // faster "question N+1" response and silently revert `question` back to
+  // N, which then makes N's real answer look like it belongs to N+1. This
+  // request-id guard discards any response that isn't from the most
+  // recently issued call, so only the latest request can ever reach
+  // setQuestion.
+  const questionRequestRef = useRef(0);
   const refreshQuestion = useCallback(async (roomId: string, lang: RoomState["language"]) => {
+    const requestId = ++questionRequestRef.current;
     try {
-      setQuestion(await fetchRoomQuestion(roomId, lang));
+      const q = await fetchRoomQuestion(roomId, lang);
+      if (questionRequestRef.current !== requestId) return null; // superseded by a newer request
+      setQuestion(q);
+      return q;
     } catch (err) {
       console.error("Failed to load question:", err);
+      return null;
     }
   }, []);
 
+  // fetchMyAnswers() re-reads the player's ENTIRE answer history for the
+  // room and replaces `myAnswers` wholesale. If that read was issued right
+  // as the previous question moved to "reveal" (before the player even
+  // reached the next question), and it resolves late, a blind replace
+  // would wipe out the optimistic entry handleSelectAnswer just added for
+  // the new question — making an already-submitted answer look unanswered
+  // again. Merge instead: trust the fetched (authoritative) rows, but keep
+  // any still-pending optimistic entry the fetch doesn't yet know about.
   const refreshMyAnswers = useCallback(async (roomId: string, playerId: string) => {
     try {
-      setMyAnswers(await fetchMyAnswers(roomId, playerId));
+      const fetched = await fetchMyAnswers(roomId, playerId);
+      setMyAnswers((prev) => {
+        const fetchedRoomQuestionIds = new Set(fetched.map((a) => a.roomQuestionId));
+        const stillPendingOptimistic = prev.filter(
+          (a) => a.id.startsWith("pending-") && !fetchedRoomQuestionIds.has(a.roomQuestionId)
+        );
+        return [...fetched, ...stillPendingOptimistic];
+      });
     } catch (err) {
       console.error("Failed to load my answers:", err);
     }
@@ -157,6 +190,7 @@ export default function PlayerRoomPage() {
                       currentQuestion: row.current_question as number,
                       questionStartedAt: row.question_started_at as string | null,
                       questionEndsAt: row.question_ends_at as string | null,
+                      phaseEndsAt: row.phase_ends_at as string | null,
                     }
                   : prev
               );
@@ -226,6 +260,21 @@ export default function PlayerRoomPage() {
     return () => window.clearTimeout(timeout);
   }, [room]);
 
+  // Backstop for a disconnected host during countdown/reveal/leaderboard —
+  // see the identical effect on the host page for the full rationale. Every
+  // player's client independently schedules this, so the room can't stay
+  // frozen just because the host's own tab is gone.
+  useEffect(() => {
+    if (!room) return;
+    if (room.status !== "countdown" && room.status !== "reveal" && room.status !== "leaderboard") return;
+    if (!room.phaseEndsAt) return;
+    const msRemaining = new Date(room.phaseEndsAt).getTime() - Date.now();
+    const timeout = window.setTimeout(() => {
+      void advancePhaseIfExpired(room.id).catch((err) => console.error("advancePhaseIfExpired failed:", err));
+    }, Math.max(0, msRemaining) + 500);
+    return () => window.clearTimeout(timeout);
+  }, [room]);
+
   async function handleToggleReady() {
     if (!room || !myPlayerId) return;
     const mine = players.find((p) => p.playerId === myPlayerId);
@@ -236,9 +285,21 @@ export default function PlayerRoomPage() {
     }
   }
 
+  // Belt-and-suspenders against a double submission for the same question:
+  // `currentMyAnswer` (React state) is the primary guard, but state updates
+  // aren't synchronous, so two clicks/keypresses in the same tick could both
+  // read it as null. This ref is set synchronously before anything async
+  // happens, so the second call bails immediately regardless of render
+  // timing. The server's unique(room_question_id, player_id) constraint
+  // (see submit_answer's already_submitted check) is the final backstop.
+  const submittingForRoomQuestionRef = useRef<string | null>(null);
+
   async function handleSelectAnswer(index: number) {
     if (!room || !question || !myPlayerId) return;
-    if (currentMyAnswer) return;
+    if (currentMyAnswer) return; // this question already has a real answer on record
+    if (submittingForRoomQuestionRef.current === question.roomQuestionId) return; // a submission is already in flight
+    submittingForRoomQuestionRef.current = question.roomQuestionId;
+
     const optimistic: AnswerRow = {
       id: `pending-${question.roomQuestionId}`,
       roomQuestionId: question.roomQuestionId,
@@ -259,6 +320,10 @@ export default function PlayerRoomPage() {
       console.error("Submit answer failed:", err);
       setMyAnswers((prev) => prev.filter((a) => a.id !== optimistic.id));
       setError(t.multiplayerPlayer.errorAnswerFailed);
+    } finally {
+      if (submittingForRoomQuestionRef.current === question.roomQuestionId) {
+        submittingForRoomQuestionRef.current = null;
+      }
     }
   }
 
@@ -316,7 +381,18 @@ export default function PlayerRoomPage() {
   }
 
   const myPlayer = players.find((p) => p.playerId === myPlayerId);
-  const currentMyAnswer = question ? myAnswers.find((a) => a.roomQuestionId === question.roomQuestionId) ?? null : null;
+  // room.status/currentQuestion update synchronously the instant a new
+  // question starts (straight from the realtime payload), but `question`
+  // only catches up once its own async fetch resolves — there's a real
+  // render in between where room.status already says "question" (new)
+  // while `question` still holds the PREVIOUS question's data. Rendering
+  // that stale object as if it were the current one is exactly what makes
+  // a brand-new question look pre-answered (it correctly matches the
+  // player's real answer to the OLD question). Only trust `question` once
+  // its own question_number actually matches the room's current one.
+  const questionIsFresh = question !== null && question.questionNumber === room.currentQuestion;
+  const currentMyAnswer =
+    question && questionIsFresh ? myAnswers.find((a) => a.roomQuestionId === question.roomQuestionId) ?? null : null;
   // The host's own room_players row is only there so they can be listed in
   // the lobby — they never compete, so leave them out of rank/leaderboard views.
   const competitivePlayers = players.filter((p) => p.playerId !== room.hostId);
@@ -361,8 +437,9 @@ export default function PlayerRoomPage() {
       content = <Countdown goLabel={t.multiplayerLobby.countdownGo} onComplete={() => {}} />;
       break;
     case "question":
-      content = question ? (
+      content = question && questionIsFresh ? (
         <PlayerQuestion
+          key={question.roomQuestionId}
           t={t}
           question={question}
           questionCount={room.questionCount}
@@ -377,7 +454,7 @@ export default function PlayerRoomPage() {
       ) : null;
       break;
     case "reveal":
-      content = question ? (
+      content = question && questionIsFresh ? (
         <PlayerRoundResult t={t} question={question} myAnswer={currentMyAnswer} players={competitivePlayers} myPlayerId={myPlayerId} />
       ) : null;
       break;

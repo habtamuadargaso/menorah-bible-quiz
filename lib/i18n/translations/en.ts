@@ -201,7 +201,7 @@ export const en: UIStrings = {
   },
   battle: {
     newMode: "New Multiplayer Mode",
-    title: "Bible Battle Arena",
+    title: "Live Battle",
     launcherDescription: "Host on a TV or projector. Players join privately from their own phones and answer in real time.",
     play: "Play Battle",
     sameQuestionTitle: "Same question. Same timer. Fastest correct answer wins.",

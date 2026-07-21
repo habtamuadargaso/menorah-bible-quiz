@@ -7,10 +7,12 @@ import {
   type RefObject,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 import Hero from "@/components/Hero";
 import Header from "@/components/Header";
 import DailyVerseBanner from "@/components/DailyVerseBanner";
+import BattleLauncher from "@/components/BattleLauncher";
 import PlayCards from "@/components/PlayCards";
 import ContinuePlaying from "@/components/ContinuePlaying";
 import LeaderboardPreview from "@/components/LeaderboardPreview";
@@ -27,8 +29,7 @@ import ChurchModeSection from "@/components/ChurchModeSection";
 import Footer from "@/components/Footer";
 import Confetti from "@/components/Confetti";
 import CampaignMap from "@/components/CampaignMap";
-import BattleLauncher from "@/components/BattleLauncher";
-import { useRouter } from "next/navigation";
+import LanguageModal from "@/components/LanguageModal";
 
 import {
   loadLeaderboard,
@@ -84,6 +85,7 @@ export default function Home() {
     useState(false);
   const [campaignProgress, setCampaignProgress] =
     useState<CampaignProgress>({});
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   const gameRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<HTMLDivElement>(null);
@@ -111,8 +113,17 @@ export default function Home() {
   }
 
   function handlePlaySingle() {
+    setShowLanguageModal(true);
+  }
+
+  function handleLanguageContinue() {
+    setShowLanguageModal(false);
     setStage("categories");
     scrollTo(categoriesRef);
+  }
+
+  function handleBattleSetup() {
+    router.push("/multiplayer");
   }
 
   function handleDailyChallenge() {
@@ -227,10 +238,6 @@ export default function Home() {
   function handleProfile() {
     setStage("profile");
     scrollTo(gameRef);
-  }
-
-  function handleBattleSetup() {
-    router.push("/multiplayer");
   }
 
   function handleBible() {
@@ -404,6 +411,12 @@ export default function Home() {
         )}
 
       </AnimatePresence>
+
+      <LanguageModal
+        open={showLanguageModal}
+        onClose={() => setShowLanguageModal(false)}
+        onContinue={handleLanguageContinue}
+      />
 
       <Footer />
     </main>

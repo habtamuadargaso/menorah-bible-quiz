@@ -1,4 +1,4 @@
-// Online Live Battle — data layer (host TV + private player phones).
+// Online Church Mode — data layer (host TV + private player phones).
 //
 // This replaces the old local shared-screen battle (BattleSetup/BattleArena,
 // removed) as the app's real multiplayer mode. It talks to the existing
@@ -37,6 +37,7 @@ export interface RoomState {
   maxPlayers: number;
   questionStartedAt: string | null;
   questionEndsAt: string | null;
+  phaseEndsAt: string | null;
 }
 
 export interface RoomPlayerState {
@@ -125,6 +126,21 @@ export async function createBattleRoom({
   questionCount?: number;
 }): Promise<{ code: string; roomId: string }> {
   const { supabase, userId } = await ensurePlayerProfile(hostName, language);
+
+  // A room that was created but never started (status stays "waiting"
+  // forever) still owns the room_questions seedRoomQuestions() inserted for
+  // it. get_question_answer_keys() (see the online-live-battle migration)
+  // refuses to hand back an answer key for any question tied to a
+  // non-finished room the caller belongs to until that room's round has
+  // been revealed — so an abandoned "waiting" room permanently hides its 10
+  // questions from this same host's future loadQuestionsForLevel() calls.
+  // Repeatedly creating and abandoning rooms during testing/dev therefore
+  // shrinks the host's visible pool over time even though the questions
+  // table itself is untouched. Clearing the host's own never-started rooms
+  // before seeding a new one frees those questions back up; RLS only lets a
+  // host delete rooms they own, and the delete cascades into
+  // room_players/room_questions/answers.
+  await supabase.from("rooms").delete().eq("host_id", userId).eq("status", "waiting");
 
   let created: { id: string; code: string } | null = null;
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -240,6 +256,7 @@ function mapRoom(data: {
   max_players: number;
   question_started_at: string | null;
   question_ends_at: string | null;
+  phase_ends_at: string | null;
 }): RoomState {
   return {
     id: data.id,
@@ -254,6 +271,7 @@ function mapRoom(data: {
     maxPlayers: data.max_players,
     questionStartedAt: data.question_started_at,
     questionEndsAt: data.question_ends_at,
+    phaseEndsAt: data.phase_ends_at,
   };
 }
 
@@ -262,7 +280,7 @@ export async function fetchRoomByCode(code: string): Promise<RoomState | null> {
   const { data, error } = await supabase
     .from("rooms")
     .select(
-      "id, code, host_id, status, current_question, question_count, language, category_id, game_level, max_players, question_started_at, question_ends_at"
+      "id, code, host_id, status, current_question, question_count, language, category_id, game_level, max_players, question_started_at, question_ends_at, phase_ends_at"
     )
     .eq("code", code.toUpperCase())
     .maybeSingle();
@@ -275,7 +293,7 @@ export async function fetchRoomById(roomId: string): Promise<RoomState | null> {
   const { data, error } = await supabase
     .from("rooms")
     .select(
-      "id, code, host_id, status, current_question, question_count, language, category_id, game_level, max_players, question_started_at, question_ends_at"
+      "id, code, host_id, status, current_question, question_count, language, category_id, game_level, max_players, question_started_at, question_ends_at, phase_ends_at"
     )
     .eq("id", roomId)
     .maybeSingle();
@@ -504,7 +522,7 @@ export function startHeartbeat(roomId: string, playerId: string): () => void {
 }
 
 /** Chooses the room's 10 (or configured) question ids and inserts
- * room_questions. Online Live Battle only ever uses question IDs verified
+ * room_questions. Online Church Mode only ever uses question IDs verified
  * to exist (and be published) in Supabase — unlike solo play, it never
  * falls back to the local/offline question bank, because a local-only id
  * has no row in `questions` and would silently fail to join in
@@ -521,7 +539,7 @@ export async function seedRoomQuestions(room: RoomState): Promise<void> {
 
   if (ids.length < room.questionCount) {
     throw new Error(
-      `This level only has ${ids.length} online question(s) available — Online Live Battle needs at least ${room.questionCount}. Add more questions in Supabase or choose a different level.`
+      `This level only has ${ids.length} online question(s) available — Online Church Mode needs at least ${room.questionCount}. Add more questions in Supabase or choose a different level.`
     );
   }
 
@@ -558,6 +576,16 @@ export async function resolveRoundIfExpired(roomId: string): Promise<void> {
 export async function advancePhase(roomId: string, to: RoomPhase): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.rpc("advance_phase", { p_room_id: roomId, p_to: to });
+  if (error) throw error;
+}
+
+/** Same pattern as resolveRoundIfExpired, extended to the countdown/reveal/
+ * leaderboard transitions — a server-verified no-op unless phase_ends_at has
+ * genuinely passed, callable by any room member so a stalled room still
+ * advances if the host has disconnected. */
+export async function advancePhaseIfExpired(roomId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("advance_phase_if_expired", { p_room_id: roomId });
   if (error) throw error;
 }
 

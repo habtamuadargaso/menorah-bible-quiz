@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { UIStrings } from "@/lib/i18n/types";
 import { ROUND_SECONDS, type RoomQuestionView } from "@/lib/liveBattleRoom";
@@ -33,6 +34,24 @@ export default function PlayerQuestion({
   const reduceMotion = useReducedMotion();
   const tp = t.multiplayerPlayer;
   const tb = t.battleShared;
+
+  // Mirrors the server's own deadline check in submit_answer (which rejects
+  // a late submission regardless of what the client does) by also disabling
+  // the buttons here the moment time is up, instead of only once hasSubmitted
+  // becomes true — closes the gap where a player could still tap a choice
+  // after their own visible countdown hit zero.
+  const [timeExpired, setTimeExpired] = useState(false);
+  useEffect(() => {
+    setTimeExpired(false);
+    if (!questionEndsAt) return;
+    const msRemaining = new Date(questionEndsAt).getTime() - Date.now();
+    if (msRemaining <= 0) {
+      setTimeExpired(true);
+      return;
+    }
+    const timeout = window.setTimeout(() => setTimeExpired(true), msRemaining);
+    return () => window.clearTimeout(timeout);
+  }, [questionEndsAt]);
 
   return (
     <main
@@ -83,7 +102,7 @@ export default function PlayerQuestion({
               index={index}
               text={choice}
               isSelected={selectedAnswer === index}
-              isLocked={hasSubmitted}
+              isLocked={hasSubmitted || timeExpired}
               onSelect={onSelect}
             />
           ))}

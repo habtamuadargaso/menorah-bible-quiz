@@ -90,6 +90,13 @@ export default function MultiplayerPage() {
 
     try {
       const selectedLevel = DIFFICULTY_LEVELS.find((d) => d.id === difficulty)?.level ?? 1;
+      console.log("===== handleCreateRoom =====");
+      console.log({
+        requestedLevel: selectedLevel,
+        requestedLanguage: lang,
+        requestedCategory: categoryId,
+        requestedDifficulty: difficulty,
+      });
       const { code, roomId } = await createBattleRoom({
         hostName: cleanName,
         categoryId,

@@ -7,7 +7,7 @@ import type {
 
 import { shuffle } from "@/lib/shuffle";
 import { loadQuestionsForLevel } from "./loadQuestions";
-import { questionsForLevel } from "./index";
+import { nativeQuestionBank, questionsForLevel } from "./index";
 
 const QUESTIONS_PER_GAME = 10;
 
@@ -86,11 +86,29 @@ export async function loadQuestionsForGame(
   categoryId: CategoryId,
   level: number
 ): Promise<Question[]> {
-  const localQuestions = questionsForLevel(
+  const categoryLevelQuestions = questionsForLevel(
     lang,
     categoryId,
     level
   ).questions;
+
+  // Keep category-pure campaign rounds whenever a complete category level exists.
+  // Some launch languages currently have only one question per category but do
+  // have ten valid native-language questions in total. Preserve their existing
+  // Level 1 experience by using that native bank only when the category level
+  // cannot form a complete round. English and all complete category banks remain
+  // strictly category-filtered.
+  const nativeLevelOneFallback =
+    level === 1 && categoryLevelQuestions.length < QUESTIONS_PER_GAME
+      ? shuffle(nativeQuestionBank(lang)).slice(0, QUESTIONS_PER_GAME)
+      : [];
+
+  const localQuestions =
+    categoryLevelQuestions.length === QUESTIONS_PER_GAME
+      ? categoryLevelQuestions
+      : nativeLevelOneFallback.length === QUESTIONS_PER_GAME
+      ? nativeLevelOneFallback.map((question) => ({ ...question, level }))
+      : [];
 
   try {
     const databaseQuestions =
@@ -139,10 +157,14 @@ export async function loadQuestionsForGame(
       QUESTIONS_PER_GAME - selectedAiQuestions.length
     );
 
-    return [
+    const combined = [
       ...selectedAiQuestions,
       ...localFill,
     ].slice(0, QUESTIONS_PER_GAME);
+
+    // Same "complete round or nothing" rule questionsForLevel already
+    // enforces for the local bank — never hand QuizCard a partial round.
+    return combined.length === QUESTIONS_PER_GAME ? combined : [];
   } catch (error) {
     console.error(
       "Database question loading failed:",

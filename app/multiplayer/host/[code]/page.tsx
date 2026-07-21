@@ -7,6 +7,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { createClient } from "@/lib/supabase/client";
 import {
   advancePhase,
+  advancePhaseIfExpired,
   ensureAnonymousSession,
   endRoom,
   fetchAnswerCount,
@@ -70,21 +71,47 @@ export default function HostRoomPage() {
   // a realtime subscription on `answers` — see the migration's section 2/9:
   // that table only lets a client SELECT its own row now, so a live
   // per-player answer feed isn't something the host can (or should) see.
+  // Guarded against staleness the same way refreshQuestion is below: a slow
+  // response for a question the host has already moved past must not
+  // overwrite the fresh count for the question now on screen.
+  const answerCountRoomQuestionRef = useRef<string | null>(null);
   const refreshAnswerCount = useCallback(async (roomQuestionId: string) => {
+    answerCountRoomQuestionRef.current = roomQuestionId;
     try {
-      setAnsweredCount(await fetchAnswerCount(roomQuestionId));
+      const count = await fetchAnswerCount(roomQuestionId);
+      if (answerCountRoomQuestionRef.current !== roomQuestionId) return; // superseded
+      setAnsweredCount(count);
     } catch (err) {
       console.error("Failed to load answer count:", err);
     }
   }, []);
 
+  // Same out-of-order-response hazard as the player page's refreshQuestion
+  // (see there for the full explanation) — a slow response for a question
+  // the room has already left must never overwrite the current one.
+  //
+  // Also fixes a real early-resolve bug: `question` and `answeredCount` are
+  // two separate pieces of state. Without resetting answeredCount here, the
+  // moment a NEW question is set there is a render where `question` is
+  // already the new one but `answeredCount` still holds the PREVIOUS
+  // question's tally (fetched by refreshAnswerCount) — long enough for the
+  // "auto-resolve once everyone has answered" effect below to compare a
+  // stale non-zero count against the new question and end it before anyone
+  // has had a chance to answer. Resetting it to 0 in the same tick as
+  // setQuestion closes that window.
+  const questionRequestRef = useRef(0);
   const refreshQuestion = useCallback(async (roomId: string, lang: RoomState["language"]) => {
+    const requestId = ++questionRequestRef.current;
     try {
       const q = await fetchRoomQuestion(roomId, lang);
+      if (questionRequestRef.current !== requestId) return null; // superseded by a newer request
       setQuestion(q);
+      setAnsweredCount(0);
       if (q) await refreshAnswerCount(q.roomQuestionId);
+      return q;
     } catch (err) {
       console.error("Failed to load question:", err);
+      return null;
     }
   }, [refreshAnswerCount]);
 
@@ -133,8 +160,7 @@ export default function HostRoomPage() {
         if (initialRoom.status === "question") {
           await refreshQuestion(initialRoom.id, initialRoom.language);
         } else if (initialRoom.status === "reveal") {
-          const q = await fetchRoomQuestion(initialRoom.id, initialRoom.language);
-          setQuestion(q);
+          const q = await refreshQuestion(initialRoom.id, initialRoom.language);
           if (q) await refreshRevealAnswers(q.roomQuestionId);
         }
         if (initialRoom.status === "finished") {
@@ -164,6 +190,7 @@ export default function HostRoomPage() {
                       currentQuestion: row.current_question as number,
                       questionStartedAt: row.question_started_at as string | null,
                       questionEndsAt: row.question_ends_at as string | null,
+                      phaseEndsAt: row.phase_ends_at as string | null,
                     }
                   : prev
               );
@@ -171,8 +198,7 @@ export default function HostRoomPage() {
                 resolvedForQuestionRef.current = null;
                 await refreshQuestion(initialRoom.id, initialRoom.language);
               } else if (nextStatus === "reveal") {
-                const q = await fetchRoomQuestion(initialRoom.id, initialRoom.language);
-                setQuestion(q);
+                const q = await refreshQuestion(initialRoom.id, initialRoom.language);
                 if (q) await refreshRevealAnswers(q.roomQuestionId);
               } else if (nextStatus === "finished") {
                 await refreshFinalStats(initialRoom.id);
@@ -230,8 +256,22 @@ export default function HostRoomPage() {
   // net (see the player page), so the host's tab isn't a special case
   // required for the round to ever end. Both are safe no-ops once the
   // room has already left "question".
+  //
+  // `room.status`/`room.currentQuestion` update synchronously from the
+  // realtime payload the instant a new question starts, but `question` and
+  // `answeredCount` only catch up once the async refreshQuestion() call
+  // resolves. That gap is a real, observable render: room.status is
+  // already "question" (new) while `question`/`answeredCount` still hold
+  // the PREVIOUS question's values (still true, still "everyone
+  // answered"). Without this check this effect would call resolveRound()
+  // on the brand-new question before anyone had a chance to answer it —
+  // this is what was silently resolving questions early. question's own
+  // question_number is only ever fresh once it actually reflects
+  // room.currentQuestion, so gate on that before trusting anything else
+  // derived from `question`.
   useEffect(() => {
     if (!room || room.status !== "question" || !room.questionEndsAt || !question) return;
+    if (question.questionNumber !== room.currentQuestion) return; // question/answeredCount haven't caught up yet
     if (resolvedForQuestionRef.current === question.roomQuestionId) return;
 
     const answeringPlayers = players.filter((p) => p.playerId !== room.hostId && isConnected(p.lastSeenAt));
@@ -255,6 +295,24 @@ export default function HostRoomPage() {
     }, msRemaining + 250);
     return () => window.clearTimeout(timeout);
   }, [room, question, answeredCount, players]);
+
+  // Backstop for a disconnected host during countdown/reveal/leaderboard:
+  // these phases normally only advance via this same host's own Continue
+  // clicks, but if this tab is gone, every OTHER connected room member runs
+  // this identical effect (see the player page) and one of them will call
+  // advancePhaseIfExpired once its own copy of phaseEndsAt passes — a
+  // server-verified no-op before the deadline, so it never cuts a phase
+  // short while a host is actively present and clicking through normally.
+  useEffect(() => {
+    if (!room) return;
+    if (room.status !== "countdown" && room.status !== "reveal" && room.status !== "leaderboard") return;
+    if (!room.phaseEndsAt) return;
+    const msRemaining = new Date(room.phaseEndsAt).getTime() - Date.now();
+    const timeout = window.setTimeout(() => {
+      void advancePhaseIfExpired(room.id).catch((err) => console.error("advancePhaseIfExpired failed:", err));
+    }, Math.max(0, msRemaining) + 500);
+    return () => window.clearTimeout(timeout);
+  }, [room]);
 
   async function handleStart() {
     if (!room) return;
@@ -373,6 +431,11 @@ export default function HostRoomPage() {
   // the lobby, but the host never competes — leaderboards and final results
   // should only ever rank the actual players.
   const competitivePlayers = players.filter((p) => p.playerId !== room.hostId);
+  // See the identical guard (and its full explanation) on the player page:
+  // `question` can briefly lag behind room.status/currentQuestion right
+  // after a new question starts. Never render it as the current question
+  // until its own question_number actually matches.
+  const questionIsFresh = question !== null && question.questionNumber === room.currentQuestion;
 
   const phaseLabelKey = `phase${room.status.charAt(0).toUpperCase()}${room.status.slice(1)}` as
     | "phaseWaiting"
@@ -411,8 +474,9 @@ export default function HostRoomPage() {
       content = <Countdown goLabel={t.multiplayerLobby.countdownGo} onComplete={handleCountdownComplete} />;
       break;
     case "question":
-      content = question ? (
+      content = question && questionIsFresh ? (
         <HostBattleScreen
+          key={question.roomQuestionId}
           t={t}
           roomCode={room.code}
           question={question}
@@ -426,7 +490,7 @@ export default function HostRoomPage() {
       ) : null;
       break;
     case "reveal":
-      content = question ? (
+      content = question && questionIsFresh ? (
         <HostRoundReveal t={t} question={question} answers={revealAnswers} players={players} onContinue={handleRevealContinue} />
       ) : null;
       break;
