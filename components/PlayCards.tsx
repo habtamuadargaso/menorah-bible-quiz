@@ -100,18 +100,17 @@ export default function PlayCards({
       ),
     },
     {
-      key: "online",
+      key: "friends-battle",
       theme: "purple",
       icon: "online",
-      eyebrow: isAmharic ? "የቀጥታ ጨዋታ" : "Live Multiplayer",
-      title: isAmharic ? "የመስመር ላይ ውድድር" : "Friends Battle",
+      eyebrow: isAmharic ? "አንድ መሳሪያ" : "One Device",
+      title: isAmharic ? "የጓደኞች ውድድር" : "Friends Battle",
       description: isAmharic
-        ? "ክፍል ፍጠሩ ወይም ተቀላቀሉ እና ከጓደኞችዎ ጋር ይወዳደሩ።"
-        : "Create a private room and play with family and friends anywhere in the world.",
+        ? "በአንድ መሳሪያ ላይ አብረው ይጫወቱ — ከእያንዳንዱ ተራ በኋላ መሳሪያውን ያስተላልፉ። የክፍል ኮድ ወይም በይነመረብ አያስፈልግም።"
+        : "Pass one device around and compete together in person. No room code, no internet needed.",
       action: (
-        <Link href="/multiplayer" className={actionClass("purple")}>
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          {isAmharic ? "አሁን ተቀላቀል" : "Join Now"}
+        <Link href="/friends-battle" className={actionClass("purple")}>
+          {isAmharic ? "ጀምር" : "Play Now"}
         </Link>
       ),
     },

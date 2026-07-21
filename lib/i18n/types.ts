@@ -234,6 +234,10 @@ export interface UIStrings {
     answerLocked: string;
     nextLoading: string;
     pointsShort: string;
+    badgeRoomCode: string;
+    badgeSeparateDevices: string;
+    badgeOnline: string;
+    badgeRealtime: string;
   };
   multiplayerLobby: {
     eyebrow: string;
@@ -451,5 +455,58 @@ export interface UIStrings {
     churchEmptyHeading: string;
     churchEmptyBody: string;
     devModeBadge: string;
+  };
+  friendsBattle: {
+    navTitle: string;
+    setupHeading: string;
+    setupDescription: string;
+    badgeOneDevice: string;
+    badgePassAndPlay: string;
+    badgePlayerRange: string;
+    badgeOfflineReady: string;
+    badgeNoRoomCode: string;
+    languageLabel: string;
+    levelLabel: string;
+    levelOptionLabel: string; // "Level {n}" — replace "{n}"
+    difficultyLabel: string;
+    difficultyEasy: string;
+    difficultyMedium: string;
+    difficultyDifficult: string;
+    difficultyOnScreenLabel: string; // "Difficulty: {difficulty}" — replace "{difficulty}"
+    difficultyFallbackNotice: string;
+    playerCountLabel: string;
+    playerNameLabel: string; // "Player {n}" — replace "{n}"
+    playerNamePlaceholder: string; // "Player {n} name" — replace "{n}"
+    startButton: string;
+    errorMinPlayers: string;
+    errorMaxPlayers: string;
+    errorEmptyName: string;
+    errorDuplicateName: string;
+    errorContentUnavailable: string; // "{language}" placeholder
+    backToHome: string;
+    passDeviceToLabel: string;
+    readyButton: string;
+    questionLabel: string;
+    ofLabel: string;
+    answerSavedHeading: string;
+    answerSavedBody: string; // "{name}" placeholder — next player's name
+    lastQuestionAnswerSavedBody: string;
+    timesUpLabel: string;
+    revealHeading: string;
+    correctAnswerLabel: string;
+    timeoutTag: string;
+    pointsGained: string; // "+{points}" — replace "{points}"
+    continueButton: string;
+    nextQuestionButton: string;
+    seeFinalResultsButton: string;
+    finalHeading: string;
+    winnerLabel: string;
+    rankLabel: string;
+    scoreLabel: string;
+    correctAnswersLabel: string;
+    accuracyLabel: string;
+    playAgainButton: string;
+    homeButton: string;
+    questionOfTotalLabel: string; // "Question {current} of {total}" — replace both
   };
 }
