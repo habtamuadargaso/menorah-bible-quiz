@@ -28,6 +28,23 @@ export interface QuestionOverlay {
 
 export type AdminReviewStateFile = Record<string, QuestionOverlay>;
 
+/** Which editorial store a question's row actually lives in — the curated
+ * canonical bank (lib/questions/*) or an admin_imported_questions row.
+ * Mission 9: shown as a "Source" badge in the Question Bank. */
+export type EditorialSourceType = "canonical" | "imported";
+
+/** Whether (and where) an editorial question has been published to
+ * public.questions via the Mission 9 editorial-to-live bridge. */
+export interface LivePublicationStatus {
+  isLive: boolean;
+  liveQuestionId: string | null;
+  /** public.questions.status for the live row, if one exists. In practice
+   * this is always 'published' — the bridge only ever creates rows with
+   * that status — but it's read straight from the DB rather than assumed,
+   * so a future direct edit to that row is reflected here too. */
+  liveStatus: string | null;
+}
+
 /** A canonical question with its overlay merged in — what the admin UI
  * actually reads and displays. */
 export interface AdminQuestionView extends BibleQuestion {
@@ -39,6 +56,20 @@ export interface AdminQuestionView extends BibleQuestion {
     warningCount: number;
     messages: string[];
   };
+  sourceType: EditorialSourceType;
+  live: LivePublicationStatus;
+}
+
+/** Per-question result of an editorial-to-live publish attempt (single or
+ * bulk) — Mission 9 requirement 6: bulk publish must return per-item
+ * outcomes, not just an aggregate success/failure. */
+export type PublishOutcome = "published" | "already_live" | "skipped_duplicate" | "ineligible" | "failed";
+
+export interface PublishResult {
+  questionId: string;
+  outcome: PublishOutcome;
+  detail?: string;
+  liveQuestionId?: string;
 }
 
 export interface AdminSettings {

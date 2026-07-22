@@ -4,16 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { adminFetch } from "@/lib/admin/apiClient";
 import { CANONICAL_CATEGORIES } from "@/lib/questions/canon";
 import type { AdminQuestionView } from "@/lib/admin/types";
+import { reviewStatusLabel, reviewStatusTone, STATUS_TONE_CLASSES } from "@/lib/admin/statusLabel";
 
 const DIFFICULTIES = ["very-easy", "easy", "easy-plus", "medium", "medium-plus", "hard", "hard-plus", "expert", "master", "scholar"];
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-slate-500/20 text-slate-300",
-  "needs-review": "bg-amber-500/20 text-amber-300",
-  approved: "bg-emerald-500/20 text-emerald-300",
-  published: "bg-sky-500/20 text-sky-300",
-  rejected: "bg-red-500/20 text-red-300",
-  archived: "bg-slate-700/40 text-slate-400",
-};
 
 export default function QuestionReviewPanel({
   secret,
@@ -101,6 +94,14 @@ export default function QuestionReviewPanel({
       reason = window.prompt("Reason for rejecting this question:") ?? undefined;
       if (!reason?.trim()) return;
     }
+    // Mission 9: "published" now actually publishes to the live game via
+    // the editorial-to-live bridge (lib/admin/publishBridge.ts) — no
+    // longer a bare editorial-status flip, so it gets the same
+    // confirmation every other real-consequence action in this dashboard
+    // requires.
+    if (status === "published" && !window.confirm("Publish this question to the live game? It becomes visible to real players immediately.")) {
+      return;
+    }
     try {
       await adminFetch(secret, `/api/admin/questions/${encodeURIComponent(questionId)}/review`, {
         method: "POST",
@@ -184,8 +185,8 @@ export default function QuestionReviewPanel({
         {question && !loading && (
           <div className="mt-4 space-y-6">
             <div className="flex flex-wrap gap-2">
-              <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_COLORS[question.review.status]}`}>
-                {question.review.status}
+              <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_TONE_CLASSES[reviewStatusTone(question)]}`}>
+                {reviewStatusLabel(question)}
               </span>
               {question.validation.errorCount > 0 && (
                 <span className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-300">

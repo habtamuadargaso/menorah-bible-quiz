@@ -1,5 +1,120 @@
 # Work Log
 
+## Mission 9 — Unify the question content pipelines (2026-07-22)
+
+Git checkpoint before this mission: annotated tag `checkpoint-before-mission-9`
+at commit `9354ff0` (working tree clean at the time).
+
+### Previous architecture (as documented in Mission 8, restated for context)
+
+Two disconnected pipelines:
+- **Pipeline A (live gameplay)**: `public.questions` + `public.question_translations`. The AI Question Factory writes here directly (`status:'draft'`), reviewed via `/api/admin/factory-review` (`draft → published | rejected | deleted`). `start_battle()`, `get_question_answer_keys()`, and `lib/questions/loadQuestions.ts`/`loadQuestionById.ts` (used by solo play, Friends Battle, and Online Church Mode room seeding — confirmed by reading all of them, not assumed) all gate strictly on `questions.status = 'published'`. **This table is the only thing any live game mode ever reads.**
+- **Pipeline B (editorial review)**: the compiled canonical bank (`lib/questions/store.ts`) + `admin_imported_questions` (JSON-imported drafts), with `question_review_overlay`/`question_review_history` providing a `draft → needs-review → approved → published → rejected → archived` workflow, full validator integration, and an append-only audit trail. Before this mission, marking something "published" here had **zero effect on gameplay** — nothing in any game-serving code path ever read these tables.
+
+### Final architecture
+
+`public.questions` remains the **only** source live gameplay reads from — untouched, RLS untouched, no gameplay code changed. Pipeline B remains the editorial layer, also untouched in its day-to-day editing/validation behavior. What's new is a one-way bridge: an **approved** editorial question can now be turned into a real `public.questions` row, atomically, idempotently, without ever letting the browser dictate what gets published or with what content.
+
+```
+Editorial (approved) ──publish_editorial_question()──▶ public.questions (published)
+     ▲                         RPC, atomic                        │
+     │                                                             │
+     └── question_review_overlay.status flips to 'published' ◀────┘
+         (same transaction as the live insert — can never desync)
+```
+
+### Database mapping
+
+Added to `public.questions` (all nullable — every existing AI-Factory row gets `NULL`, meaning "not from the editorial bridge"; requirement 9's "nullable defaults for existing records"):
+- `source_question_id text` — the editorial `BibleQuestion.id` this row was published from.
+- `source_type text check (source_type is null or source_type in ('canonical','imported'))` — which editorial store `source_question_id` refers to.
+- `published_by text` — reviewer name who triggered the publish (source metadata).
+- `source_category text` — `BibleQuestion.category` (free-form narrative tag, e.g. "Creation") — preserved for fidelity only, no gameplay code reads it.
+- `source_tags text[]` — `BibleQuestion.tags` — same, fidelity-only.
+
+`BibleQuestion.canonicalCategory → questions.category` (per your Decision 1) — this matches what the AI Factory already writes there today (`"Old Testament"`/`"New Testament"`), rather than the free-form narrative `category` field, which has its own new `source_category` column instead.
+
+**Idempotency, enforced at the database level** (requirement 3): `create unique index questions_source_mapping_idx on questions (source_type, source_question_id) where source_question_id is not null`. A given editorial question can map to at most one live row, full stop — not just a client-side check.
+
+**Live id**: deterministic, `'EDITORIAL-' || source_question_id` — human-debuggable, and gives a second (PK-level) idempotency backstop alongside the explicit index.
+
+**Full field preservation** (requirement 4) — language, question text, all 4 choices, correct answer, reference, category (via canonicalCategory), book, difficulty, explanation, source metadata, review status, publication status are all carried through; `reflection` is always `null` on bridge-published rows because the editorial `QuestionTranslation` type never had a reflection field to preserve (`lib/questions/types.ts` — confirmed, not assumed). Translation/group relationship: both pipelines already use the identical "one parent id → N per-language child rows" shape (`BibleQuestion.id` + `.translations{lang}` on the editorial side; `questions.id` + `question_translations` rows on the live side) — so `source_question_id` *is* the translation-group linkage; no separate group-id concept was needed or invented.
+
+### Publication lifecycle
+
+1. Admin clicks **Publish** (single, in `QuestionReviewPanel`) or **Publish Approved** (bulk, in `QuestionBank`'s Review Queue toolbar) — both now go through the same bridge; per your Decision 2, this is the *existing* action repurposed, not a second button.
+2. Server (`lib/admin/publishBridge.ts`, gated by `isAuthorizedAdmin()`) re-loads the current editorial record fresh via `getAdminQuestionById()` — never trusts anything from the request body except which ids to attempt (requirements 5 and 13).
+3. Eligibility gate (blocks *before* any DB write): `review.status !== 'approved'` → ineligible (covers draft/needs-review/rejected/archived); `validation.errorCount > 0` → ineligible (covers "invalid" even if marked approved); missing/incomplete English translation → ineligible.
+4. Secondary content-duplicate check against live `questions` (same level + reference + normalized English text, excluding this question's own mapping) → `skipped_duplicate` if found, using the reused `normalizeText()` from `lib/question-factory/database.ts` (one shared normalizer across pipelines instead of a third reimplementation).
+5. `publish_editorial_question()` RPC: re-checks `question_review_overlay.status = 'approved'` itself (closes the gap since step 2's read), then atomically inserts into `questions` + `question_translations` + flips the overlay to `'published'` — all in one Postgres transaction.
+6. `question_review_history` gets a "publish attempted" row *before* step 5, and a "publish result: `<outcome>`" row *after* — both batched inserts (one per bulk call, not one per question), both best-effort (a logging failure never blocks the actual outcome from being returned, same precedent Mission 8 set).
+
+### Failure behavior
+
+- If the RPC's own DB write fails partway (e.g. a translations insert violates a constraint), the **entire transaction rolls back** — the live row is never left half-written, and the overlay never ends up saying "published" while nothing is actually live. This is Postgres's ordinary single-transaction-per-function-call semantics, not custom rollback code.
+- If the RPC calling itself throws (network blip, etc.), the Next.js layer catches it and returns outcome `"failed"` with the underlying message — reported per-question in bulk results, never silently swallowed.
+- A `"published"` overlay status with `live.isLive === false` (checked via `loadLiveMappingStatus()`, a live query against `questions.source_question_id`) can now only mean a prior publish attempt failed after logging its intent — the UI shows this as **"Publish failed"**, distinct from "Published / Live."
+
+### Duplicate behavior
+
+Two layers, exactly matching requirement 10's instruction to make source-mapping authoritative and content-matching secondary:
+1. **Authoritative**: the `(source_type, source_question_id)` unique index — re-publishing the same editorial question is caught inside the RPC (checked first, and backstopped by a `unique_violation` exception handler for the concurrent-race case) and reported as `already_live`, never a duplicate insert.
+2. **Secondary/warning**: normalized-English-text + reference + level match against any *other* live row (regardless of its own source mapping) → `skipped_duplicate`. This never blocks on its own if there's no source-mapping conflict *and* no content conflict.
+
+### Translation behavior
+
+Investigated before coding (requirement 11): editorial translations are **not** separate rows/ids — `BibleQuestion.translations` is a per-language dictionary property on the one canonical id. Confirmed no existing "translation group id" concept anywhere in the codebase to preserve. The bridge publishes one `question_translations` row per language present and structurally complete (question text + 4 choices + explanation) in the source; English is required for eligibility, every other present language is best-effort (a language missing an explanation is silently excluded from that specific publish, not fatal to the whole operation — matches requirement 4's "explanation, if available"). Each inserted row's `language_code` is taken directly from the source translation key, so a translation can never land under the wrong language.
+
+### Migrations created
+
+- `supabase/migrations/20260729_mission9_editorial_publish_bridge.sql` — the 5 new nullable columns + check constraint + partial unique index + `publish_editorial_question()` SECURITY DEFINER function, `EXECUTE` granted to `service_role` only (never `authenticated` — this is unreachable from the browser, same as every other admin RPC in this codebase). Idempotent (`IF NOT EXISTS`/`OR REPLACE`/guarded `DO` block for the constraint). Rollback instructions are inline as a comment at the top of the file (drop function → drop index → drop columns; safe only if no bridge-published rows exist yet, since dropping the columns loses their provenance, though never any player-visible content).
+
+### Manual Supabase steps required
+
+**Run `20260729_mission9_editorial_publish_bridge.sql` once in the Supabase SQL Editor.** Nothing in this mission works until that's applied — every route change here calls the new RPC, which won't exist until the migration runs.
+
+(The four Mission 8 migrations, if not already applied, are still prerequisites too — see that section below.)
+
+### Files modified/created
+
+- **New**: `supabase/migrations/20260729_mission9_editorial_publish_bridge.sql`, `lib/admin/publishBridge.ts`, `app/api/admin/publish-reviewed/route.ts` (dedicated endpoint per requirement 13's suggested design — also the single implementation the existing routes below call directly, not over HTTP), `lib/admin/statusLabel.ts` (shared status-label/tone helper, requirement 8).
+- **`lib/admin/types.ts`**: `AdminQuestionView` gains `sourceType: "canonical" | "imported"` and `live: { isLive, liveQuestionId, liveStatus }`; new `PublishOutcome`/`PublishResult` types.
+- **`lib/admin/reviewStore.ts`**: added `loadLiveMappingStatus()`; removed `bulkPublishApproved()` (its only caller now calls the bridge instead — confirmed via grep before deleting); `bulkDeleteImportedQuestions()` now also skips (never deletes) anything with review status `'published'`, matching the same guard the AI Factory's own delete already applies, now that "published" can mean a real live row exists.
+- **`lib/admin/adminQuestions.ts`**: `getAllAdminQuestions()` now also loads the live-mapping status and imported-id set, populating `sourceType`/`live` on every `AdminQuestionView` (one extra batched query, run in parallel with the existing two).
+- **`app/api/admin/questions/[id]/review/route.ts`**: `status: "published"` now calls the bridge instead of a bare overlay update; other statuses unchanged.
+- **`app/api/admin/bulk/route.ts`**: `action: "publish"` now calls the bridge and returns per-item `results` (was `{published, skipped}`); doc comment updated to explain why `"publish"` is no longer in scope for Undo Last Bulk Action.
+- **`components/admin/QuestionBank.tsx`**: status badge now uses the shared `reviewStatusLabel`/`reviewStatusTone` (Draft / Needs review / Approved (not live) / Published / Live / Rejected / Archived / Publish failed); new small "Editorial"/"Imported" source badge under each row's id (your requested optional polish — labels only these two, since AI-Factory-authored rows structurally never appear in this list, see below); "Publish Approved" now shows a confirmation dialog and an outcome-count summary (`"12 published · 2 already live · 1 skipped (duplicate) · 0 ineligible · 0 failed"`); `"publish"` removed from `UNDOABLE_ACTIONS`.
+- **`components/admin/QuestionReviewPanel.tsx`**: same shared status label/tone; single-question "Publish" now shows a confirmation dialog before calling the bridge.
+
+### Verification results
+
+- `npx tsc --noEmit` — clean.
+- `npm run build` — clean; new route `/api/admin/publish-reviewed` present in the build output.
+- Targeted logic verification (no test framework exists in this repo — same approach as Mission 8's count-validation check): a standalone script mirroring the eligibility gate, the deterministic-id derivation, and the content-duplicate normalizer ran 9 eligibility cases (draft/needs-review/rejected/archived/invalid/missing-English/incomplete-choices/blank-explanation all blocked; approved+valid+complete allowed) plus idempotent-id and normalization checks — all passed. Deleted after use, per this repo's "no stray scratch files" norm.
+- Grepped for every file referencing `AdminQuestionView` before finishing, to make sure the two new required fields didn't leave some other construction site broken — confirmed only `adminQuestions.ts` constructs it; everything else only reads it, and `tsc`/`build` passing is the actual proof.
+
+### Unverified live-Supabase steps (need the real database to confirm)
+
+The manual verification checklist's 20 items split into what's verified by reading/reasoning about the code above vs. what genuinely needs a live Supabase + browser session:
+- Items 1–9, 14 (create/publish/re-publish/draft-blocked/rejected-blocked, live row shape, gameplay pickup) — logic verified via the standalone script and the RPC's design above, but **not exercised against a real database from this environment.**
+- Item 15 (bulk mixed-selection per-item results) — the code path returns exactly this shape; not run live.
+- Item 16 (history append-only) — the RPC never touches `question_review_history`, and `publishBridge.ts` only ever `.insert()`s there, never updates/deletes; the table's own grants still have no UPDATE/DELETE policy for any role. Not observed live.
+- Items 17–20 (start_battle() picks up the new row, AI Factory still works, existing live questions unchanged, no RLS errors) — reasoned through above (no RLS policy touched; AI Factory's own insert/update/delete paths are untouched by this migration; existing rows only gain `NULL` in 5 new columns) but not run live.
+
+**You'll need to run the migration and walk through the checklist yourself once** — I don't have a way to execute SQL against your actual Supabase project from here.
+
+### Remaining risks
+
+1. **The migration hasn't run against your actual database yet.** Everything above is code-correct and internally consistent, but "correct in review" and "confirmed against production schema" are different claims — I'm not claiming the latter.
+2. **Content-duplicate check cost**: `findContentDuplicate()` queries `questions` filtered by `level` + `reference` (no index on either) on every publish attempt. Fine at this app's current scale (a few hundred/thousand rows); would want an index on `(level, reference)` if the live table grows substantially.
+3. **TOCTOU on content, not just status**: the RPC re-checks `question_review_overlay.status` at write time, but does *not* re-fetch and re-diff the actual question content (choices/text/etc.) between the route's read and the RPC's write. In an admin-only, human-paced workflow this window is extremely unlikely to matter, but it's a real, narrower residual gap versus a fully content-versioned re-check.
+4. **`bulkDeleteImportedQuestions`'s new "skip if published" guard checks the overlay status, not the live-mapping table directly** — consistent and conservative, but means a hypothetical future state where overlay says `'published'` with no matching live row (shouldn't happen given the atomic bridge, but see risk 1) would still correctly block deletion; the reverse (overlay somehow *not* saying published while a live row exists) can't happen by construction since only the bridge ever creates live rows, and it always sets the overlay in the same transaction.
+5. **AI-Factory-authored rows never appear in the Question Bank**, so the "Source" badge can only ever show "Editorial" or "Imported" there — not a bug, just a scope boundary worth knowing about if "AI Factory" was expected to be visible in that specific list.
+
+### Recommended Mission 10
+
+With the bridge in place, the natural next step is closing the loop on the *other* direction: today, editing an already-`approved`-and-published editorial question resets its status to `needs-review` (existing `applyEdit()` behavior) but does **not** touch or un-publish the live row — so a live question can end up out of sync with its (now-edited, not-yet-republished) editorial source. Options worth deciding deliberately (not guessing): (a) leave this as-is and rely on admins noticing "Published / Live" + a subsequent edit means "republish when ready," (b) add a visible "content changed since publish" indicator by comparing a content hash/timestamp, or (c) something else. Also worth revisiting: whether solo campaign should eventually read from `public.questions` too (today it's `getCanonicalQuestionStore()`, entirely separate from both the live-battle table and this bridge), which would be a substantially larger change than this mission and deserves its own explicit go/no-go.
+
 ## Mission 8 Part 2 — Pending AI Review bulk actions (2026-07-22)
 
 Follow-up request: the AI Factory's "Pending AI Review" list (the *live-facing*

@@ -2,7 +2,7 @@ import { getCanonicalQuestionStore } from "@/lib/questions/store";
 import { validateQuestionBank, type ValidationIssue } from "@/lib/questions/validate";
 import { normalizeDifficultyTier } from "@/lib/questions/canon";
 import type { BibleQuestion, SupportedQuestionLanguage } from "@/lib/questions/types";
-import { loadImportedQuestions, loadReviewState } from "./reviewStore";
+import { loadImportedQuestions, loadLiveMappingStatus, loadReviewState } from "./reviewStore";
 import type { AdminQuestionView, QuestionOverlay, ReviewStatus } from "./types";
 
 /** Applies a QuestionOverlay's edits on top of a canonical BibleQuestion.
@@ -60,9 +60,13 @@ function matchesSearch(q: BibleQuestion, term: string): boolean {
  * the whole store (not per-question — validator output is grouped by id
  * afterward), so filtering/pagination is cheap in-memory work. */
 export async function getAllAdminQuestions(): Promise<AdminQuestionView[]> {
-  const imported = await loadImportedQuestions();
+  const [imported, overlayState, liveMapping] = await Promise.all([
+    loadImportedQuestions(),
+    loadReviewState(),
+    loadLiveMappingStatus(),
+  ]);
+  const importedIds = new Set(imported.map((q) => q.id));
   const canonical = [...getCanonicalQuestionStore(), ...imported];
-  const overlayState = await loadReviewState();
   const report = validateQuestionBank(canonical);
 
   const issuesByQuestion = new Map<string, ValidationIssue[]>();
@@ -75,6 +79,7 @@ export async function getAllAdminQuestions(): Promise<AdminQuestionView[]> {
     const overlay = overlayState[base.id];
     const merged = overlay ? applyOverlay(base, overlay) : base;
     const issues = issuesByQuestion.get(base.id) ?? [];
+    const live = liveMapping.get(base.id);
     return {
       ...merged,
       review: overlay?.review ?? { status: "draft", reviewer: null, reviewedAt: null, reason: null },
@@ -84,6 +89,12 @@ export async function getAllAdminQuestions(): Promise<AdminQuestionView[]> {
         errorCount: issues.filter((i) => i.severity === "error").length,
         warningCount: issues.filter((i) => i.severity === "warning").length,
         messages: issues.map((i) => `[${i.severity}] ${i.code}: ${i.message}`),
+      },
+      sourceType: importedIds.has(base.id) ? "imported" : "canonical",
+      live: {
+        isLive: Boolean(live),
+        liveQuestionId: live?.liveQuestionId ?? null,
+        liveStatus: live?.liveStatus ?? null,
       },
     };
   });

@@ -4,12 +4,12 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import {
   bulkAddTag,
   bulkDeleteImportedQuestions,
-  bulkPublishApproved,
   bulkRestoreReviewState,
   bulkSetCategory,
   bulkSetReviewStatus,
   restoreDeletedQuestions,
 } from "@/lib/admin/reviewStore";
+import { publishEditorialQuestions } from "@/lib/admin/publishBridge";
 import type { ReviewStatus } from "@/lib/admin/types";
 import type { BibleQuestion } from "@/lib/questions/types";
 
@@ -61,6 +61,15 @@ const ACTION_TO_STATUS: Partial<Record<BulkAction, ReviewStatus>> = {
  * requires an explicit confirmation dialog before calling this. "restore"
  * (Undo Last Bulk Action) exists specifically so a delete — or any other
  * bulk action — isn't a one-way door for the admin who triggered it.
+ *
+ * Mission 9: "publish" now goes through the editorial-to-live bridge
+ * (lib/admin/publishBridge.ts) instead of a bare overlay-status flip — it
+ * actually creates/updates a row in public.questions, the table live
+ * gameplay reads from. Because that's now a real, harder-to-reverse
+ * action (once a room has been seeded with a question, deleting its live
+ * row would break that room), "publish" is deliberately NOT included in
+ * what Undo Last Bulk Action can reverse — see UNDOABLE_ACTIONS in
+ * components/admin/QuestionBank.tsx.
  */
 export async function POST(request: NextRequest) {
   const rate = checkRateLimit(request, "admin-api", 120, 60_000);
@@ -113,8 +122,12 @@ export async function POST(request: NextRequest) {
   }
 
   if (body.action === "publish") {
-    const result = await bulkPublishApproved(body.questionIds, reviewer);
-    return NextResponse.json({ success: true, ...result });
+    // Mission 9: goes through the editorial-to-live bridge now, not a bare
+    // overlay-status flip — see lib/admin/publishBridge.ts. Returns one
+    // outcome per requested id (published / already_live /
+    // skipped_duplicate / ineligible / failed), per requirement 6.
+    const results = await publishEditorialQuestions(body.questionIds, reviewer);
+    return NextResponse.json({ success: true, results });
   }
 
   if (body.action === "add-tag") {

@@ -218,29 +218,27 @@ export async function bulkSetCategory(questionIds: string[], category: string, r
 }
 
 /**
- * Bulk-publish: only ever transitions questions that are currently
- * "approved" — mirrors the single-question rule in
- * app/api/admin/questions/[id]/review/route.ts ("Only an approved
- * question can be published"). Anything selected that isn't approved is
- * silently skipped rather than force-published, and reported back to the
- * caller so the UI can tell the admin which ids didn't qualify.
+ * Mission 9: which editorial question ids already have a live row in
+ * public.questions, published via publish_editorial_question(). Keyed by
+ * source_question_id (the editorial id), not the live row's own id — that
+ * mapping is exactly what the Question Bank's "Published / Live" badge
+ * and the publish bridge's idempotency check both need. A plain SELECT,
+ * not a join against loadReviewState()'s tables, since the mapping lives
+ * entirely on public.questions (source_question_id/source_type, added by
+ * the Mission 9 migration).
  */
-export async function bulkPublishApproved(questionIds: string[], reviewer: string): Promise<{ published: string[]; skipped: string[] }> {
-  if (questionIds.length === 0) return { published: [], skipped: [] };
+export async function loadLiveMappingStatus(): Promise<Map<string, { liveQuestionId: string; liveStatus: string }>> {
   const supabase = createServiceRoleClient();
-
-  const { data, error } = await supabase.from("question_review_overlay").select("question_id, status").in("question_id", questionIds);
+  const { data, error } = await supabase.from("questions").select("id, source_question_id, status").not("source_question_id", "is", null);
   if (error) throw new Error(error.message);
 
-  const approvedIds = new Set((data ?? []).filter((row) => row.status === "approved").map((row) => row.question_id as string));
-  const published = questionIds.filter((id) => approvedIds.has(id));
-  const skipped = questionIds.filter((id) => !approvedIds.has(id));
-
-  if (published.length > 0) {
-    await bulkSetReviewStatus(published, "published", reviewer, "Bulk publish of approved questions");
+  const map = new Map<string, { liveQuestionId: string; liveStatus: string }>();
+  for (const row of data ?? []) {
+    if (row.source_question_id) {
+      map.set(row.source_question_id as string, { liveQuestionId: row.id as string, liveStatus: row.status as string });
+    }
   }
-
-  return { published, skipped };
+  return map;
 }
 
 /**
@@ -250,10 +248,17 @@ export async function bulkPublishApproved(questionIds: string[], reviewer: strin
  * selection that isn't an imported row is skipped, not deleted — the
  * canonical store is static TypeScript source and this dashboard never
  * touches it (CLAUDE.md: "never modified by this dashboard"; also rule 1,
- * "never delete working features"). The history row is appended BEFORE
- * the delete, so the append-only audit trail keeps a permanent record of
- * who deleted what and why even after the source content is gone.
- * Returns the full deleted payloads so the caller can offer an undo.
+ * "never delete working features"). Mission 9: also skips (never deletes)
+ * anything whose review status is already "published" — since Mission 9
+ * that status can mean a real live public.questions row exists, and
+ * deleting the editorial source out from under it would orphan its
+ * provenance even though the live row itself is untouched (no FK links
+ * them, by design — see the publish bridge migration's rollback notes).
+ * Same conservative rule the AI Factory's own delete already applies to
+ * its `questions` rows. The history row is appended BEFORE the delete, so
+ * the append-only audit trail keeps a permanent record of who deleted
+ * what and why even after the source content is gone. Returns the full
+ * deleted payloads so the caller can offer an undo.
  */
 export async function bulkDeleteImportedQuestions(
   questionIds: string[],
@@ -263,10 +268,15 @@ export async function bulkDeleteImportedQuestions(
   if (questionIds.length === 0) return { deleted: [], skipped: [], deletedQuestions: [] };
   const supabase = createServiceRoleClient();
 
-  const { data, error } = await supabase.from("admin_imported_questions").select("question_id, payload").in("question_id", questionIds);
+  const [{ data, error }, { data: overlayRows, error: overlayError }] = await Promise.all([
+    supabase.from("admin_imported_questions").select("question_id, payload").in("question_id", questionIds),
+    supabase.from("question_review_overlay").select("question_id, status").in("question_id", questionIds),
+  ]);
   if (error) throw new Error(error.message);
+  if (overlayError) throw new Error(overlayError.message);
 
-  const rows = data ?? [];
+  const publishedIds = new Set((overlayRows ?? []).filter((row) => row.status === "published").map((row) => row.question_id as string));
+  const rows = (data ?? []).filter((row) => !publishedIds.has(row.question_id as string));
   const deletable = new Set(rows.map((row) => row.question_id as string));
   const deleted = questionIds.filter((id) => deletable.has(id));
   const skipped = questionIds.filter((id) => !deletable.has(id));

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedAdmin, unauthorizedResponse } from "@/lib/admin/auth";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { getOverlay, setReviewStatus } from "@/lib/admin/reviewStore";
+import { publishEditorialQuestions } from "@/lib/admin/publishBridge";
 import type { ReviewStatus } from "@/lib/admin/types";
 
 export const runtime = "nodejs";
@@ -36,11 +37,19 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   if (body.status === "rejected" && !body.reason?.trim()) {
     return NextResponse.json({ error: "A reason is required to reject a question." }, { status: 400 });
   }
+
+  // Mission 9: "published" is no longer a bare overlay-status flip — it
+  // now actually publishes to public.questions (the live gameplay table)
+  // via the editorial-to-live bridge, atomically, with its own eligibility
+  // re-check. See lib/admin/publishBridge.ts.
   if (body.status === "published") {
-    const current = await getOverlay(params.id);
-    if (current.review.status !== "approved") {
-      return NextResponse.json({ error: "Only an approved question can be published." }, { status: 400 });
+    const [result] = await publishEditorialQuestions([params.id], reviewer);
+    if (result.outcome === "published" || result.outcome === "already_live") {
+      const overlay = await getOverlay(params.id);
+      return NextResponse.json({ success: true, overlay, outcome: result.outcome, liveQuestionId: result.liveQuestionId });
     }
+    const status = result.outcome === "failed" ? 500 : 400;
+    return NextResponse.json({ error: result.detail ?? `Publish outcome: ${result.outcome}`, outcome: result.outcome }, { status });
   }
 
   const overlay = await setReviewStatus(params.id, body.status, reviewer, body.reason);

@@ -5,14 +5,45 @@ import { adminFetch } from "@/lib/admin/apiClient";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { CANONICAL_CATEGORIES, BIBLE_BOOKS } from "@/lib/questions/canon";
-import type { AdminQuestionView } from "@/lib/admin/types";
+import type { AdminQuestionView, EditorialSourceType, PublishOutcome, PublishResult } from "@/lib/admin/types";
 import type { BibleQuestion } from "@/lib/questions/types";
+import { reviewStatusLabel, reviewStatusTone, STATUS_TONE_CLASSES } from "@/lib/admin/statusLabel";
 import QuestionReviewPanel from "./QuestionReviewPanel";
 
 /** The subset of bulk actions Undo Last Bulk Action can reverse — every
  * action that changes review status or removes a question. "add-tag" and
- * "set-category" intentionally don't produce a snapshot (see runBulk). */
-const UNDOABLE_ACTIONS = new Set(["approve", "reject", "needs-review", "archive", "publish", "delete"]);
+ * "set-category" intentionally don't produce a snapshot (see runBulk).
+ * "publish" is deliberately excluded (Mission 9): it now creates a real
+ * row in public.questions, the live gameplay table — once a room has been
+ * seeded with a question, silently un-publishing it out from under Undo
+ * would be far more dangerous than reverting an editorial-only status
+ * flip. See app/api/admin/bulk/route.ts's doc comment. */
+const UNDOABLE_ACTIONS = new Set(["approve", "reject", "needs-review", "archive", "delete"]);
+
+const SOURCE_BADGE: Record<EditorialSourceType, { label: string; className: string }> = {
+  canonical: { label: "Editorial", className: "bg-sky-500/20 text-sky-300" },
+  imported: { label: "Imported", className: "bg-purple-500/20 text-purple-300" },
+};
+
+const PUBLISH_OUTCOME_LABELS: Record<PublishOutcome, string> = {
+  published: "published",
+  already_live: "already live",
+  skipped_duplicate: "skipped (duplicate)",
+  ineligible: "ineligible",
+  failed: "failed",
+};
+
+function summarizePublishResults(results: PublishResult[]): string {
+  const counts: Record<PublishOutcome, number> = {
+    published: 0,
+    already_live: 0,
+    skipped_duplicate: 0,
+    ineligible: 0,
+    failed: 0,
+  };
+  for (const r of results) counts[r.outcome] += 1;
+  return (Object.keys(counts) as PublishOutcome[]).map((outcome) => `${counts[outcome]} ${PUBLISH_OUTCOME_LABELS[outcome]}`).join(" · ");
+}
 
 type ReviewSnapshotEntry = {
   questionId: string;
@@ -177,13 +208,13 @@ export default function QuestionBank({
     const deletedQuestions = action === "delete" ? affectedRows.map(toStoredQuestion) : undefined;
 
     try {
-      const result = await adminFetch<{ deleted?: string[]; skipped?: string[]; published?: string[] }>(secret, "/api/admin/bulk", {
+      const result = await adminFetch<{ deleted?: string[]; skipped?: string[]; results?: PublishResult[] }>(secret, "/api/admin/bulk", {
         method: "POST",
         body: JSON.stringify({ action, questionIds: ids, reviewer, ...extra }),
       });
 
       if (label && UNDOABLE_ACTIONS.has(action) && snapshot.length > 0) {
-        const affectedIds = new Set(action === "delete" ? result.deleted ?? [] : action === "publish" ? result.published ?? [] : ids);
+        const affectedIds = new Set(action === "delete" ? result.deleted ?? [] : ids);
         const relevantSnapshot = snapshot.filter((s) => affectedIds.has(s.questionId));
         if (relevantSnapshot.length > 0) {
           setLastBulkAction({
@@ -201,11 +232,7 @@ export default function QuestionBank({
             (skippedCount > 0 ? ` ${skippedCount} skipped — not AI-imported drafts (the canonical bank is never deleted here).` : "")
         );
       } else if (action === "publish") {
-        const skippedCount = result.skipped?.length ?? 0;
-        setBulkMessage(
-          `${result.published?.length ?? 0} question(s) published.` +
-            (skippedCount > 0 ? ` ${skippedCount} skipped — only "approved" questions can be published.` : "")
-        );
+        setBulkMessage(summarizePublishResults(result.results ?? []));
       }
 
       setSelected(new Set());
@@ -229,8 +256,15 @@ export default function QuestionBank({
   }
 
   function publishApprovedSelected() {
-    if (selected.size === 0) return;
-    runBulk("publish", Array.from(selected), undefined, `Publish approved (${selected.size} selected)`);
+    const count = selected.size;
+    if (count === 0) return;
+    // Mission 9: this now actually publishes to the live game — confirm,
+    // same as every other action here with a real, hard-to-reverse
+    // consequence (Delete Selected, Approve All on Page).
+    if (!window.confirm(`Publish ${count} selected question(s)? Any currently "approved" ones become visible to real players immediately.`)) {
+      return;
+    }
+    runBulk("publish", Array.from(selected));
   }
 
   function deleteSelected() {
@@ -412,7 +446,7 @@ export default function QuestionBank({
           <button
             disabled={bulkBusy}
             onClick={publishApprovedSelected}
-            title="Only questions currently in 'approved' status will be published — anything else selected is skipped."
+            title="Publishes to the live game (public.questions) — only questions currently in 'approved' status qualify; anything else selected is reported as ineligible, not force-published."
             className="rounded-full bg-sky-500/80 px-3 py-1.5 font-semibold text-slate-950"
           >
             Publish Approved
@@ -502,7 +536,14 @@ export default function QuestionBank({
                     <td className="p-3" onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" checked={selected.has(q.id)} onChange={() => toggleSelected(q.id)} />
                     </td>
-                    <td className="p-3 font-mono text-xs text-slate-400">{q.id}</td>
+                    <td className="p-3 font-mono text-xs text-slate-400">
+                      {q.id}
+                      <div className="mt-1">
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-sans font-semibold ${SOURCE_BADGE[q.sourceType].className}`}>
+                          {SOURCE_BADGE[q.sourceType].label}
+                        </span>
+                      </div>
+                    </td>
                     <td className="max-w-xs truncate p-3">{q.translations.en?.question ?? q.translations.am?.question ?? "—"}</td>
                     <td className="p-3 text-slate-400">
                       {q.book}
@@ -513,7 +554,9 @@ export default function QuestionBank({
                     <td className="p-3">{q.canonicalCategory}</td>
                     <td className="p-3">{Object.keys(q.translations).join(", ") || "—"}</td>
                     <td className="p-3">
-                      <span className="rounded-full bg-white/10 px-2 py-1 text-xs">{q.review.status}</span>
+                      <span className={`rounded-full px-2 py-1 text-xs ${STATUS_TONE_CLASSES[reviewStatusTone(q)]}`}>
+                        {reviewStatusLabel(q)}
+                      </span>
                     </td>
                     <td className="p-3">
                       {q.validation.errorCount > 0 ? (
