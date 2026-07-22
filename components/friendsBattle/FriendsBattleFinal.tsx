@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { UIStrings } from "@/lib/i18n/types";
 import type { FriendsBattlePlayerState } from "@/lib/friendsBattle/types";
 import { FRIENDS_BATTLE_QUESTION_COUNT } from "@/lib/friendsBattle/types";
+import Confetti from "@/components/Confetti";
+import { playVictorySound } from "@/lib/sound";
 
 export default function FriendsBattleFinal({
   t,
@@ -21,11 +24,19 @@ export default function FriendsBattleFinal({
 
   const ranked = [...players].sort((a, b) => b.score - a.score);
 
+  // Final screen mounts once per match, so this is a one-time victory
+  // fanfare, not a repeating loop.
+  useEffect(() => {
+    playVictorySound();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <main
       className="min-h-screen w-full px-4 py-10 text-[#f3efe2]"
       style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
     >
+      <Confetti active />
       <div className="mx-auto flex max-w-xl flex-col gap-6">
         <motion.header
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -14 }}

@@ -131,10 +131,6 @@ export async function loadQuestionsForGame(
         level: question.level,
       }));
 
-    console.log(
-      `[Question Loader] Database: ${databaseQuestions.length}, matching AI: ${aiQuestions.length}, local: ${localQuestions.length}`
-    );
-
     if (aiQuestions.length === 0) {
       return localQuestions;
     }

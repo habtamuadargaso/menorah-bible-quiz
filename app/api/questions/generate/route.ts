@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { generateAndSaveQuestions } from "@/lib/question-factory/generator";
+import { isAuthorizedAdmin } from "@/lib/admin/auth";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import type {
   GenerateQuestionsInput,
   SupportedLanguage,
@@ -75,16 +77,13 @@ function normalizeLanguages(
 
 export async function POST(request: NextRequest) {
   try {
-    const suppliedSecret =
-      request.headers.get("x-admin-secret");
+    // Checked before auth so this also caps repeated failed-secret
+    // guesses against this endpoint, not just successful (costly)
+    // generations. 5 requests per 10 minutes per IP.
+    const rate = checkRateLimit(request, "questions-generate", 5, 10 * 60 * 1000);
+    if (!rate.allowed) return rateLimitResponse(rate);
 
-    const expectedSecret =
-      process.env.QUESTION_ADMIN_SECRET;
-
-    if (
-      !expectedSecret ||
-      suppliedSecret !== expectedSecret
-    ) {
+    if (!(await isAuthorizedAdmin(request))) {
       return NextResponse.json(
         { error: "Unauthorized." },
         { status: 401 }

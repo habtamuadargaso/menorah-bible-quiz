@@ -1,7 +1,8 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { playCountdownTick } from "@/lib/sound";
 
 /**
  * Renders a countdown derived purely from a shared server timestamp
@@ -44,6 +45,19 @@ const SharedBattleTimer = memo(function SharedBattleTimer({
 
   const pct = totalSeconds > 0 ? Math.min(1, Math.max(0, remaining / totalSeconds)) : 0;
   const isLow = remaining <= 5 && remaining > 0;
+
+  // Mission 6 Part 3: one warning tick per round the instant it crosses
+  // into the low-time zone — not once per 250ms poll. tickedForRef tracks
+  // which `endsAt` we've already ticked for for so a re-render inside the
+  // same low-time window never repeats it.
+  const tickedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isLow && tickedForRef.current !== endsAt) {
+      tickedForRef.current = endsAt;
+      playCountdownTick();
+    }
+    if (!isLow) tickedForRef.current = null;
+  }, [isLow, endsAt]);
   const dimension = size === "lg" ? 108 : 64;
   const stroke = size === "lg" ? 8 : 6;
   const radius = (dimension - stroke) / 2;

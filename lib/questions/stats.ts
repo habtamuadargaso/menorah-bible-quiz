@@ -1,6 +1,6 @@
-import { MAX_LEVEL, MIN_LEVEL, normalizeDifficultyTier } from "./canon";
+import { CANONICAL_CATEGORIES, MAX_LEVEL, MIN_LEVEL, normalizeDifficultyTier } from "./canon";
 import { getCanonicalQuestionStore } from "./store";
-import type { BibleQuestion, SupportedQuestionLanguage } from "./types";
+import type { BibleQuestion, CanonicalCategory, SupportedQuestionLanguage } from "./types";
 
 export interface DifficultyCounts {
   Easy: number;
@@ -51,6 +51,47 @@ export function computeQuestionBankStats(questions: BibleQuestion[] = getCanonic
   });
 
   return { totalCanonicalQuestions: questions.length, byLanguage };
+}
+
+export interface CategoryStats {
+  category: CanonicalCategory;
+  count: number;
+}
+
+/** Mission 5D Part 9 addition — raw counts by canonical category, across
+ * the whole store regardless of language/level (one entry per question,
+ * since canonicalCategory is a single controlled value per question, not
+ * per-translation). */
+export function computeCategoryStats(questions: BibleQuestion[] = getCanonicalQuestionStore()): CategoryStats[] {
+  const counts = new Map<CanonicalCategory, number>(CANONICAL_CATEGORIES.map((c) => [c, 0]));
+  for (const q of questions) {
+    counts.set(q.canonicalCategory, (counts.get(q.canonicalCategory) ?? 0) + 1);
+  }
+  return CANONICAL_CATEGORIES.map((category) => ({ category, count: counts.get(category) ?? 0 }));
+}
+
+export interface TranslationCompletion {
+  language: SupportedQuestionLanguage;
+  translatedCount: number;
+  totalQuestions: number;
+  percent: number;
+}
+
+/** Mission 5D Part 9 addition — what fraction of the whole canonical bank
+ * has a translation in each language, regardless of level/difficulty. */
+export function computeTranslationCompletion(
+  questions: BibleQuestion[] = getCanonicalQuestionStore()
+): TranslationCompletion[] {
+  const total = questions.length;
+  return (["en", "am"] as SupportedQuestionLanguage[]).map((language) => {
+    const translatedCount = questions.filter((q) => Boolean(q.translations[language])).length;
+    return {
+      language,
+      translatedCount,
+      totalQuestions: total,
+      percent: total === 0 ? 0 : Math.round((translatedCount / total) * 1000) / 10,
+    };
+  });
 }
 
 /** Pretty-prints computeQuestionBankStats() in the Part 9 example format

@@ -54,12 +54,6 @@ export async function loadQuestionsForLevel(
   level: number,
   languageCode: string
 ): Promise<LoadedQuestion[]> {
-  console.log("===== loadQuestionsForLevel =====");
-  console.log({
-    level,
-    language: languageCode,
-  });
-
   const supabase = createClient();
 
   const { data, error } = await supabase
@@ -94,17 +88,8 @@ export async function loadQuestionsForLevel(
   }
 
   const rows = (data ?? []) as QuestionRow[];
-  console.log("Rows returned from Supabase (questions table):", rows.length);
   if (rows.length === 0) {
-    const questions: LoadedQuestion[] = [];
-    console.log("Questions returned:", questions.length);
-    console.log(
-      questions.slice(0, 10).map(q => ({
-        id: q.id,
-        level: q.level
-      }))
-    );
-    return questions;
+    return [];
   }
 
   const { data: answerKeyData, error: answerKeyError } = await supabase.rpc(
@@ -116,13 +101,6 @@ export async function loadQuestionsForLevel(
   }
   const answerKeys = new Map<string, AnswerKeyRow>(
     ((answerKeyData ?? []) as AnswerKeyRow[]).map((row) => [row.question_id, row])
-  );
-  console.log(
-    "Answer keys returned from get_question_answer_keys RPC:",
-    answerKeys.size,
-    "of",
-    rows.length,
-    "rows requested"
   );
 
   const questions: LoadedQuestion[] = rows.flatMap((row) => {
@@ -156,12 +134,5 @@ export async function loadQuestionsForLevel(
     ];
   });
 
-  console.log("Questions returned:", questions.length);
-  console.log(
-    questions.slice(0, 10).map(q => ({
-      id: q.id,
-      level: q.level
-    }))
-  );
   return questions;
 }

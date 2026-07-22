@@ -192,6 +192,28 @@ export interface UIStrings {
     on: string;
     off: string;
   };
+  offline: {
+    friendsBattleReassurance: string;
+    liveBattleBlocked: string;
+  };
+  settings: {
+    navLabel: string;
+    title: string;
+    subtitle: string;
+    languageHeading: string;
+    languageLabel: string;
+    audioHeading: string;
+    musicLabel: string;
+    musicVolumeLabel: string;
+    soundLabel: string;
+    soundVolumeLabel: string;
+    accessibilityHeading: string;
+    reducedMotionLabel: string;
+    reducedMotionHint: string;
+    highContrastLabel: string;
+    highContrastHint: string;
+    backToHome: string;
+  };
   campaign: {
     journey: string;
     passInstruction: string;

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { createClient } from "@/lib/supabase/client";
+import { playButtonClick } from "@/lib/sound";
 import {
   advancePhaseIfExpired,
   ensureAnonymousSession,
@@ -299,6 +300,7 @@ export default function PlayerRoomPage() {
     if (currentMyAnswer) return; // this question already has a real answer on record
     if (submittingForRoomQuestionRef.current === question.roomQuestionId) return; // a submission is already in flight
     submittingForRoomQuestionRef.current = question.roomQuestionId;
+    playButtonClick();
 
     const optimistic: AnswerRow = {
       id: `pending-${question.roomQuestionId}`,

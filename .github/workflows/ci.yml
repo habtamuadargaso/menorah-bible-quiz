@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Mission 7 Part 19. Required repository secrets (Settings -> Secrets and
+# variables -> Actions) — never hardcode these in this file:
+#   NEXT_PUBLIC_SUPABASE_URL
+#   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+#   QUESTION_ADMIN_SECRET          (needed for the admin-suite regression
+#                                    checks and the question-bank validation
+#                                    step; point it at a non-production
+#                                    Supabase project if you don't want CI
+#                                    runs touching real data)
+# GEMINI_API_KEY / SUPABASE_SERVICE_ROLE_KEY are intentionally NOT wired
+# into CI — nothing here calls the AI Question Factory or needs
+# service-role access.
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      QUESTION_ADMIN_SECRET: ${{ secrets.QUESTION_ADMIN_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Secret scan (fails on likely-committed credentials)
+        run: |
+          if git grep -nIE "(sb_secret_|sk-[A-Za-z0-9]{20,}|SUPABASE_SERVICE_ROLE_KEY\s*=\s*['\"a-zA-Z0-9])" -- . ':!.github/workflows/ci.yml'; then
+            echo "Possible secret literal found in tracked files — see matches above."
+            exit 1
+          fi
+
+      - name: Type check + build
+        run: pnpm run build
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Install Chrome (for tests/regression.mjs's channel:"chrome")
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Start production server
+        run: pnpm run start &
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000 --timeout 60000
+
+      - name: Question bank validation (fails on validator errors)
+        if: ${{ env.QUESTION_ADMIN_SECRET != '' }}
+        run: |
+          result=$(curl -s http://localhost:3000/api/admin/validate -H "x-admin-secret: $QUESTION_ADMIN_SECRET")
+          echo "$result"
+          errorCount=$(echo "$result" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).errorCount ?? 'unknown')}catch{console.log('unknown')}})")
+          if [ "$errorCount" != "0" ]; then
+            echo "Question bank validation reported $errorCount error(s)."
+            exit 1
+          fi
+
+      - name: Regression suite (tests/regression.mjs)
+        if: ${{ env.QUESTION_ADMIN_SECRET != '' }}
+        run: node tests/regression.mjs

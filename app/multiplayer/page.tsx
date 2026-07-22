@@ -9,6 +9,8 @@ import { LANGUAGES, type LangCode } from "@/lib/i18n/locales";
 import { CATEGORIES, type CategoryId } from "@/lib/categories";
 import HomeOptionCard from "@/components/multiplayer/HomeOptionCard";
 import { createBattleRoom, fetchRoomById, getSavedPlayerName, seedRoomQuestions } from "@/lib/liveBattleRoom";
+import { OfflineBanner } from "@/components/ui/OfflineBanner";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 // A difficulty picker maps to a representative campaign level — the rooms
 // table only stores game_level (unchanged schema), so "Difficulty" here is
@@ -26,6 +28,7 @@ export default function MultiplayerPage() {
   const { t, lang, setLang } = useLanguage();
   const reduceMotion = useReducedMotion();
   const tm = t.multiplayerLobby;
+  const isOnline = useOnlineStatus();
 
   function getErrorMessage(error: unknown): string {
     if (
@@ -90,13 +93,6 @@ export default function MultiplayerPage() {
 
     try {
       const selectedLevel = DIFFICULTY_LEVELS.find((d) => d.id === difficulty)?.level ?? 1;
-      console.log("===== handleCreateRoom =====");
-      console.log({
-        requestedLevel: selectedLevel,
-        requestedLanguage: lang,
-        requestedCategory: categoryId,
-        requestedDifficulty: difficulty,
-      });
       const { code, roomId } = await createBattleRoom({
         hostName: cleanName,
         categoryId,
@@ -128,6 +124,7 @@ export default function MultiplayerPage() {
       style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
     >
       <div className="mx-auto max-w-5xl">
+        <OfflineBanner mode="block" reassureText="" blockText={t.offline.liveBattleBlocked} />
         <motion.header
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -14 }}
           animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
@@ -253,7 +250,7 @@ export default function MultiplayerPage() {
 
               <motion.button
                 type="submit"
-                disabled={isLoading || isSwitchingPlayer}
+                disabled={isLoading || isSwitchingPlayer || !isOnline}
                 whileHover={reduceMotion || isLoading ? undefined : { y: -2, scale: 1.02 }}
                 whileTap={reduceMotion || isLoading ? undefined : { scale: 0.98 }}
                 className="mt-4 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-3.5 text-sm font-bold text-navy-900 shadow-gold outline-none transition-shadow hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 disabled:cursor-not-allowed disabled:opacity-60"

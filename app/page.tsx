@@ -252,6 +252,7 @@ export default function Home() {
 
   return (
     <main
+      id="main-content"
       className="min-h-screen w-full"
       style={{
         background:

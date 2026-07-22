@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { UIStrings } from "@/lib/i18n/types";
 import type { Question } from "@/lib/questions";
 import type { FriendsBattleAnswer, FriendsBattlePlayerState } from "@/lib/friendsBattle/types";
+import Confetti from "@/components/Confetti";
+import { playCorrectSound, playWrongSound } from "@/lib/sound";
 
 export default function FriendsBattleReveal({
   t,
@@ -24,12 +27,24 @@ export default function FriendsBattleReveal({
   const tf = t.friendsBattle;
 
   const byPlayerIndex = new Map(answers.map((a) => [a.playerIndex, a]));
+  const anyoneCorrect = answers.some((a) => a.isCorrect);
+
+  // This component remounts fresh for every question (the parent keys it
+  // by questionIndex), so this fires exactly once per reveal — a shared
+  // celebration on the one pass-and-play device when at least one player
+  // got it right this round.
+  useEffect(() => {
+    if (anyoneCorrect) playCorrectSound();
+    else playWrongSound();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <main
       className="min-h-screen w-full px-6 py-10 text-[#f3efe2] lg:px-16"
       style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
     >
+      <Confetti active={anyoneCorrect} />
       <div className="mx-auto flex max-w-2xl flex-col gap-6">
         <motion.div
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -14 }}

@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import type { UIStrings } from "@/lib/i18n/types";
 import type { Question } from "@/lib/questions";
 import { FRIENDS_BATTLE_ROUND_SECONDS, friendsBattleDifficultyLabel, type Difficulty } from "@/lib/friendsBattle/types";
+import { playButtonClick, playCountdownTick } from "@/lib/sound";
 
 const CHOICE_LETTERS = ["A", "B", "C", "D"];
 
@@ -44,10 +45,15 @@ export default function FriendsBattleQuestionScreen({
 
   useEffect(() => {
     const startedAt = Date.now();
+    let ticked = false;
     const id = window.setInterval(() => {
       const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
       const remaining = Math.max(0, FRIENDS_BATTLE_ROUND_SECONDS - elapsedSeconds);
       setSecondsLeft(remaining);
+      if (remaining <= 5 && remaining > 0 && !ticked) {
+        ticked = true;
+        playCountdownTick();
+      }
       if (remaining <= 0) {
         window.clearInterval(id);
         setLocked(true);
@@ -64,6 +70,7 @@ export default function FriendsBattleQuestionScreen({
   function handleSelect(index: number) {
     if (locked) return;
     setLocked(true);
+    playButtonClick();
     onAnswer(index);
   }
 

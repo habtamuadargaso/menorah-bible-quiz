@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { UIStrings } from "@/lib/i18n/types";
 import type { AnswerRow, RoomPlayerState } from "@/lib/liveBattleRoom";
+import Confetti from "@/components/Confetti";
+import { playDefeatSound, playVictorySound } from "@/lib/sound";
 
 export default function PlayerFinalResult({
   t,
@@ -32,11 +35,18 @@ export default function PlayerFinalResult({
     myAnswers.length > 0 ? myAnswers.reduce((sum, a) => sum + a.responseTimeMs, 0) / myAnswers.length : 0;
   const isChampion = myRank === 1;
 
+  useEffect(() => {
+    if (isChampion) playVictorySound();
+    else playDefeatSound();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <main
       className="min-h-screen w-full px-4 py-8 text-[#f3efe2]"
       style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
     >
+      <Confetti active={isChampion} />
       <div className="mx-auto flex max-w-md flex-col gap-5 text-center">
         <motion.div
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -14, scale: 0.9 }}

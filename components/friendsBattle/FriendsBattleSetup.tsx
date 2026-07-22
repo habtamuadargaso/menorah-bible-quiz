@@ -13,6 +13,7 @@ import {
   type Difficulty,
 } from "@/lib/friendsBattle/types";
 import { hasEnoughFriendsBattleContent, wouldUseDifficultyFallback } from "@/lib/friendsBattle/localQuestions";
+import { OfflineBanner } from "@/components/ui/OfflineBanner";
 
 const LEVELS = Array.from({ length: 10 }, (_, i) => i + 1);
 const PLAYER_COUNTS = Array.from(
@@ -103,6 +104,7 @@ export default function FriendsBattleSetup({
       style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
     >
       <div className="mx-auto max-w-2xl">
+        <OfflineBanner mode="reassure" reassureText={t.offline.friendsBattleReassurance} blockText="" />
         <motion.header
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -14 }}
           animate={{ opacity: 1, y: 0 }}

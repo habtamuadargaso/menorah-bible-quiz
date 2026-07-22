@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { UIStrings } from "@/lib/i18n/types";
 import type { AnswerRow, RoomPlayerState, RoomQuestionView } from "@/lib/liveBattleRoom";
+import Confetti from "@/components/Confetti";
+import { playCorrectSound, playWrongSound } from "@/lib/sound";
 
 export default function PlayerRoundResult({
   t,
@@ -25,11 +28,21 @@ export default function PlayerRoundResult({
   const myRank = ranked.findIndex((p) => p.playerId === myPlayerId) + 1;
   const isCorrect = Boolean(myAnswer?.isCorrect);
 
+  // Mission 6 Part 2/3: one-shot celebration/feedback per reveal — this
+  // component remounts each question (the parent keys it), so the effect
+  // firing once on mount is exactly "once per reveal," not once per app.
+  useEffect(() => {
+    if (isCorrect) playCorrectSound();
+    else playWrongSound();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <main
       className="min-h-screen w-full px-4 py-8 text-[#f3efe2]"
       style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
     >
+      <Confetti active={isCorrect} />
       <div className="mx-auto flex max-w-md flex-col gap-5">
         <motion.div
           role="status"
