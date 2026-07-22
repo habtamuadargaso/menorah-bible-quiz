@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { adminFetch } from "@/lib/admin/apiClient";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 interface StatsResponse {
   totalCanonicalQuestions: number;
@@ -24,14 +25,32 @@ const LANGUAGE_NAMES: Record<string, string> = { en: "English", am: "Amharic" };
 export default function StatisticsPanel({ secret }: { secret: string }) {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     adminFetch<StatsResponse>(secret, "/api/admin/stats")
       .then(setStats)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load statistics."))
       .finally(() => setLoading(false));
   }, [secret]);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
   if (loading) return <p className="text-slate-400">Loading…</p>;
+  if (error) {
+    return (
+      <div>
+        <h1 className="text-3xl font-black">📈 Statistics</h1>
+        <div className="mt-6">
+          <ErrorBanner message={`Couldn't load statistics: ${error}`} onRetry={load} />
+        </div>
+      </div>
+    );
+  }
   if (!stats) return null;
 
   const maxCategoryCount = Math.max(1, ...stats.categoryBreakdown.map((c) => c.count));

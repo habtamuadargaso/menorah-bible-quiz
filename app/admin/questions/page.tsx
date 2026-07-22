@@ -276,7 +276,7 @@ export default function AdminQuestionsPage() {
 
         <div className="flex-1 overflow-x-hidden p-6 sm:p-10">
           {section === "dashboard" && <DashboardOverview secret={secret} />}
-          {section === "factory" && <AIQuestionFactory secret={secret} />}
+          {section === "factory" && <AIQuestionFactory secret={secret} reviewer={reviewer || "unknown-admin"} />}
           {section === "bank" && <QuestionBank secret={secret} reviewer={reviewer || "unknown-admin"} title="📚 Question Bank" />}
           {section === "review-queue" && (
             <QuestionBank secret={secret} reviewer={reviewer || "unknown-admin"} title="🔍 Review Queue" presetReviewStatus="needs-review" />

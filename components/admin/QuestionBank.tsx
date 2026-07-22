@@ -6,7 +6,38 @@ import { SkeletonTable } from "@/components/ui/Skeleton";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { CANONICAL_CATEGORIES, BIBLE_BOOKS } from "@/lib/questions/canon";
 import type { AdminQuestionView } from "@/lib/admin/types";
+import type { BibleQuestion } from "@/lib/questions/types";
 import QuestionReviewPanel from "./QuestionReviewPanel";
+
+/** The subset of bulk actions Undo Last Bulk Action can reverse — every
+ * action that changes review status or removes a question. "add-tag" and
+ * "set-category" intentionally don't produce a snapshot (see runBulk). */
+const UNDOABLE_ACTIONS = new Set(["approve", "reject", "needs-review", "archive", "publish", "delete"]);
+
+type ReviewSnapshotEntry = {
+  questionId: string;
+  status: AdminQuestionView["review"]["status"];
+  reviewer: string | null;
+  reviewedAt: string | null;
+  reason: string | null;
+};
+
+type LastBulkAction = {
+  label: string;
+  snapshot: ReviewSnapshotEntry[];
+  /** Only set for a "delete" action — the full question payloads needed
+   * to recreate rows an undo has to bring back, not just their review
+   * status. */
+  deletedQuestions?: BibleQuestion[];
+};
+
+/** Strips the admin-view-only fields (review/history/hasEdits/validation)
+ * off an AdminQuestionView so it can be stored back as a plain
+ * BibleQuestion payload — used when undoing a delete. */
+function toStoredQuestion(q: AdminQuestionView): BibleQuestion {
+  const { review: _review, history: _history, hasEdits: _hasEdits, validation: _validation, ...question } = q;
+  return question;
+}
 
 interface PageResponse {
   items: AdminQuestionView[];
@@ -51,6 +82,9 @@ export default function QuestionBank({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState<string | null>(null);
+  const [lastBulkAction, setLastBulkAction] = useState<LastBulkAction | null>(null);
+  const [undoBusy, setUndoBusy] = useState(false);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -111,20 +145,127 @@ export default function QuestionBank({
     });
   }
 
-  async function runBulk(action: string, extra?: { tag?: string; category?: string; reason?: string }) {
-    if (selected.size === 0) return;
+  function selectAllOnPage() {
+    if (!data) return;
+    setSelected(new Set(data.items.map((q) => q.id)));
+  }
+
+  function clearSelection() {
+    setSelected(new Set());
+  }
+
+  /** Runs a bulk action against an explicit id list (not always `selected`
+   * — "Approve All on Page" bypasses selection entirely). For any action
+   * in UNDOABLE_ACTIONS, captures a snapshot of each affected question's
+   * current review state (and, for "delete", its full content) from the
+   * already-loaded page data BEFORE the request goes out, so Undo Last
+   * Bulk Action has something to restore. */
+  async function runBulk(action: string, ids: string[], extra?: { tag?: string; category?: string; reason?: string }, label?: string) {
+    if (ids.length === 0) return;
     setBulkBusy(true);
+    setBulkMessage(null);
+    setError(null);
+
+    const affectedRows = data?.items.filter((q) => ids.includes(q.id)) ?? [];
+    const snapshot: ReviewSnapshotEntry[] = affectedRows.map((q) => ({
+      questionId: q.id,
+      status: q.review.status,
+      reviewer: q.review.reviewer,
+      reviewedAt: q.review.reviewedAt,
+      reason: q.review.reason,
+    }));
+    const deletedQuestions = action === "delete" ? affectedRows.map(toStoredQuestion) : undefined;
+
     try {
-      await adminFetch(secret, "/api/admin/bulk", {
+      const result = await adminFetch<{ deleted?: string[]; skipped?: string[]; published?: string[] }>(secret, "/api/admin/bulk", {
         method: "POST",
-        body: JSON.stringify({ action, questionIds: Array.from(selected), reviewer, ...extra }),
+        body: JSON.stringify({ action, questionIds: ids, reviewer, ...extra }),
       });
+
+      if (label && UNDOABLE_ACTIONS.has(action) && snapshot.length > 0) {
+        const affectedIds = new Set(action === "delete" ? result.deleted ?? [] : action === "publish" ? result.published ?? [] : ids);
+        const relevantSnapshot = snapshot.filter((s) => affectedIds.has(s.questionId));
+        if (relevantSnapshot.length > 0) {
+          setLastBulkAction({
+            label,
+            snapshot: relevantSnapshot,
+            deletedQuestions: action === "delete" ? (deletedQuestions ?? []).filter((q) => affectedIds.has(q.id)) : undefined,
+          });
+        }
+      }
+
+      if (action === "delete") {
+        const skippedCount = result.skipped?.length ?? 0;
+        setBulkMessage(
+          `${result.deleted?.length ?? 0} question(s) deleted.` +
+            (skippedCount > 0 ? ` ${skippedCount} skipped — not AI-imported drafts (the canonical bank is never deleted here).` : "")
+        );
+      } else if (action === "publish") {
+        const skippedCount = result.skipped?.length ?? 0;
+        setBulkMessage(
+          `${result.published?.length ?? 0} question(s) published.` +
+            (skippedCount > 0 ? ` ${skippedCount} skipped — only "approved" questions can be published.` : "")
+        );
+      }
+
       setSelected(new Set());
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bulk action failed.");
     } finally {
       setBulkBusy(false);
+    }
+  }
+
+  function approveAllOnPage() {
+    if (!data || data.items.length === 0) return;
+    if (!window.confirm(`Approve all ${data.items.length} question(s) on this page?`)) return;
+    runBulk(
+      "approve",
+      data.items.map((q) => q.id),
+      undefined,
+      `Approve all on page (${data.items.length})`
+    );
+  }
+
+  function publishApprovedSelected() {
+    if (selected.size === 0) return;
+    runBulk("publish", Array.from(selected), undefined, `Publish approved (${selected.size} selected)`);
+  }
+
+  function deleteSelected() {
+    if (selected.size === 0) return;
+    const reason = window.prompt(
+      `Reason for permanently deleting ${selected.size} question(s)?\n\nThis only removes AI-imported drafts — any selected canonical questions are skipped, never deleted.`
+    );
+    if (!reason?.trim()) return;
+    if (!window.confirm(`Permanently delete ${selected.size} question(s)? You can reverse this immediately after with "Undo Last Bulk Action."`)) {
+      return;
+    }
+    runBulk("delete", Array.from(selected), { reason: reason.trim() }, `Delete selected (${selected.size} selected)`);
+  }
+
+  async function undoLastBulkAction() {
+    if (!lastBulkAction) return;
+    setUndoBusy(true);
+    setError(null);
+    try {
+      await adminFetch(secret, "/api/admin/bulk", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "restore",
+          reviewer,
+          items: lastBulkAction.snapshot,
+          deletedQuestions: lastBulkAction.deletedQuestions,
+        }),
+      });
+      setBulkMessage(`Undid: ${lastBulkAction.label}`);
+      setLastBulkAction(null);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Undo failed.");
+    } finally {
+      setUndoBusy(false);
     }
   }
 
@@ -218,30 +359,72 @@ export default function QuestionBank({
         </div>
       </div>
 
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        <button onClick={selectAllOnPage} disabled={!data || data.items.length === 0} className="rounded-full border border-white/20 px-3 py-1.5 font-semibold disabled:opacity-40">
+          Select All
+        </button>
+        {selected.size > 0 && (
+          <button onClick={clearSelection} className="rounded-full border border-white/20 px-3 py-1.5 font-semibold">
+            Clear selection
+          </button>
+        )}
+        <button
+          disabled={bulkBusy || !data || data.items.length === 0}
+          onClick={approveAllOnPage}
+          className="rounded-full bg-emerald-500/80 px-3 py-1.5 font-semibold text-slate-950 disabled:opacity-40"
+        >
+          Approve All on Page
+        </button>
+        {lastBulkAction && (
+          <button
+            disabled={undoBusy}
+            onClick={undoLastBulkAction}
+            className="rounded-full border border-sky-400/40 bg-sky-500/10 px-3 py-1.5 font-semibold text-sky-300 disabled:opacity-50"
+            title={`Reverses: ${lastBulkAction.label}`}
+          >
+            {undoBusy ? "Undoing…" : `↺ Undo Last Bulk Action (${lastBulkAction.label})`}
+          </button>
+        )}
+      </div>
+
+      {bulkMessage && <p className="mt-2 text-sm text-slate-400">{bulkMessage}</p>}
+
       {selected.size > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-sm">
           <span className="font-bold text-amber-300">{selected.size} selected</span>
-          <button disabled={bulkBusy} onClick={() => runBulk("approve")} className="rounded-full bg-emerald-500/80 px-3 py-1.5 font-semibold text-slate-950">
+          <button
+            disabled={bulkBusy}
+            onClick={() => runBulk("approve", Array.from(selected), undefined, `Approve selected (${selected.size})`)}
+            className="rounded-full bg-emerald-500/80 px-3 py-1.5 font-semibold text-slate-950"
+          >
             Approve selected
           </button>
           <button
             disabled={bulkBusy}
             onClick={() => {
               const reason = window.prompt("Reason for rejecting the selected questions:");
-              if (reason?.trim()) runBulk("reject", { reason });
+              if (reason?.trim()) runBulk("reject", Array.from(selected), { reason }, `Reject selected (${selected.size})`);
             }}
             className="rounded-full bg-red-500/80 px-3 py-1.5 font-semibold text-white"
           >
             Reject selected
           </button>
-          <button disabled={bulkBusy} onClick={() => runBulk("needs-review")} className="rounded-full bg-amber-500/80 px-3 py-1.5 font-semibold text-slate-950">
+          <button
+            disabled={bulkBusy}
+            onClick={publishApprovedSelected}
+            title="Only questions currently in 'approved' status will be published — anything else selected is skipped."
+            className="rounded-full bg-sky-500/80 px-3 py-1.5 font-semibold text-slate-950"
+          >
+            Publish Approved
+          </button>
+          <button disabled={bulkBusy} onClick={() => runBulk("needs-review", Array.from(selected), undefined, `Needs Review (${selected.size})`)} className="rounded-full bg-amber-500/80 px-3 py-1.5 font-semibold text-slate-950">
             Needs Review
           </button>
           <button
             disabled={bulkBusy}
             onClick={() => {
               const tag = window.prompt("Tag to add:");
-              if (tag?.trim()) runBulk("add-tag", { tag });
+              if (tag?.trim()) runBulk("add-tag", Array.from(selected), { tag });
             }}
             className="rounded-full border border-white/20 px-3 py-1.5 font-semibold"
           >
@@ -251,7 +434,7 @@ export default function QuestionBank({
             disabled={bulkBusy}
             onClick={() => {
               const category = window.prompt(`Category (${CANONICAL_CATEGORIES.join(", ")}):`);
-              if (category?.trim()) runBulk("set-category", { category });
+              if (category?.trim()) runBulk("set-category", Array.from(selected), { category });
             }}
             className="rounded-full border border-white/20 px-3 py-1.5 font-semibold"
           >
@@ -261,12 +444,20 @@ export default function QuestionBank({
             disabled={bulkBusy}
             onClick={() => {
               if (window.confirm(`Archive ${selected.size} question(s)? This can be undone later by changing their status again.`)) {
-                runBulk("archive");
+                runBulk("archive", Array.from(selected), undefined, `Archive (${selected.size})`);
               }
             }}
             className="rounded-full border border-white/20 px-3 py-1.5 font-semibold"
           >
             Archive
+          </button>
+          <button
+            disabled={bulkBusy}
+            onClick={deleteSelected}
+            title="Only removes AI-imported drafts — canonical questions in the selection are skipped, never deleted."
+            className="rounded-full border border-red-400/50 bg-red-500/20 px-3 py-1.5 font-semibold text-red-300"
+          >
+            Delete Selected
           </button>
           <button onClick={exportSelected} className="rounded-full border border-white/20 px-3 py-1.5 font-semibold">
             Export selected

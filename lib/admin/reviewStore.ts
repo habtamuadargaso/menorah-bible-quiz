@@ -218,6 +218,120 @@ export async function bulkSetCategory(questionIds: string[], category: string, r
 }
 
 /**
+ * Bulk-publish: only ever transitions questions that are currently
+ * "approved" — mirrors the single-question rule in
+ * app/api/admin/questions/[id]/review/route.ts ("Only an approved
+ * question can be published"). Anything selected that isn't approved is
+ * silently skipped rather than force-published, and reported back to the
+ * caller so the UI can tell the admin which ids didn't qualify.
+ */
+export async function bulkPublishApproved(questionIds: string[], reviewer: string): Promise<{ published: string[]; skipped: string[] }> {
+  if (questionIds.length === 0) return { published: [], skipped: [] };
+  const supabase = createServiceRoleClient();
+
+  const { data, error } = await supabase.from("question_review_overlay").select("question_id, status").in("question_id", questionIds);
+  if (error) throw new Error(error.message);
+
+  const approvedIds = new Set((data ?? []).filter((row) => row.status === "approved").map((row) => row.question_id as string));
+  const published = questionIds.filter((id) => approvedIds.has(id));
+  const skipped = questionIds.filter((id) => !approvedIds.has(id));
+
+  if (published.length > 0) {
+    await bulkSetReviewStatus(published, "published", reviewer, "Bulk publish of approved questions");
+  }
+
+  return { published, skipped };
+}
+
+/**
+ * Bulk-delete: only ever deletes rows that actually live in
+ * admin_imported_questions (AI-imported drafts that have never been part
+ * of the compiled canonical bank in lib/questions/*). Any id in the
+ * selection that isn't an imported row is skipped, not deleted — the
+ * canonical store is static TypeScript source and this dashboard never
+ * touches it (CLAUDE.md: "never modified by this dashboard"; also rule 1,
+ * "never delete working features"). The history row is appended BEFORE
+ * the delete, so the append-only audit trail keeps a permanent record of
+ * who deleted what and why even after the source content is gone.
+ * Returns the full deleted payloads so the caller can offer an undo.
+ */
+export async function bulkDeleteImportedQuestions(
+  questionIds: string[],
+  reviewer: string,
+  reason: string
+): Promise<{ deleted: string[]; skipped: string[]; deletedQuestions: BibleQuestion[] }> {
+  if (questionIds.length === 0) return { deleted: [], skipped: [], deletedQuestions: [] };
+  const supabase = createServiceRoleClient();
+
+  const { data, error } = await supabase.from("admin_imported_questions").select("question_id, payload").in("question_id", questionIds);
+  if (error) throw new Error(error.message);
+
+  const rows = data ?? [];
+  const deletable = new Set(rows.map((row) => row.question_id as string));
+  const deleted = questionIds.filter((id) => deletable.has(id));
+  const skipped = questionIds.filter((id) => !deletable.has(id));
+  const deletedQuestions = rows.map((row) => row.payload as BibleQuestion);
+
+  if (deleted.length > 0) {
+    for (const id of deleted) {
+      await appendHistory(supabase, id, reviewer, "deleted", reason);
+    }
+
+    const { error: deleteError } = await supabase.from("admin_imported_questions").delete().in("question_id", deleted);
+    if (deleteError) throw new Error(deleteError.message);
+
+    const { error: overlayError } = await supabase.from("question_review_overlay").delete().in("question_id", deleted);
+    if (overlayError) throw new Error(overlayError.message);
+  }
+
+  return { deleted, skipped, deletedQuestions };
+}
+
+/** Undo half of bulk delete: re-inserts previously-deleted imported
+ * question payloads. Reuses appendImportedQuestions's upsert-by-id, so
+ * it's safe even if some of these ids were (re-)created by something else
+ * in the meantime. */
+export async function restoreDeletedQuestions(questions: BibleQuestion[]): Promise<void> {
+  if (questions.length === 0) return;
+  await appendImportedQuestions(questions);
+}
+
+/**
+ * Undo for any status-changing bulk action (approve / reject / needs-
+ * review / archive / publish / delete): writes each question's overlay
+ * back to the EXACT review state the client captured immediately before
+ * the bulk action ran, rather than computing a new "current time" state.
+ * This does not erase or edit the bulk action's own history rows —
+ * question_review_history is append-only by design (RLS has no
+ * update/delete policy for it) — instead it appends a new "undo" entry,
+ * so the audit trail shows both the original action and its reversal.
+ */
+export async function bulkRestoreReviewState(
+  items: Array<{ questionId: string; status: ReviewStatus; reviewer: string | null; reviewedAt: string | null; reason: string | null }>,
+  actingReviewer: string
+): Promise<void> {
+  if (items.length === 0) return;
+  const supabase = createServiceRoleClient();
+  const now = new Date().toISOString();
+
+  const { error } = await supabase.from("question_review_overlay").upsert(
+    items.map((item) => ({
+      question_id: item.questionId,
+      status: item.status,
+      reviewer: item.reviewer,
+      reviewed_at: item.reviewedAt,
+      reason: item.reason,
+      updated_at: now,
+    }))
+  );
+  if (error) throw new Error(error.message);
+
+  for (const item of items) {
+    await appendHistory(supabase, item.questionId, actingReviewer, "bulk action undone", `restored to ${item.status}`);
+  }
+}
+
+/**
  * Accepted-by-the-importer questions, persisted separately from the
  * compiled canonical store (lib/questions/store.ts is static TS data —
  * there's no way to append to it at runtime without a rebuild). Merged in

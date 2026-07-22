@@ -93,9 +93,22 @@ export async function POST(request: NextRequest) {
     const body =
       (await request.json()) as GenerateRequestBody;
 
+    const requestedCount = Number(body.count ?? 10);
+    if (
+      !Number.isFinite(requestedCount) ||
+      !Number.isInteger(requestedCount) ||
+      requestedCount < 1 ||
+      requestedCount > 100
+    ) {
+      return NextResponse.json(
+        { error: "count must be a whole number between 1 and 100." },
+        { status: 400 }
+      );
+    }
+
     const input: GenerateQuestionsInput = {
       level: Number(body.level ?? 1),
-      count: Number(body.count ?? 1),
+      count: requestedCount,
       book: String(body.book ?? "Genesis"),
       chapter:
         typeof body.chapter === "number"

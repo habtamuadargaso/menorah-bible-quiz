@@ -56,7 +56,13 @@ import {
   
   const MAX_GENERATION_ATTEMPTS = 5;
   const EXTRA_CANDIDATES_PER_ATTEMPT = 4;
-  
+  // Raised alongside the count ceiling (10 -> 100, Mission 8): each attempt
+  // requests at most this many candidates from Gemini in one call, so
+  // reaching count=100 within MAX_GENERATION_ATTEMPTS needs a higher
+  // per-call cap than the old 15 (which was sized for a max count of 10 and
+  // structurally could never produce more than 5 * 15 = 75 candidates).
+  const MAX_CANDIDATES_PER_ATTEMPT = 30;
+
   function normalizeInput(
     input: GenerateQuestionsInput
   ): GenerateQuestionsInput {
@@ -64,12 +70,20 @@ import {
       1,
       Math.min(10, Math.floor(Number(input.level)))
     );
-  
-    const count = Math.max(
-      1,
-      Math.min(10, Math.floor(Number(input.count)))
-    );
-  
+
+    const rawCount = Number(input.count);
+    if (!Number.isFinite(rawCount)) {
+      throw new Error(
+        "Number of questions must be a valid number."
+      );
+    }
+    const count = Math.floor(rawCount);
+    if (count < 1 || count > 100) {
+      throw new Error(
+        "Number of questions must be between 1 and 100."
+      );
+    }
+
     const book = String(input.book ?? "").trim();
     const category = String(
       input.category ?? ""
@@ -356,7 +370,7 @@ import {
         acceptedQuestions.length;
   
       const candidateCount = Math.min(
-        15,
+        MAX_CANDIDATES_PER_ATTEMPT,
         remaining +
           EXTRA_CANDIDATES_PER_ATTEMPT
       );

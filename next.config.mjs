@@ -30,16 +30,39 @@ function supabaseConnectSrc() {
  * settings) with zero console errors before shipping — see
  * RELEASE_CHECKLIST.md. Do not tighten script-src further without
  * re-running that same route sweep.
+ *
+ * MISSION 7 HOTFIX: the CSP above was only ever verified against a
+ * production build (`next build && next start`) — never against
+ * `next dev`. Next's dev-mode webpack runtime (React Fast Refresh / HMR)
+ * evaluates code via `eval()`, which a CSP without 'unsafe-eval' blocks
+ * outright, and HMR's update channel is a same-origin WebSocket that
+ * needs an explicit connect-src entry (browsers do not reliably treat
+ * 'self' as covering the ws:// scheme). Both were invisible in the
+ * production-only test sweep because neither applies to a production
+ * build. Fixed by branching on NODE_ENV: development gets 'unsafe-eval'
+ * and the HMR websocket origin added *in addition to* the production
+ * policy; production is byte-for-byte what it was before this hotfix.
+ * Google Fonts hosts are allowlisted in both environments — not
+ * currently used anywhere in this codebase (verified: no
+ * fonts.googleapis.com/next/font/@font-face references exist), but
+ * allowing the two standard Google Fonts hosts now is low-risk and
+ * avoids a repeat of this exact class of bug the moment a font is added.
  */
 function buildCsp() {
-  const connect = supabaseConnectSrc().join(" ");
+  const isDev = process.env.NODE_ENV === "development";
+  const connect = [
+    "'self'",
+    ...supabaseConnectSrc(),
+    ...(isDev ? ["ws://localhost:*", "http://localhost:*"] : []),
+  ].join(" ");
+
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
-    "style-src 'self' 'unsafe-inline'",
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob:",
-    "font-src 'self' data:",
-    `connect-src 'self' ${connect}`,
+    "font-src 'self' data: https://fonts.gstatic.com",
+    `connect-src ${connect}`,
     "media-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",

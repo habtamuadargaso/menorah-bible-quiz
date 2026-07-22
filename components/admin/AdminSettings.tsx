@@ -145,10 +145,19 @@ export default function AdminSettingsPanel({ secret }: { secret: string }) {
       <section className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5">
         <h2 className="font-bold">Development information</h2>
         <ul className="mt-2 space-y-1 text-sm text-slate-400">
-          <li>Access control: shared-secret header (QUESTION_ADMIN_SECRET), same mechanism the AI Factory already used. Development-appropriate, not per-user auth — see Part 16.</li>
-          <li>Review state + edits: stored in data/admin/review-state.json (server filesystem, not a database).</li>
-          <li>Imported questions: stored in data/admin/imported-questions.json, merged with the canonical store at read time.</li>
+          <li>
+            Access control: real per-user Supabase Auth, gated by the <code>admin_users</code> table — see ADMIN.md. The
+            QUESTION_ADMIN_SECRET header is kept only as a local-development fallback for before any admin account is
+            provisioned; production should rely on signed-in admin accounts, not the shared secret.
+          </li>
+          <li>Review state + edits: stored in Supabase (question_review_overlay, question_review_history — the latter is an append-only audit trail), not the server filesystem.</li>
+          <li>Imported questions: stored in Supabase (admin_imported_questions), merged with the canonical store at read time.</li>
           <li>Canonical question content itself: lib/questions/* (Mission 5C/5D), never modified by this dashboard.</li>
+          <li>
+            Separate pipeline: the AI Question Factory tab writes directly to the Supabase <code>questions</code> table
+            (the same table live multiplayer rooms select published questions from) and is reviewed via its own
+            &ldquo;Pending AI Review&rdquo; list — it does not go through this Review Queue.
+          </li>
         </ul>
       </section>
 
