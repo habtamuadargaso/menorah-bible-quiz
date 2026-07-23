@@ -180,8 +180,12 @@ export default function GlobalTranslations({ secret, reviewer }: { secret: strin
     return data.items.filter((i) => selected.has(i.questionId) && i.translation.id).map((i) => i.translation.id!);
   }
 
-  async function runReviewAction(action: "approve" | "reject" | "publish" | "archive" | "regenerate", reason?: string) {
-    const translationIds = selectedTranslationIds();
+  async function runReviewAction(
+    action: "approve" | "reject" | "publish" | "archive" | "regenerate" | "approve_and_publish",
+    reason?: string,
+    idsOverride?: string[]
+  ) {
+    const translationIds = idsOverride ?? selectedTranslationIds();
     if (translationIds.length === 0) {
       pushToast("error", "None of the selected rows have an existing translation to act on.");
       return;
@@ -228,6 +232,38 @@ export default function GlobalTranslations({ secret, reviewer }: { secret: strin
     if (count === 0) return;
     if (!window.confirm(`Archive ${count} translation(s)? This removes any currently-live ones from gameplay.`)) return;
     runReviewAction("archive");
+  }
+
+  const ELIGIBLE_FOR_APPROVE_PUBLISH: TranslationStatus[] = ["ai_draft", "needs_review", "approved"];
+
+  function approveAndPublishSelected() {
+    const count = selectedTranslationIds().length;
+    if (count === 0) return;
+    if (
+      !window.confirm(
+        `Approve & publish ${count} translation(s)? They become visible to real players immediately, skipping the separate "approved" step.`
+      )
+    )
+      return;
+    runReviewAction("approve_and_publish");
+  }
+
+  function approveAndPublishAllOnPage() {
+    if (!data) return;
+    const ids = data.items
+      .filter((i) => i.translation.id && ELIGIBLE_FOR_APPROVE_PUBLISH.includes(i.translation.status))
+      .map((i) => i.translation.id!);
+    if (ids.length === 0) {
+      pushToast("error", "Nothing on this page is eligible to approve & publish (needs an ai_draft/needs_review/approved translation).");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Approve & publish all ${ids.length} eligible translation(s) on this page? They become visible to real players immediately.`
+      )
+    )
+      return;
+    runReviewAction("approve_and_publish", undefined, ids);
   }
 
   function regenerateSelected() {
@@ -379,6 +415,22 @@ export default function GlobalTranslations({ secret, reviewer }: { secret: strin
         </button>
         <button disabled={bulkBusy !== null} onClick={publishSelected} className="rounded-full bg-sky-500/80 px-3 py-1.5 font-semibold text-slate-950 disabled:opacity-40">
           Publish Selected
+        </button>
+        <button
+          disabled={bulkBusy !== null}
+          onClick={approveAndPublishSelected}
+          title="Skips the separate 'approved' step — moves ai_draft/needs_review/approved straight to published."
+          className="rounded-full bg-amber-400 px-3 py-1.5 font-semibold text-slate-950 disabled:opacity-40"
+        >
+          Approve &amp; Publish Selected
+        </button>
+        <button
+          disabled={bulkBusy !== null || !data || data.items.length === 0}
+          onClick={approveAndPublishAllOnPage}
+          title="Approves & publishes every eligible (ai_draft/needs_review/approved) row currently on this page."
+          className="rounded-full border border-amber-400/50 bg-amber-400/10 px-3 py-1.5 font-semibold text-amber-300 disabled:opacity-40"
+        >
+          Approve &amp; Publish All on Page
         </button>
         <button disabled={bulkBusy !== null} onClick={regenerateSelected} className="rounded-full border border-white/20 px-3 py-1.5 font-semibold disabled:opacity-40">
           Regenerate Selected

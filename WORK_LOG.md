@@ -1,5 +1,78 @@
 # Work Log
 
+## Mission 11 — Fix: published multilingual translations not appearing in gameplay (2026-07-23)
+
+**Root cause.** Two of the three pathways that can make a `question_translations`
+row live never actually promoted it to `status = 'published'`, even though
+they did flip the parent `questions.status` to `'published'`:
+
+1. **AI Question Factory approve/publish** (`app/api/admin/factory-review/route.ts`)
+   only ever updated `questions.status` — it never touched
+   `question_translations` at all, so every translation (English included)
+   stayed at the column's `'ai_draft'` default forever.
+2. **Editorial-to-live publish bridge** (`publish_editorial_question()`,
+   `supabase/migrations/20260729_mission9_editorial_publish_bridge.sql`)
+   inserted `question_translations` rows with no `status` column specified —
+   it predates Mission 10's `question_translations.status` column (added one
+   migration later) and was never revisited after that column's `'ai_draft'`
+   default started actually gating gameplay visibility.
+
+Global Translations' own workflow (`lib/admin/translationWorkflow.ts`) was
+already correct — `approveTranslations`/`publishTranslations` properly
+WHERE-guard every transition — it just had no combined "approve straight to
+published" bulk action.
+
+**Fixes.**
+- `lib/admin/translationWorkflow.ts`: new `publishAllTranslationsForQuestions()`
+  (used by the factory-review route to carry every translation of an
+  approved/rejected AI-Factory question along with its parent, since that
+  pathway has no separate per-language review step) and
+  `approveAndPublishTranslations()` (a one-step ai_draft/needs_review/approved
+  → published transition for Global Translations' new bulk actions).
+- `app/api/admin/factory-review/route.ts`: POST now calls
+  `publishAllTranslationsForQuestions()` after updating the parent question.
+- `supabase/migrations/20260731_mission11_publish_bridge_translation_status_fix.sql`:
+  `publish_editorial_question()` now inserts translations directly as
+  `'published'` (with `reviewed_by`/`reviewed_at`/`published_at` populated
+  and a `translation_review_history` row per language), plus a one-time
+  backfill for any already-published question of either broken pathway whose
+  translations are still stuck in `ai_draft`/`needs_review`/`approved`.
+- `components/admin/GlobalTranslations.tsx` + `/api/admin/translations/review`:
+  new "Approve & Publish Selected" and "Approve & Publish All on Page"
+  buttons/action.
+
+Neither fix touches or overwrites the English row's content — every update
+is scoped to specific translation ids or specific `question_id`s, and only
+ever changes workflow columns (`status`/`reviewed_by`/`reviewed_at`/
+`published_at`), never `question_text`/choices/etc.
+
+**Language codes.** Audited `en, am, om, ti, sw, ar, fr, es, de, it, pt, hi,
+zh, ja, ko` across `lib/i18n/locales.ts` (the single source of truth),
+AI generation, `question_translations`, the language selector, and both
+gameplay loaders — all already derive from the same `LANGUAGES` registry,
+no mismatches found.
+
+**Gameplay confirmation.** `loadQuestionsForLevel`/`loadQuestionById`
+(Solo Play, via `loadQuestionsForGame.ts`) and `get_room_question()`
+(Live Battle) already required an exact-language `question_translations.status
+= 'published'` row and never coalesce to English — that part was correct
+before this mission; the bug was entirely upstream, in how translations
+reached (or failed to reach) that status. **Friends Battle is unaffected and
+unchanged**: it is still 100% local/offline (`lib/friendsBattle/localQuestions.ts`),
+drawing only from the static per-language bank compiled into the JS bundle —
+it does not read `question_translations` at all and gains nothing from this
+fix (see `QUESTION_PUBLISHING.md`).
+
+**Tests.** No test runner existed in this repo before this mission. Added
+`vitest` (`pnpm test`) plus `__tests__/translationGating.test.ts` (proves
+draft/approved-not-published translations never appear, a published
+translation appears in the exact requested language, a language-code
+mismatch returns nothing, and an existing English translation is never
+substituted when the requested language has its own published row) and
+`__tests__/translationWorkflow.test.ts` (proves the new workflow functions
+only ever transition eligible rows and never touch another question's or
+language's row, including the English row specifically).
+
 ## Mission 10C — Over-generation strategy for AI question reliability (2026-07-22)
 
 Replaced `lib/question-factory/generator.ts`'s "generate exactly N, fail if

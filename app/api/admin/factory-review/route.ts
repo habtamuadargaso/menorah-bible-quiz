@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedAdmin, unauthorizedResponse } from "@/lib/admin/auth";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { publishAllTranslationsForQuestions } from "@/lib/admin/translationWorkflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -113,6 +114,14 @@ export async function POST(request: NextRequest) {
     .in("id", body.questionIds);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Bug fix: this route used to update ONLY questions.status. Since this
+  // pathway has no separate per-translation review step (an admin approves
+  // the whole multi-language packet in one action here), every translation
+  // row for these questions — including English — must move together with
+  // the parent question, or it stays at its ai_draft default forever and
+  // never appears in gameplay despite the question itself being live.
+  await publishAllTranslationsForQuestions(body.questionIds, reviewer, body.status, body.status === "rejected" ? body.reason?.trim() : undefined);
 
   await logAudit(supabase, body.questionIds, reviewer, body.status, body.status === "rejected" ? body.reason?.trim() : undefined);
 

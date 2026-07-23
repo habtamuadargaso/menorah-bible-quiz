@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedAdmin, unauthorizedResponse } from "@/lib/admin/auth";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import {
+  approveAndPublishTranslations,
   approveTranslations,
   archiveTranslations,
   publishTranslations,
@@ -13,7 +14,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-type ReviewAction = "approve" | "reject" | "publish" | "archive" | "regenerate";
+type ReviewAction = "approve" | "reject" | "publish" | "archive" | "regenerate" | "approve_and_publish";
 
 type ReviewBody = {
   action?: ReviewAction;
@@ -54,6 +55,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, results: await rejectTranslations(body.translationIds, reviewer, body.reason!.trim()) });
     case "publish":
       return NextResponse.json({ success: true, results: await publishTranslations(body.translationIds, reviewer) });
+    case "approve_and_publish":
+      return NextResponse.json({ success: true, results: await approveAndPublishTranslations(body.translationIds, reviewer) });
     case "archive":
       return NextResponse.json({ success: true, results: await archiveTranslations(body.translationIds, reviewer) });
     case "regenerate":

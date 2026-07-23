@@ -420,6 +420,80 @@ export async function publishTranslations(translationIds: string[], reviewer: st
   });
 }
 
+/**
+ * Combined "Approve & Publish" bulk action for Global Translations /
+ * Translation Center: skips the separate "approved" staging step and takes
+ * ai_draft/needs_review/approved straight to published in one WHERE-guarded
+ * update, recording the same reviewer/reviewed_at/published_at fields the
+ * two-step approve-then-publish flow does. A translation already published,
+ * rejected, or archived is left untouched (reported "ineligible"), same
+ * guarantee transitionStatus always gives.
+ */
+export async function approveAndPublishTranslations(translationIds: string[], reviewer: string): Promise<ReviewResult[]> {
+  if (translationIds.length === 0) return [];
+  const supabase = createServiceRoleClient();
+  const nowIso = new Date().toISOString();
+  return transitionStatus(supabase, translationIds, ["ai_draft", "needs_review", "approved"], "published", reviewer, {
+    reviewed_by: reviewer,
+    reviewed_at: nowIso,
+    published_at: nowIso,
+  });
+}
+
+/**
+ * The AI Question Factory / factory-review pathway (app/api/admin/
+ * factory-review/route.ts) has no per-language translation review step —
+ * an admin approves or rejects the whole multi-language question packet in
+ * one action, unlike Global Translations' per-(question, language) review.
+ * Bug fixed here: that route used to update ONLY questions.status, never
+ * touching question_translations at all, so every translation (including
+ * English) stayed at its ai_draft default even after the parent question
+ * went live — exactly the "published question but translation never
+ * appears in gameplay" bug this function closes. Publishing/rejecting a
+ * factory question now carries all of its translation rows along with it,
+ * guarded the same way transitionStatus guards single-id updates: only
+ * rows still in ai_draft/needs_review/approved move, so anything already
+ * published/rejected/archived for this question is left alone.
+ */
+export async function publishAllTranslationsForQuestions(
+  questionIds: string[],
+  reviewer: string,
+  targetStatus: "published" | "rejected",
+  reason?: string
+): Promise<ReviewResult[]> {
+  if (questionIds.length === 0) return [];
+  const supabase = createServiceRoleClient();
+  const nowIso = new Date().toISOString();
+  const extraFields: Record<string, unknown> =
+    targetStatus === "published"
+      ? { reviewed_by: reviewer, reviewed_at: nowIso, published_at: nowIso }
+      : { reviewed_by: reviewer, reviewed_at: nowIso, rejection_reason: reason ?? null };
+
+  const { data, error } = await supabase
+    .from("question_translations")
+    .update({ status: targetStatus, updated_at: nowIso, ...extraFields })
+    .in("question_id", questionIds)
+    .in("status", ["ai_draft", "needs_review", "approved"])
+    .select("id, question_id, language_code");
+
+  if (error) {
+    return questionIds.map((questionId) => ({ translationId: questionId, outcome: "failed", detail: error.message }));
+  }
+
+  const rows = data ?? [];
+  await logHistoryBatch(
+    supabase,
+    rows.map((row) => ({
+      questionId: row.question_id as string,
+      languageCode: row.language_code as string,
+      actor: reviewer,
+      action: `factory_review: ${targetStatus}`,
+    }))
+  );
+
+  return rows.map((row) => ({ translationId: row.id as string, outcome: targetStatus as ReviewOutcome }));
+}
+
 /** Regenerate = force-regenerate for existing rows, one at a time, reusing
  * generateOne's own protections — a translation already 'published' is
  * refused there too (skipped_published), same as fresh generation. */

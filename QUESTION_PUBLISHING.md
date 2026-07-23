@@ -1,5 +1,19 @@
 # Question Content: Source of Truth & Publishing (Mission 7 Parts 6 & 7)
 
+> **Mission 11 update**: store #2 (`questions` / `question_translations`) has
+> its own per-translation `question_translations.status` workflow
+> (`ai_draft -> needs_review -> approved -> published`, or
+> `rejected`/`archived`) layered on top of the parent `questions.status`
+> described below — see "Translation workflow" further down. Both the parent
+> question AND its per-language translation row must be `'published'`
+> before a player sees it; Mission 11 fixed two pathways
+> (`app/api/admin/factory-review/route.ts` and the editorial
+> `publish_editorial_question()` RPC) that published the parent question
+> but left its translations stuck at `ai_draft` forever. **Friends Battle
+> still does not read this table at all** (see store #1 below) — nothing in
+> Mission 11 changes that; a translation approved and published here is
+> playable in Solo Play and Live Battle, never in Friends Battle.
+
 This app currently has **three separate question content stores**. That's confusing enough to be worth documenting precisely, verified against the code (not assumed) — and precisely which one "Published" affects for each, since the word is used in two unrelated systems.
 
 ## The three stores
