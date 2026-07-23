@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   description: "A multilingual Bible learning game for individuals, families, churches, and live competitions.",
   applicationName: "Menorah Bible Quiz",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  icons: { icon: "/icon.svg", apple: "/icons/icon-192.png" },
   openGraph: {
     title: "Menorah Bible Quiz",
     description: "Learn the Word. Test your faith. Grow in wisdom.",

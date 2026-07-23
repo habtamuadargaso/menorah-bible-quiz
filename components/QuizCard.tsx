@@ -9,6 +9,7 @@ import { getLevelConfig } from "@/lib/game/levelConfig";
 import { MAX_GAME_LEVEL } from "@/lib/levels";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { playCorrectSound, playFinishSound, playTimeoutSound, playWrongSound, startGameMusic, stopGameMusic } from "@/lib/sound";
+import { hapticError, hapticSuccess } from "@/lib/mobile/haptics";
 
 const MAX_LIVES = 3;
 const QUESTION_LOAD_TIMEOUT_MS = 15000;
@@ -456,6 +457,7 @@ export default function QuizCard({
       setSelected(choiceIndex);
       if (isCorrect) {
         playCorrectSound();
+        hapticSuccess();
         const answeredUnderFiveSeconds = timePerQuestion - timeLeftRef.current < 5;
         const newStreak = streak + 1;
         setStreak(newStreak);
@@ -466,6 +468,7 @@ export default function QuizCard({
       } else {
         if (choiceIndex === -1) playTimeoutSound();
         else playWrongSound();
+        hapticError();
         setStreak(0);
         setLives((l) => Math.max(0, l - 1));
       }

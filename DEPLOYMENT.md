@@ -2,7 +2,7 @@
 
 ## Target platform
 
-Vercel. `capacitor.config.json` already points at `https://menorah-bible-quiz.vercel.app` — Vercel is the established deployment target for this project, not a new choice made in this mission.
+Vercel. `capacitor.config.ts` already points at `https://menorah-bible-quiz.vercel.app` — Vercel is the established deployment target for this project, not a new choice made in this mission.
 
 ## Runtime requirements
 
@@ -57,14 +57,27 @@ In-memory, per-instance — see [SECURITY.md](SECURITY.md#rate-limiting-mission-
 
 `app/manifest.ts` is configured (name, short/long description, `standalone` display, theme/background colors). Audited this mission:
 
-- **Icons**: only `public/icon.svg` (`sizes: "any"`). Works for installability in Chromium-based browsers, but there are no PNG icons at the standard 192x192 / 512x512 sizes (including a maskable variant), which iOS's "Add to Home Screen" and some Android launchers render better than a bare SVG. Not generated in this mission — no image-rasterization tool (`sharp`, ImageMagick, `rsvg-convert`) was available in this environment. **Action needed before a polished install experience**: export `icon.svg` to PNG at 192x192, 512x512, and a maskable 512x512 variant, and add them to `app/manifest.ts`'s `icons` array.
+- **Icons**: fixed in Mission 12 — `app/manifest.ts`'s `icons` array now includes PNG icons at 48/72/96/128/192/256/512px (both `"any"` and `"maskable"` purpose entries), generated from `public/icon.svg` via `npx @capacitor/assets generate` (`pnpm run mobile:assets`) alongside the native app's icon/splash assets. `public/icon.svg` (`sizes: "any"`) is kept too, not replaced.
 - **No service worker**: not added this mission — a broken service worker (stale cache serving old JS against a new API contract) is a real, easy-to-ship-by-accident risk, and this app doesn't strictly need one. Friends Battle already works offline once the page has loaded (zero network calls, by design — see Mission 5B); Live Battle inherently requires connectivity and already shows an explicit offline-blocked banner. The gap a service worker would close: a full page reload while offline currently fails to load the shell at all. Treat as a future enhancement, not a launch blocker, given the above.
 
-## Mobile packaging (Mission 7 Part 18)
+## Mobile packaging (Mission 7 Part 18; fully configured in Mission 12)
 
-**Already decided in a prior session, not chosen fresh this mission**: Capacitor (`@capacitor/core`, `@capacitor/android`, `@capacitor/ios` are dependencies; `android/` and `ios/` platform folders and `capacitor.config.json` already exist). `capacitor.config.json` is configured in **remote-URL mode** — the native shell loads `https://menorah-bible-quiz.vercel.app` directly in a WebView rather than bundling a static build (`webDir: "www"` is set but unused while `server.url` is present; Capacitor prefers the remote URL). This is the lowest-risk packaging approach: the native app always reflects whatever is live on Vercel, no separate mobile build/release pipeline to keep in sync.
+Capacitor (`@capacitor/core`, `@capacitor/android`, `@capacitor/ios`, plus
+`@capacitor/app`/`haptics`/`keyboard`/`splash-screen`/`status-bar`) wraps this
+same Next.js app for Android and iOS — see **[MOBILE_SETUP.md](MOBILE_SETUP.md)**
+for the full architecture, configuration (splash screen, app icon, status
+bar, safe area, keyboard, haptics, deep links), build scripts
+(`pnpm run mobile:sync`/`mobile:android`/`mobile:ios`), and what was actually
+verified (a real `pnpm test` + `pnpm run build` + `npx cap sync` +
+`./gradlew assembleDebug` pass, producing a real debug APK).
 
-Not done in this mission, and out of scope per the mission's own instructions ("no actual app-store publishing"): opening the project in Xcode/Android Studio, code-signing, store listings, or a `pnpm cap sync` step wired into any script. `android/` and `ios/` were left untouched to avoid destabilizing an existing, working setup neither verified nor modified here.
+Still out of scope per the mission's own instructions ("no actual app-store
+publishing"): code-signing, store listings, and App Store Connect / Google
+Play Console submission. `capacitor.config.ts` stays in **remote-URL
+mode** (native shell loads `https://menorah-bible-quiz.vercel.app` directly)
+— the lowest-risk packaging approach, and the only one that doesn't require
+rewriting the AI Question Factory / admin routes' service-role-key-gated
+server logic against some other backend shape.
 
 ## Required checks before every deploy
 

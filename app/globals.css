@@ -51,6 +51,20 @@ body {
   padding-bottom: max(env(safe-area-inset-bottom), 0px);
 }
 
+/* Mission 12 — native app shell only (never the website/PWA): `native-app`
+   is added to <html> exclusively by components/mobile/NativeAppBootstrap.tsx,
+   which only ever runs inside the Capacitor WebView. Capacitor's WebView is
+   edge-to-edge by default and most screens here anchor real controls near
+   the bottom (answer buttons, nav bars, submit buttons), so this pads the
+   whole app for the home indicator / Android gesture bar automatically
+   instead of requiring the opt-in classes above on every screen. The status
+   bar's own inset is handled natively instead (StatusBar.setOverlaysWebView
+   is false — see capacitor.config.ts / NativeAppBootstrap.tsx), so no
+   top padding is added here. */
+html.native-app body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 /* A visible focus ring for every interactive element, even ones that
    don't already have an explicit focus-visible Tailwind class — the app's
    components mostly do, but this is a safety net so keyboard users are

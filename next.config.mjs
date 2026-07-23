@@ -114,6 +114,16 @@ const nextConfig = {
           { key: "Cache-Control", value: "no-store" },
         ],
       },
+      {
+        // Mission 12 — iOS Universal Links: the AASA file has no file
+        // extension (that's required by Apple's spec), so without this it
+        // would be served with Next's generic static-file content type.
+        // Apple's fetcher is tolerant either way, but declaring the
+        // correct type here removes any ambiguity for it or any other
+        // client that fetches this file directly.
+        source: "/.well-known/apple-app-site-association",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
     ];
   },
 };

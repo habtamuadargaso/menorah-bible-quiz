@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "REPLACE_WITH_YOUR_APPLE_TEAM_ID.com.menorah.biblequiz",
+        "paths": ["/join/*", "/multiplayer/join*"]
+      }
+    ]
+  }
+}

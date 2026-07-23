@@ -7,6 +7,7 @@ import type { Question } from "@/lib/questions";
 import type { FriendsBattleAnswer, FriendsBattlePlayerState } from "@/lib/friendsBattle/types";
 import Confetti from "@/components/Confetti";
 import { playCorrectSound, playWrongSound } from "@/lib/sound";
+import { hapticError, hapticSuccess } from "@/lib/mobile/haptics";
 
 export default function FriendsBattleReveal({
   t,
@@ -34,8 +35,13 @@ export default function FriendsBattleReveal({
   // celebration on the one pass-and-play device when at least one player
   // got it right this round.
   useEffect(() => {
-    if (anyoneCorrect) playCorrectSound();
-    else playWrongSound();
+    if (anyoneCorrect) {
+      playCorrectSound();
+      hapticSuccess();
+    } else {
+      playWrongSound();
+      hapticError();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

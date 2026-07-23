@@ -22,6 +22,22 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Mission 12 — custom-scheme deep link (menorah://...), works
+	     immediately with no server-side setup. See lib/mobile/deepLinks.ts
+	     and MOBILE_SETUP.md; Universal Links (real https:// URLs) need the
+	     separate Associated Domains capability + App.entitlements this repo
+	     also adds, attached to the target in Xcode. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>menorah</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.menorah.biblequiz</string>
+		</dict>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
