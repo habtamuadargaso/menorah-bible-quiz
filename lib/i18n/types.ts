@@ -531,4 +531,30 @@ export interface UIStrings {
     homeButton: string;
     questionOfTotalLabel: string; // "Question {current} of {total}" — replace both
   };
+  liveBattle: {
+    roomLabel: string;
+    questionProgress: string; // "{current}" / "{total}" placeholders
+    remainingPlayers: string;
+    loadingBattle: string;
+    roomNotFound: string;
+    battleComplete: string;
+    waitingForQuestion: string;
+    translationUnavailable: string;
+    chooseAnswer: string;
+    answerLockedWaiting: string;
+    roundResults: string;
+    correctAnswerLabel: string;
+    streakLabel: string;
+    statusWaiting: string;
+    statusAnswered: string;
+    statusCorrect: string;
+    statusIncorrect: string;
+    statusDisconnected: string;
+    nextQuestionIn: string;
+    winnerHeading: string;
+    topThreeHeading: string;
+    reactionTimeLabel: string;
+    secondsShort: string;
+    returnToMultiplayer: string;
+  };
 }
