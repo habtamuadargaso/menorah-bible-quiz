@@ -89,10 +89,10 @@ export default function PlayCards({
       theme: "gold",
       icon: "single",
       eyebrow: isAmharic ? "ካምፔይን" : "Campaign",
-      title: isAmharic ? "ብቻዬን ተጫወት" : "Single Player",
+      title: isAmharic ? "ብቻዬን ተጫወት" : "Solo Quiz",
       description: isAmharic
         ? "በራስዎ ፍጥነት 10 ደረጃዎችን ያልፉ።"
-        : "Play through 10 levels at your own pace.",
+        : "Play alone and strengthen your Bible knowledge.",
       action: (
         <button onClick={onSinglePlayer} className={actionClass("gold")}>
           {isAmharic ? "ተጫወት" : "Play Now"}
@@ -100,18 +100,17 @@ export default function PlayCards({
       ),
     },
     {
-      key: "online",
+      key: "friends-battle",
       theme: "purple",
       icon: "online",
-      eyebrow: isAmharic ? "የቀጥታ ጨዋታ" : "Live Multiplayer",
-      title: isAmharic ? "የመስመር ላይ ውድድር" : "Online Battle",
+      eyebrow: isAmharic ? "አንድ መሳሪያ" : "One Device",
+      title: isAmharic ? "የጓደኞች ውድድር" : "Friends Battle",
       description: isAmharic
-        ? "ክፍል ፍጠሩ ወይም ተቀላቀሉ እና ከጓደኞችዎ ጋር ይወዳደሩ።"
-        : "Create or join a room and battle friends live.",
+        ? "በአንድ መሳሪያ ላይ አብረው ይጫወቱ — ከእያንዳንዱ ተራ በኋላ መሳሪያውን ያስተላልፉ። የክፍል ኮድ ወይም በይነመረብ አያስፈልግም።"
+        : "Pass one device around and compete together in person. No room code, no internet needed.",
       action: (
-        <Link href="/multiplayer" className={actionClass("purple")}>
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          {isAmharic ? "አሁን ተቀላቀል" : "Join Now"}
+        <Link href="/friends-battle" className={actionClass("purple")}>
+          {isAmharic ? "ጀምር" : "Play Now"}
         </Link>
       ),
     },
@@ -138,7 +137,7 @@ export default function PlayCards({
       title: isAmharic ? "የቤተ ክርስቲያን ሁነታ" : "Church Mode",
       description: isAmharic
         ? "ለአጥቢያ ቤተ ክርስቲያን፣ ለወጣቶች ቡድን እና ለሰንበት ት/ቤት የተዘጋጀ።"
-        : "Built for congregations, youth groups, and Sunday school.",
+        : "Host a live Bible competition with QR code joining, TV/projector display, and real-time leaderboard.",
       action: (
         <button onClick={onChurchMode} className={actionClass("purple")}>
           {isAmharic ? "ያስሱ" : "Explore"}

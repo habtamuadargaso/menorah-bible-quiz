@@ -18,6 +18,7 @@ import { QUESTIONS_ZH } from "./zh";
 import { QUESTIONS_KO } from "./ko";
 import { QUESTIONS_DE } from "./de";
 import { QUESTIONS_IT } from "./it";
+import { QUESTIONS_JA } from "./ja";
 
 export type { Question } from "./types";
 
@@ -36,6 +37,7 @@ const QUESTIONS_BY_LANG: Record<LangCode, Question[]> = {
   ko: QUESTIONS_KO,
   de: QUESTIONS_DE,
   it: QUESTIONS_IT,
+  ja: QUESTIONS_JA,
 };
 
 export interface CategoryQuestions {
@@ -105,28 +107,30 @@ export function questionsForLevel(
   categoryId: CategoryId,
   level: number
 ): CategoryQuestions {
-  const nativeBank = QUESTIONS_BY_LANG[lang] ?? [];
+  const categoryBank = (QUESTIONS_BY_LANG[lang] ?? []).filter(
+    (question) => question.categoryId === categoryId
+  );
 
-  if (level < 1 || level > MAX_GAME_LEVEL || nativeBank.length < QUESTIONS_PER_LEVEL) {
+  if (level < 1 || level > MAX_GAME_LEVEL || categoryBank.length < QUESTIONS_PER_LEVEL) {
     return { questions: [], usedFallback: lang !== "en" };
   }
 
   // The selected category changes the campaign ordering while preserving a
   // strict no-repeat guarantee between Level 1 through Level 10.
-  const ordered = seededOrder(nativeBank, `${lang}:${categoryId}:campaign-v1`);
+  const ordered = seededOrder(categoryBank, `${lang}:${categoryId}:campaign-v1`);
   const start = (level - 1) * QUESTIONS_PER_LEVEL;
   const levelPool = ordered.slice(start, start + QUESTIONS_PER_LEVEL);
 
   if (levelPool.length < QUESTIONS_PER_LEVEL) {
     return {
       questions: [],
-      usedFallback: lang !== "en" || nativeBank.length < MAX_GAME_LEVEL * QUESTIONS_PER_LEVEL,
+      usedFallback: lang !== "en" || categoryBank.length < MAX_GAME_LEVEL * QUESTIONS_PER_LEVEL,
     };
   }
 
   return {
     questions: shuffle(levelPool).map((question) => ({ ...question, level })),
-    usedFallback: lang !== "en" && nativeBank.length < MAX_GAME_LEVEL * QUESTIONS_PER_LEVEL,
+    usedFallback: lang !== "en" && categoryBank.length < MAX_GAME_LEVEL * QUESTIONS_PER_LEVEL,
   };
 }
 

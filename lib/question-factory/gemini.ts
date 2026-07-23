@@ -31,7 +31,7 @@ function getGeminiApiKey(): string {
   return apiKey;
 }
 
-function getGeminiModel(): string {
+export function getGeminiModel(): string {
   return (
     process.env.GEMINI_MODEL?.trim() ||
     "gemini-3.1-flash-lite"

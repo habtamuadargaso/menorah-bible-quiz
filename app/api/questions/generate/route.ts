@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { generateAndSaveQuestions } from "@/lib/question-factory/generator";
+import { isAuthorizedAdmin } from "@/lib/admin/auth";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { LANGUAGES } from "@/lib/i18n/locales";
 import type {
   GenerateQuestionsInput,
   SupportedLanguage,
@@ -33,26 +36,15 @@ function getErrorMessage(error: unknown): string {
   return "Unknown question-generation error.";
 }
 
+// Mission 10: derives from the one central language registry
+// (lib/i18n/locales.ts) instead of a second, hand-maintained list that had
+// already drifted out of sync with it (see lib/question-factory/types.ts).
+const SUPPORTED_LANGUAGE_CODES = new Set<SupportedLanguage>(LANGUAGES.map((l) => l.code));
+
 function normalizeLanguages(
   languages: string[] | undefined
 ): SupportedLanguage[] {
-  const supportedLanguages = new Set<SupportedLanguage>([
-    "en",
-    "am",
-    "om",
-    "ti",
-    "es",
-    "fr",
-    "de",
-    "it",
-    "pt",
-    "ar",
-    "sw",
-    "hi",
-    "zh",
-    "ja",
-    "ko",
-  ]);
+  const supportedLanguages = SUPPORTED_LANGUAGE_CODES;
 
   const normalized = Array.from(
     new Set(
@@ -75,16 +67,13 @@ function normalizeLanguages(
 
 export async function POST(request: NextRequest) {
   try {
-    const suppliedSecret =
-      request.headers.get("x-admin-secret");
+    // Checked before auth so this also caps repeated failed-secret
+    // guesses against this endpoint, not just successful (costly)
+    // generations. 5 requests per 10 minutes per IP.
+    const rate = checkRateLimit(request, "questions-generate", 5, 10 * 60 * 1000);
+    if (!rate.allowed) return rateLimitResponse(rate);
 
-    const expectedSecret =
-      process.env.QUESTION_ADMIN_SECRET;
-
-    if (
-      !expectedSecret ||
-      suppliedSecret !== expectedSecret
-    ) {
+    if (!(await isAuthorizedAdmin(request))) {
       return NextResponse.json(
         { error: "Unauthorized." },
         { status: 401 }
@@ -94,9 +83,22 @@ export async function POST(request: NextRequest) {
     const body =
       (await request.json()) as GenerateRequestBody;
 
+    const requestedCount = Number(body.count ?? 10);
+    if (
+      !Number.isFinite(requestedCount) ||
+      !Number.isInteger(requestedCount) ||
+      requestedCount < 1 ||
+      requestedCount > 100
+    ) {
+      return NextResponse.json(
+        { error: "count must be a whole number between 1 and 100." },
+        { status: 400 }
+      );
+    }
+
     const input: GenerateQuestionsInput = {
       level: Number(body.level ?? 1),
-      count: Number(body.count ?? 1),
+      count: requestedCount,
       book: String(body.book ?? "Genesis"),
       chapter:
         typeof body.chapter === "number"
@@ -118,12 +120,7 @@ export async function POST(request: NextRequest) {
       languages: result.languages,
       correctAnswerPositions:
         result.correctAnswerPositions,
-      duplicatesRejected:
-        result.duplicatesRejected,
-      invalidQuestionsRejected:
-        result.invalidQuestionsRejected,
-      generationAttempts:
-        result.generationAttempts,
+      diagnostics: result.diagnostics,
       questionIds: result.questionIds,
       message: `${result.questionsSaved} new unique questions and ${result.translationsSaved} translations were saved successfully.`,
     });

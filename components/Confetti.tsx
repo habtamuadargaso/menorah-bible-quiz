@@ -1,8 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
+import { useAppReducedMotion } from "@/lib/preferences";
 
 export default function Confetti({ active }: { active: boolean }) {
+  // Mission 6 Part 2/7: checks both the OS-level signal and the app's own
+  // manual override (Settings page) — see lib/preferences.ts.
+  const reduceMotion = useAppReducedMotion();
   const particles = useMemo(() => {
     const colors = ["#f0c868", "#e8c15f", "#ffffff", "#c99a2e"];
     return Array.from({ length: 46 }).map((_, i) => ({
@@ -18,7 +22,7 @@ export default function Confetti({ active }: { active: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  if (!active) return null;
+  if (!active || reduceMotion) return null;
 
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-50 overflow-hidden">

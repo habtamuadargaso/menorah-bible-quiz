@@ -18,6 +18,18 @@ export default function BattleLauncher({ onStart }: { onStart: () => void }) {
             <div className="text-xs font-extrabold uppercase tracking-[.24em] text-gold-500">{t.battle.newMode}</div>
             <div className="mt-2 font-display text-3xl font-bold text-[#fbf6e8]">⚔ {t.battle.title}</div>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#a7aebd]">{t.battle.launcherDescription}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {[t.battle.badgeRoomCode, t.battle.badgeSeparateDevices, t.battle.badgeOnline, t.battle.badgeRealtime].map(
+                (badge) => (
+                  <span
+                    key={badge}
+                    className="rounded-full border border-purple-400/30 bg-purple-500/10 px-3 py-1 text-[11px] font-bold text-purple-200"
+                  >
+                    ✔ {badge}
+                  </span>
+                )
+              )}
+            </div>
           </div>
           <span className="shrink-0 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-7 py-3 font-extrabold text-navy-950">{t.battle.play}</span>
         </div>

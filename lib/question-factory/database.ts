@@ -148,7 +148,14 @@ export async function saveGeneratedQuestions(
         correct_index:
           correctIndexes[index],
         reference: question.reference,
-        status: "published",
+        // Mission 7 Part 1/5: was "published" — meant newly AI-generated
+        // content reached real players with zero human review, a direct
+        // violation of CLAUDE.md's non-negotiable rule 6 ("Do not publish
+        // AI-generated Bible content automatically"). Now lands as
+        // "draft" and requires an explicit admin action via
+        // /api/admin/factory-review to become visible in gameplay — see
+        // QUESTION_PUBLISHING.md.
+        status: "draft",
       })
     );
 

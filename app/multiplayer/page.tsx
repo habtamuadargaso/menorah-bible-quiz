@@ -8,14 +8,9 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { LANGUAGES, type LangCode } from "@/lib/i18n/locales";
 import { CATEGORIES, type CategoryId } from "@/lib/categories";
 import HomeOptionCard from "@/components/multiplayer/HomeOptionCard";
-
-function generateRoomCode(length = 6): string {
-  const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-  return Array.from({ length }, () => {
-    return characters[Math.floor(Math.random() * characters.length)];
-  }).join("");
-}
+import { createBattleRoom, fetchRoomById, getSavedPlayerName, seedRoomQuestions } from "@/lib/liveBattleRoom";
+import { OfflineBanner } from "@/components/ui/OfflineBanner";
+import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
 // A difficulty picker maps to a representative campaign level — the rooms
 // table only stores game_level (unchanged schema), so "Difficulty" here is
@@ -26,13 +21,14 @@ const DIFFICULTY_LEVELS: Array<{ id: "Easy" | "Medium" | "Hard"; level: number }
   { id: "Hard", level: 8 },
 ];
 
-const MAX_PLAYER_OPTIONS = [2, 4, 6, 8];
+const MAX_PLAYER_OPTIONS = [2, 4, 6, 8, 12];
 
 export default function MultiplayerPage() {
   const router = useRouter();
   const { t, lang, setLang } = useLanguage();
   const reduceMotion = useReducedMotion();
   const tm = t.multiplayerLobby;
+  const isOnline = useOnlineStatus();
 
   function getErrorMessage(error: unknown): string {
     if (
@@ -47,7 +43,6 @@ export default function MultiplayerPage() {
   }
 
   const [playerName, setPlayerName] = useState("");
-  const [roomCode, setRoomCode] = useState("");
   const [categoryId, setCategoryId] = useState<CategoryId>("old-testament");
   const [difficulty, setDifficulty] = useState<"Easy" | "Medium" | "Hard">("Easy");
   const [maxPlayers, setMaxPlayers] = useState(8);
@@ -56,48 +51,11 @@ export default function MultiplayerPage() {
   const [isSwitchingPlayer, setIsSwitchingPlayer] = useState(false);
 
   useEffect(() => {
-    const savedName = window.localStorage.getItem("menorah-player-name");
+    const savedName = getSavedPlayerName();
     if (savedName) {
       setPlayerName(savedName);
     }
   }, []);
-
-  async function getAuthenticatedUser() {
-    const supabase = createClient();
-    const {
-      data: { user: currentUser },
-      error: getUserError,
-    } = await supabase.auth.getUser();
-
-    if (currentUser) {
-      return { supabase, user: currentUser };
-    }
-
-    if (getUserError) {
-      console.info("No current guest session:", getUserError.message);
-    }
-
-    const { data, error } = await supabase.auth.signInAnonymously();
-    if (error) throw error;
-    if (!data.user) throw new Error("Unable to create guest player.");
-
-    return { supabase, user: data.user };
-  }
-
-  async function ensurePlayerProfile(
-    name: string
-  ): Promise<{ supabase: ReturnType<typeof createClient>; userId: string }> {
-    const { supabase, user } = await getAuthenticatedUser();
-
-    const { error } = await supabase.from("profiles").upsert(
-      { id: user.id, display_name: name, language: lang },
-      { onConflict: "id" }
-    );
-    if (error) throw error;
-
-    window.localStorage.setItem("menorah-player-name", name);
-    return { supabase, userId: user.id };
-  }
 
   async function switchPlayer() {
     setIsSwitchingPlayer(true);
@@ -113,7 +71,6 @@ export default function MultiplayerPage() {
       if (!data.user) throw new Error("Unable to create a new guest player.");
 
       setPlayerName("");
-      setRoomCode("");
       setStatus("");
     } catch (error: unknown) {
       console.error("Switch player error:", error);
@@ -135,121 +92,23 @@ export default function MultiplayerPage() {
     setStatus(tm.creatingRoom);
 
     try {
-      const { supabase, userId } = await ensurePlayerProfile(cleanName);
       const selectedLevel = DIFFICULTY_LEVELS.find((d) => d.id === difficulty)?.level ?? 1;
-
-      let createdRoom: { id: string; code: string } | null = null;
-
-      for (let attempt = 0; attempt < 5; attempt += 1) {
-        const generatedCode = generateRoomCode();
-        const { data, error } = await supabase
-          .from("rooms")
-          .insert({
-            code: generatedCode,
-            host_id: userId,
-            category_id: categoryId,
-            game_level: selectedLevel,
-            language: lang,
-            status: "waiting",
-            current_question: 0,
-            max_players: maxPlayers,
-          })
-          .select("id, code")
-          .single();
-
-        if (!error && data) {
-          createdRoom = data;
-          break;
-        }
-        if (error && error.code !== "23505") {
-          throw error;
-        }
-      }
-
-      if (!createdRoom) {
-        throw new Error(tm.errorUniqueCode);
-      }
-
-      const { error: playerError } = await supabase.from("room_players").insert({
-        room_id: createdRoom.id,
-        player_id: userId,
-        display_name: cleanName,
-        score: 0,
-        is_ready: true,
+      const { code, roomId } = await createBattleRoom({
+        hostName: cleanName,
+        categoryId,
+        level: selectedLevel,
+        language: lang,
+        maxPlayers,
       });
 
-      if (playerError) {
-        await supabase.from("rooms").delete().eq("id", createdRoom.id);
-        throw playerError;
+      const room = await fetchRoomById(roomId);
+      if (room) {
+        await seedRoomQuestions(room);
       }
 
-      router.push(`/multiplayer/lobby/${createdRoom.code}`);
+      router.push(`/multiplayer/host/${code}`);
     } catch (error: unknown) {
       console.error("Create room error:", error);
-      setStatus(getErrorMessage(error));
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleJoinRoom(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const cleanName = playerName.trim();
-    const cleanCode = roomCode.trim().toUpperCase();
-
-    if (!cleanName) {
-      setStatus(tm.errorEnterName);
-      return;
-    }
-    if (cleanCode.length !== 6) {
-      setStatus(tm.errorEnterCode);
-      return;
-    }
-
-    setIsLoading(true);
-    setStatus(tm.joiningRoom);
-
-    try {
-      const { supabase, userId } = await ensurePlayerProfile(cleanName);
-
-      const { data: room, error: roomError } = await supabase
-        .from("rooms")
-        .select("id, code, host_id, status, max_players, language")
-        .eq("code", cleanCode)
-        .maybeSingle();
-
-      if (roomError) throw roomError;
-      if (!room) throw new Error(tm.errorRoomNotFound);
-      if (room.status !== "waiting") throw new Error(tm.errorRoomStarted);
-
-      const { count, error: countError } = await supabase
-        .from("room_players")
-        .select("*", { count: "exact", head: true })
-        .eq("room_id", room.id);
-
-      if (countError) throw countError;
-      if (typeof count === "number" && count >= room.max_players) {
-        throw new Error(tm.errorRoomFull);
-      }
-
-      setLang((room.language ?? "en") as LangCode);
-
-      const { error: joinError } = await supabase.from("room_players").upsert(
-        {
-          room_id: room.id,
-          player_id: userId,
-          display_name: cleanName,
-          score: 0,
-          is_ready: true,
-        },
-        { onConflict: "room_id,player_id" }
-      );
-
-      if (joinError) throw joinError;
-
-      router.push(`/multiplayer/lobby/${cleanCode}`);
-    } catch (error: unknown) {
-      console.error("Join room error:", error);
       setStatus(getErrorMessage(error));
     } finally {
       setIsLoading(false);
@@ -265,6 +124,7 @@ export default function MultiplayerPage() {
       style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
     >
       <div className="mx-auto max-w-5xl">
+        <OfflineBanner mode="block" reassureText="" blockText={t.offline.liveBattleBlocked} />
         <motion.header
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -14 }}
           animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
@@ -390,7 +250,7 @@ export default function MultiplayerPage() {
 
               <motion.button
                 type="submit"
-                disabled={isLoading || isSwitchingPlayer}
+                disabled={isLoading || isSwitchingPlayer || !isOnline}
                 whileHover={reduceMotion || isLoading ? undefined : { y: -2, scale: 1.02 }}
                 whileTap={reduceMotion || isLoading ? undefined : { scale: 0.98 }}
                 className="mt-4 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-3.5 text-sm font-bold text-navy-900 shadow-gold outline-none transition-shadow hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 disabled:cursor-not-allowed disabled:opacity-60"
@@ -400,40 +260,17 @@ export default function MultiplayerPage() {
             </HomeOptionCard>
           </form>
 
-          <form onSubmit={handleJoinRoom}>
-            <HomeOptionCard icon="⚔️" title={tm.joinRoomTitle} description={tm.joinRoomDescription} tone="purple" delay={0.2}>
-              <label htmlFor="room-code" className="sr-only">
-                {tm.roomCodeLabel}
-              </label>
-              <motion.input
-                id="room-code"
-                type="text"
-                value={roomCode}
-                onChange={(event) =>
-                  setRoomCode(
-                    event.target.value
-                      .toUpperCase()
-                      .replace(/[^A-Z0-9]/g, "")
-                      .slice(0, 6)
-                  )
-                }
-                placeholder={tm.roomCodePlaceholder}
-                maxLength={6}
-                whileFocus={reduceMotion ? undefined : { scale: 1.02 }}
-                className="w-full rounded-xl border border-purple-400/30 bg-white/5 px-4 py-3 text-center font-display text-xl font-bold uppercase tracking-[0.35em] text-[#f3efe2] outline-none transition-colors focus:border-purple-400 focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
-              />
-
-              <motion.button
-                type="submit"
-                disabled={isLoading || isSwitchingPlayer}
-                whileHover={reduceMotion || isLoading ? undefined : { y: -2, scale: 1.02 }}
-                whileTap={reduceMotion || isLoading ? undefined : { scale: 0.98 }}
-                className="mt-4 w-full rounded-full bg-gradient-to-br from-purple-500 to-purple-700 px-5 py-3.5 text-sm font-bold text-white shadow-purple outline-none transition-shadow hover:shadow-[0_0_36px_rgba(139,92,246,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isLoading ? tm.joiningRoom : tm.joinRoomButton}
-              </motion.button>
-            </HomeOptionCard>
-          </form>
+          <HomeOptionCard icon="⚔️" title={tm.joinRoomTitle} description={tm.joinRoomDescription} tone="purple" delay={0.2}>
+            <motion.button
+              type="button"
+              onClick={() => router.push("/multiplayer/join")}
+              whileHover={reduceMotion ? undefined : { y: -2, scale: 1.02 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+              className="mt-4 w-full rounded-full bg-gradient-to-br from-purple-500 to-purple-700 px-5 py-3.5 text-sm font-bold text-white shadow-purple outline-none transition-shadow hover:shadow-[0_0_36px_rgba(139,92,246,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            >
+              {tm.joinRoomButton}
+            </motion.button>
+          </HomeOptionCard>
 
           <HomeOptionCard
             icon="⚡"

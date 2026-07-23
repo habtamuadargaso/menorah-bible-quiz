@@ -31,3 +31,103 @@ body {
   background: rgba(212, 175, 55, 0.35);
   border-radius: 999px;
 }
+
+/* Mission 6 Part 6/7 — production polish additions below. Nothing above
+   this line changed. */
+
+/* iOS notch / home-indicator safe areas. Combined with the viewportFit:
+   "cover" now set in app/layout.tsx, these keep full-screen game UI (the
+   quiz/battle screens) from being obscured by device chrome. Opt-in via
+   class rather than applied to body globally, since most pages don't need
+   it (they scroll normally) and forcing it everywhere would add unwanted
+   padding to short pages. */
+.safe-area-padding {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.safe-area-padding-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+/* A visible focus ring for every interactive element, even ones that
+   don't already have an explicit focus-visible Tailwind class — the app's
+   components mostly do, but this is a safety net so keyboard users are
+   never left with an invisible focus target anywhere. Mouse/touch users
+   never see it because it's keyed off :focus-visible, not :focus. */
+:focus-visible {
+  outline: 2px solid #e8c15f;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Global reduced-motion fallback. Every animated component already checks
+   useReducedMotion() (framer-motion) at the JS level, but this covers any
+   plain CSS transition/animation outside that system too, and acts as a
+   defense-in-depth backstop. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Manual "reduce motion" override from the Settings page (lib/preferences.ts)
+   — same effect as the OS-level media query above, for players whose OS
+   setting is off but who still want animations minimized (e.g. a shared
+   church tablet). Applied as a class on <html> rather than relying on the
+   media query alone, since JS cannot flip prefers-reduced-motion itself. */
+html.force-reduced-motion *,
+html.force-reduced-motion *::before,
+html.force-reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* High-contrast mode (Part 7/10) — strengthens borders and muted text so
+   low-vision players get clearer separation between elements without a
+   full theme rebuild (branding stays the same palette, just higher
+   contrast within it). */
+html.high-contrast {
+  --hc-border-boost: 1;
+}
+html.high-contrast * {
+  border-color: color-mix(in srgb, currentColor 35%, transparent) !important;
+}
+html.high-contrast .text-\[\#9aa1b0\],
+html.high-contrast .text-\[\#a7aebd\],
+html.high-contrast .text-slate-400,
+html.high-contrast .text-slate-500 {
+  color: #d7dbe4 !important;
+}
+
+/* Skip-to-content link (Part 7) — visually hidden until focused, so
+   keyboard/screen-reader users can bypass repeated header nav. */
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: #e8c15f;
+  color: #080d22;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 0 0.5rem 0;
+  font-weight: 700;
+}
+.skip-to-content:focus {
+  left: 0;
+}
+
+/* Minimum 44x44px touch target (Part 6/7) for icon-only controls, applied
+   opt-in via class so it doesn't fight existing sized buttons. */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}

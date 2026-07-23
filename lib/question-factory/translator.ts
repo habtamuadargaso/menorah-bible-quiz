@@ -207,12 +207,27 @@ import {
       questions,
       targetLanguages
     );
-  
+
+    // Mission 8: count can now go up to 100 (was 10), and this single call
+    // translates every question into every target language at once, so
+    // output size scales with questions * languages. The old fixed 16384
+    // default was sized for a max-10 batch and would silently truncate a
+    // large one; scale the ceiling with batch size instead, capped well
+    // below what the model supports.
+    const maxOutputTokens = Math.min(
+      65536,
+      Math.max(
+        16384,
+        questions.length * targetLanguages.length * 220 + 2048
+      )
+    );
+
     const responseText =
       await generateWithGemini(prompt, {
         temperature: 0.3,
         topP: 0.9,
         responseMimeType: "application/json",
+        maxOutputTokens,
       });
   
     const groups =

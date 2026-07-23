@@ -1,0 +1,21 @@
+-- Mission 8 — Pending AI Review bulk "Delete Selected".
+--
+-- /api/admin/factory-review can now delete rows from public.questions
+-- (never a row that's already status='published' — see the route's
+-- server-side guard). public.questions was created in the very first
+-- migration (20260711_final_multiplayer.sql), which never needed an
+-- explicit service_role grant because its DELETE/UPDATE already work
+-- today (the existing "Approve & Publish"/"Reject" actions prove
+-- service_role can UPDATE it). This statement is defensive/explicit
+-- rather than strictly known-necessary — cheap insurance against the
+-- same category of "permission denied" surprise the Mission 7 tables hit
+-- (20260725_mission7_admin_grants_hotfix.sql), and a no-op if the
+-- privilege already exists implicitly.
+--
+-- question_translations rows cascade-delete automatically via the
+-- existing `references public.questions(id) on delete cascade` — no
+-- separate grant/delete needed for that table.
+--
+-- Idempotent: safe to run more than once.
+
+grant delete on public.questions to service_role;

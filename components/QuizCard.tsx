@@ -11,6 +11,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { playCorrectSound, playFinishSound, playTimeoutSound, playWrongSound, startGameMusic, stopGameMusic } from "@/lib/sound";
 
 const MAX_LIVES = 3;
+const QUESTION_LOAD_TIMEOUT_MS = 15000;
 
 export interface QuizResult {
   categoryId: CategoryId;
@@ -288,6 +289,8 @@ export default function QuizCard({
   const [questions, setQuestions] = useState<Question[]>([]);
   const [usedFallback, setUsedFallback] = useState(false);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
   const [timeLeft, setTimeLeft] = useState(timePerQuestion);
   const autoNextRef = useRef<number | null>(null);
   // Mirrors `timeLeft` so handleAnswer can read the latest value without
@@ -347,6 +350,7 @@ export default function QuizCard({
 
     async function loadRound() {
       setLoadingQuestions(true);
+      setLoadError(false);
       setQuestions([]);
       setUsedFallback(false);
       setIndex(0);
@@ -360,13 +364,23 @@ export default function QuizCard({
       setLives(MAX_LIVES);
       setTimeLeft(timePerQuestion);
 
+      let timeoutId: number | undefined;
+
       try {
-        const loadedQuestions =
-          await loadQuestionsForGame(
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = window.setTimeout(() => {
+            reject(new Error("Question loading timed out"));
+          }, QUESTION_LOAD_TIMEOUT_MS);
+        });
+
+        const loadedQuestions = await Promise.race([
+          loadQuestionsForGame(
             lang,
             categoryId,
             level
-          );
+          ),
+          timeoutPromise,
+        ]);
 
         if (cancelled) return;
 
@@ -386,8 +400,12 @@ export default function QuizCard({
 
         if (!cancelled) {
           setQuestions([]);
+          setLoadError(true);
         }
       } finally {
+        if (timeoutId !== undefined) {
+          window.clearTimeout(timeoutId);
+        }
         if (!cancelled) {
           setLoadingQuestions(false);
         }
@@ -404,7 +422,12 @@ export default function QuizCard({
     lang,
     level,
     timePerQuestion,
+    retryToken,
   ]);
+
+  function handleRetryLoad() {
+    setRetryToken((n) => n + 1);
+  }
 
   useEffect(() => {
     startGameMusic();
@@ -512,8 +535,20 @@ export default function QuizCard({
   if (!current) {
     return (
       <section className="mx-auto max-w-xl px-5 py-24 text-center text-[#a7aebd]">
-        {t.quiz.noQuestions}
-        <div className="mt-6">
+        {loadError
+          ? lang === "am"
+            ? "ጥያቄዎችን መጫን አልተሳካም። እባክዎ ደግመው ይሞክሩ።"
+            : "We couldn't load the questions in time. Please try again."
+          : t.quiz.noQuestions}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          {loadError && (
+            <button
+              onClick={handleRetryLoad}
+              className="rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-6 py-3 text-sm font-bold text-navy-950 shadow-gold outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            >
+              {lang === "am" ? "ደግመው ይሞክሩ" : "Try Again"}
+            </button>
+          )}
           <button
             onClick={onExit}
             className="rounded-full border border-gold-500/50 px-6 py-3 text-sm font-semibold text-gold-500 outline-none transition-colors hover:bg-gold-500/10 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"

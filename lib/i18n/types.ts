@@ -192,6 +192,28 @@ export interface UIStrings {
     on: string;
     off: string;
   };
+  offline: {
+    friendsBattleReassurance: string;
+    liveBattleBlocked: string;
+  };
+  settings: {
+    navLabel: string;
+    title: string;
+    subtitle: string;
+    languageHeading: string;
+    languageLabel: string;
+    audioHeading: string;
+    musicLabel: string;
+    musicVolumeLabel: string;
+    soundLabel: string;
+    soundVolumeLabel: string;
+    accessibilityHeading: string;
+    reducedMotionLabel: string;
+    reducedMotionHint: string;
+    highContrastLabel: string;
+    highContrastHint: string;
+    backToHome: string;
+  };
   campaign: {
     journey: string;
     passInstruction: string;
@@ -234,6 +256,10 @@ export interface UIStrings {
     answerLocked: string;
     nextLoading: string;
     pointsShort: string;
+    badgeRoomCode: string;
+    badgeSeparateDevices: string;
+    badgeOnline: string;
+    badgeRealtime: string;
   };
   multiplayerLobby: {
     eyebrow: string;
@@ -298,6 +324,212 @@ export interface UIStrings {
     countdownGo: string;
     loadingLobby: string;
     roomNotFoundMessage: string;
+    joinPageHeading: string;
+    joinPageSubheading: string;
+  };
+  battleShared: {
+    connectedLabel: string;
+    reconnectingLabel: string;
+    disconnectedLabel: string;
+    phaseWaiting: string;
+    phaseCountdown: string;
+    phaseQuestion: string;
+    phaseReveal: string;
+    phaseLeaderboard: string;
+    phaseFinished: string;
+    phaseChangedAnnouncement: string; // "{phase}" placeholder
+    secondsShort: string;
+    timeUpLabel: string;
+  };
+  multiplayerHost: {
+    joinUrlLabel: string;
+    qrHeading: string;
+    qrHint: string;
+    connectedPlayersLabel: string; // "{count}" placeholder
+    levelLabel: string;
+    questionCountLabel: string;
+    startBattleButton: string;
+    endRoomButton: string;
+    endRoomConfirm: string;
+    restartBattleButton: string;
+    removePlayerButton: string;
+    removePlayerConfirm: string; // "{name}" placeholder
+    waitingPlayersHeading: string;
+    noPlayersYet: string;
+    audienceViewLabel: string;
+    answeredCountLabel: string; // "{answered}" / "{total}" placeholders
+    revealHeading: string;
+    distributionHeading: string;
+    fastestCorrectLabel: string;
+    topPlayersHeading: string;
+    nextQuestionCountdown: string; // "{seconds}" placeholder
+    continueButton: string;
+    finalWinnerHeading: string;
+    finalTopThreeHeading: string;
+    finalLeaderboardHeading: string;
+    finalAccuracyLabel: string;
+    finalFastestResponseLabel: string;
+    finalXpLabel: string;
+    finalRewardsLabel: string;
+    newBattleButton: string;
+    backToMultiplayerButton: string;
+    notHostError: string;
+    loadingHost: string;
+    noOneAnsweredCorrectly: string;
+    dashboardEyebrow: string;
+    gameInformationHeading: string;
+    hostControlsHeading: string;
+    cancelRoomButton: string;
+    livePlayerListHeading: string;
+    playersConnectedLabel: string;
+    readyPlayersLabel: string;
+    readyCountLabel: string; // "{ready}" / "{total}" placeholders
+    maximumPlayersLabel: string;
+    scoreLabel: string;
+    liveGameStatusLabel: string;
+    leaderboardPreviewHeading: string;
+    leaderboardPreviewHint: string;
+    leaderboardPreviewLoading: string;
+    leaderboardPreviewUnavailable: string;
+    leaderboardPreviewEmpty: string;
+    viewFullLeaderboardButton: string;
+  };
+  multiplayerPlayer: {
+    joinedAsLabel: string; // "{name}" placeholder
+    connectedPlayersHeading: string;
+    yourScoreLabel: string;
+    yourStreakLabel: string;
+    answerSubmittedMessage: string;
+    waitingForOthersMessage: string;
+    youAnsweredAria: string;
+    correctMessage: string;
+    incorrectMessage: string;
+    correctAnswerWasLabel: string;
+    pointsEarnedLabel: string;
+    responseTimeLabel: string;
+    currentRankHeading: string;
+    currentRankLabel: string; // "{rank}" / "{total}" placeholders
+    waitingForNextMessage: string;
+    finalRankLabel: string;
+    finalScoreLabel: string;
+    finalAccuracyLabel: string;
+    finalCorrectAnswersLabel: string;
+    finalAvgResponseTimeLabel: string;
+    playAgainButton: string;
+    leaveButton: string;
+    errorInvalidCode: string;
+    errorRoomFinished: string;
+    errorDuplicateName: string;
+    errorAnswerFailed: string;
+    errorExpiredRoom: string;
+    reconnectingMessage: string;
+    hostDisconnectedMessage: string;
+  };
+  globalLeaderboard: {
+    navLabel: string;
+    heading: string;
+    subheading: string;
+    filterGlobal: string;
+    filterWeekly: string;
+    filterMonthly: string;
+    filterAllTime: string;
+    filterFriends: string;
+    filterChurch: string;
+    metricTotalXp: string;
+    metricBattleWins: string;
+    metricAccuracy: string;
+    metricCorrectAnswers: string;
+    metricWinStreak: string;
+    metricFastestResponse: string;
+    podiumHeading: string;
+    columnRank: string;
+    columnPlayer: string;
+    columnCountry: string;
+    columnChurch: string;
+    columnLevel: string;
+    columnWins: string;
+    columnStreak: string;
+    youBadge: string;
+    loading: string;
+    emptyHeading: string;
+    emptyBody: string;
+    errorHeading: string;
+    errorBody: string;
+    retry: string;
+    loadMore: string;
+    showingCount: string; // "{shown}" / "{total}" placeholders
+    yourGlobalRank: string;
+    yourWeeklyRank: string;
+    distanceToNextRank: string; // "{xp}" / "{rank}" placeholders
+    alreadyTopRank: string;
+    rankUp: string;
+    rankDown: string;
+    rankSame: string;
+    notRankedYet: string;
+    searchPlaceholder: string;
+    clearSearch: string;
+    noSearchResults: string;
+    previewFavoriteCategory: string;
+    previewBestStreak: string;
+    previewClose: string;
+    friendsEmptyHeading: string;
+    friendsEmptyBody: string;
+    churchEmptyHeading: string;
+    churchEmptyBody: string;
+    devModeBadge: string;
+  };
+  friendsBattle: {
+    navTitle: string;
+    setupHeading: string;
+    setupDescription: string;
+    badgeOneDevice: string;
+    badgePassAndPlay: string;
+    badgePlayerRange: string;
+    badgeOfflineReady: string;
+    badgeNoRoomCode: string;
+    languageLabel: string;
+    levelLabel: string;
+    levelOptionLabel: string; // "Level {n}" — replace "{n}"
+    difficultyLabel: string;
+    difficultyEasy: string;
+    difficultyMedium: string;
+    difficultyDifficult: string;
+    difficultyOnScreenLabel: string; // "Difficulty: {difficulty}" — replace "{difficulty}"
+    difficultyFallbackNotice: string;
+    playerCountLabel: string;
+    playerNameLabel: string; // "Player {n}" — replace "{n}"
+    playerNamePlaceholder: string; // "Player {n} name" — replace "{n}"
+    startButton: string;
+    errorMinPlayers: string;
+    errorMaxPlayers: string;
+    errorEmptyName: string;
+    errorDuplicateName: string;
+    errorContentUnavailable: string; // "{language}" placeholder
+    backToHome: string;
+    passDeviceToLabel: string;
+    readyButton: string;
+    questionLabel: string;
+    ofLabel: string;
+    answerSavedHeading: string;
+    answerSavedBody: string; // "{name}" placeholder — next player's name
+    lastQuestionAnswerSavedBody: string;
+    timesUpLabel: string;
+    revealHeading: string;
+    correctAnswerLabel: string;
+    timeoutTag: string;
+    pointsGained: string; // "+{points}" — replace "{points}"
+    continueButton: string;
+    nextQuestionButton: string;
+    seeFinalResultsButton: string;
+    finalHeading: string;
+    winnerLabel: string;
+    rankLabel: string;
+    scoreLabel: string;
+    correctAnswersLabel: string;
+    accuracyLabel: string;
+    playAgainButton: string;
+    homeButton: string;
+    questionOfTotalLabel: string; // "Question {current} of {total}" — replace both
   };
   liveBattle: {
     roomLabel: string;
