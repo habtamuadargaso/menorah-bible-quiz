@@ -45,8 +45,9 @@ export default function AdminSettingsPanel({ secret }: { secret: string }) {
         <h2 className="font-bold">Supported languages</h2>
         <p className="mt-1 text-sm text-slate-400">{settings.supportedLanguages.join(", ")}</p>
         <p className="mt-1 text-xs text-slate-500">
-          Matches lib/i18n/locales.ts&apos;s FULLY_TRANSLATED_QUESTION_LANGS — changing this here does not change the app&apos;s actual language list,
-          it only affects which languages this dashboard&apos;s filters/translation center highlight by default.
+          Changing this here does not change the app&apos;s actual language list (every language in lib/i18n/locales.ts&apos;s
+          SUPPORTED_LANGUAGE_CODES is always selectable to players) — it only affects which languages this dashboard&apos;s
+          filters/translation center highlight by default.
         </p>
       </section>
 

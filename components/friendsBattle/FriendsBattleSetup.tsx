@@ -27,7 +27,7 @@ export default function FriendsBattleSetup({
   onStart,
 }: {
   t: UIStrings;
-  onStart: (input: { language: LangCode; level: number; difficulty: Difficulty; playerNames: string[] }) => void;
+  onStart: (input: { language: LangCode; level: number; difficulty: Difficulty; playerNames: string[] }) => Promise<boolean>;
 }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -39,10 +39,16 @@ export default function FriendsBattleSetup({
   const [playerCount, setPlayerCount] = useState(2);
   const [names, setNames] = useState<string[]>(["", ""]);
   const [error, setError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
 
   const languageInfo = useMemo(() => LANGUAGES.find((l) => l.code === language), [language]);
-  const contentAvailable = hasEnoughFriendsBattleContent(language);
-  const willFallbackDifficulty = contentAvailable && wouldUseDifficultyFallback(language, difficulty);
+  // Local-bank-only signal, used only for the pre-flight difficulty-fallback
+  // hint below (it needs a synchronous answer as the player changes the
+  // difficulty dropdown). It no longer gates match start — published DB
+  // content is checked, together with the local bank, once the player
+  // actually submits (see handleSubmit / pickFriendsBattleQuestions).
+  const hasLocalContent = hasEnoughFriendsBattleContent(language);
+  const willFallbackDifficulty = hasLocalContent && wouldUseDifficultyFallback(language, difficulty);
 
   function updatePlayerCount(next: number) {
     setPlayerCount(next);
@@ -58,7 +64,7 @@ export default function FriendsBattleSetup({
     setNames((prev) => prev.map((n, i) => (i === index ? value : n)));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
@@ -87,12 +93,15 @@ export default function FriendsBattleSetup({
       return count === 0 ? n : `${n} (${count + 1})`;
     });
 
-    if (!contentAvailable) {
+    // No pre-flight content block here anymore — every language is always
+    // selectable (Mission 12). onStart attempts the real merged local+DB
+    // selection and reports back whether it actually found enough content.
+    setStarting(true);
+    const started = await onStart({ language, level, difficulty, playerNames: deduped });
+    setStarting(false);
+    if (!started) {
       setError(tf.errorContentUnavailable.replace("{language}", languageInfo?.englishName ?? language));
-      return;
     }
-
-    onStart({ language, level, difficulty, playerNames: deduped });
   }
 
   const inputClass =
@@ -250,9 +259,10 @@ export default function FriendsBattleSetup({
 
           <motion.button
             type="submit"
-            whileHover={reduceMotion ? undefined : { y: -2, scale: 1.02 }}
-            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-            className="mt-6 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-3.5 text-sm font-bold text-navy-900 shadow-gold outline-none transition-shadow hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            disabled={starting}
+            whileHover={reduceMotion || starting ? undefined : { y: -2, scale: 1.02 }}
+            whileTap={reduceMotion || starting ? undefined : { scale: 0.98 }}
+            className="mt-6 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-3.5 text-sm font-bold text-navy-900 shadow-gold outline-none transition-shadow hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 disabled:opacity-60"
           >
             {tf.startButton}
           </motion.button>

@@ -75,9 +75,13 @@ export default function FriendsBattlePage() {
     return () => window.clearTimeout(id);
   }, [state.phase, state.answersForCurrentQuestion.length]);
 
-  function handleStart(input: { language: LangCode; level: number; difficulty: Difficulty; playerNames: string[] }) {
-    const selection = pickFriendsBattleQuestions(input.language, input.level, input.difficulty);
-    if (!selection) return; // setup screen already validated this; defensive no-op
+  // Returns true once the match has actually started, false when neither
+  // the local bank nor published DB content could form a full round —
+  // FriendsBattleSetup surfaces that as an explicit error message rather
+  // than silently doing nothing.
+  async function handleStart(input: { language: LangCode; level: number; difficulty: Difficulty; playerNames: string[] }): Promise<boolean> {
+    const selection = await pickFriendsBattleQuestions(input.language, input.level, input.difficulty);
+    if (!selection) return false;
     dispatch({
       type: "START_MATCH",
       language: input.language,
@@ -86,14 +90,15 @@ export default function FriendsBattlePage() {
       playerNames: input.playerNames,
       questions: selection.questions,
     });
+    return true;
   }
 
   // Play Again keeps language/level/difficulty/players fixed but draws a
   // freshly shuffled set of questions (still respecting the same
   // language + difficulty fallback rules as the initial start).
-  function handlePlayAgain() {
-    const selection = pickFriendsBattleQuestions(state.language, state.level, state.difficulty);
-    if (!selection) return;
+  async function handlePlayAgain() {
+    const selection = await pickFriendsBattleQuestions(state.language, state.level, state.difficulty);
+    if (!selection) return; // extremely unlikely (content existed a moment ago) — defensive no-op
     dispatch({ type: "PLAY_AGAIN", questions: selection.questions });
   }
 

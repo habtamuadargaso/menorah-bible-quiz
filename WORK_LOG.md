@@ -1,5 +1,58 @@
 # Work Log
 
+## Mission 12 — Enable all published languages (2026-07-23)
+
+**Problem.** The two real language pickers (`components/LanguageModal.tsx`,
+the homepage "Play Solo" gate, and `components/LanguageSelector.tsx`, shared
+by the header and Settings) disabled and labeled "Coming Soon" any language
+whose `soloAvailable` signal (local complete-level bank OR ≥10 published DB
+rows) was false — hiding Afaan Oromo, Tigrinya, French, Arabic, Portuguese,
+Swahili, Hindi, Chinese, Korean, German, Italian, and Japanese even once the
+AI Question Factory / Global Translations had real published content for
+them. Friends Battle's and the multiplayer room-creation `<select>`s were
+never gated in the picker itself, but Friends Battle only ever drew from the
+static local bank (never Supabase), and blocked match start on submit if
+that local bank alone was too small — even when published DB content
+existed for the language.
+
+**Fix.**
+- `components/LanguageModal.tsx` / `components/LanguageSelector.tsx`: every
+  language in `LANGUAGES` is now always selectable — no `disabled`, no
+  "Coming Soon" label, no gating on `soloAvailable`. The availability fetch
+  is kept only to show a small non-blocking dot/bullet next to a language
+  once it has published DB content — informational, never blocking.
+  Missing content is still surfaced at gameplay/match-start time via an
+  explicit message (CLAUDE.md rule 5), never by hiding the choice.
+- `lib/i18n/locales.ts`: removed the dead `FULLY_TRANSLATED_QUESTION_LANGS`
+  allowlist (already unused by both pickers, per Mission 10's migration to
+  `soloAvailable`) in favor of `SUPPORTED_LANGUAGE_CODES` (= every code in
+  `LANGUAGES`) — the single "is this language configured" signal.
+- Friends Battle now merges published, exact-language DB translations
+  (`lib/questions/loadQuestions.ts`'s new `loadQuestionsForLanguage()`, all
+  levels, no level filter — Friends Battle has never partitioned by level)
+  with the static local bank, same pattern Solo Play's
+  `loadQuestionsForGame.ts` already used. `pickFriendsBattleQuestions()` is
+  now async; a DB error/offline falls back to the local bank only, so
+  offline pass-and-play still works exactly as before. The setup screen's
+  submit-time content block is gone — starting a match now attempts the
+  real merged selection and only shows the "not enough content" message if
+  that actually comes back empty, instead of pre-judging from the local
+  bank alone.
+- Extracted the free-form DB `category`/`difficulty` → `CategoryId`/
+  `Difficulty` mapping (previously duplicated inline in
+  `loadQuestionsForGame.ts`) into `lib/questions/mapDatabaseQuestion.ts`,
+  shared by both Solo Play and Friends Battle now that both merge DB
+  content.
+- Live Battle and the multiplayer room-creation picker needed no changes —
+  both already used the full `LANGUAGES` list with no restriction, and
+  `get_room_question()`/`seedRoomQuestions()` already require the exact
+  selected language's published content with no English fallback.
+
+**Tests.** Added `loadQuestionsForLanguage` coverage to
+`__tests__/translationGating.test.ts` (returns published exact-language
+questions across every level, still excludes `ai_draft`). `pnpm run build`
+and `pnpm test` both pass.
+
 ## Mission 11 — Fix: published multilingual translations not appearing in gameplay (2026-07-23)
 
 **Root cause.** Two of the three pathways that can make a `question_translations`

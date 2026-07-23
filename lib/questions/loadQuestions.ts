@@ -49,14 +49,15 @@ type AnswerKeyRow = {
  * batched call to the `get_question_answer_keys` RPC, which is safe for
  * solo play (no room context blocks it) while still refusing to hand a
  * live-battle player the answer to a round that hasn't been revealed yet.
+ *
+ * Shared by loadQuestionsForLevel (below) and loadQuestionsForLanguage —
+ * the only difference between the two is whether a `level` filter is
+ * applied, so the query + answer-key-fetch + row-mapping logic lives once.
  */
-export async function loadQuestionsForLevel(
-  level: number,
-  languageCode: string
-): Promise<LoadedQuestion[]> {
+async function fetchPublishedQuestions(languageCode: string, level?: number): Promise<LoadedQuestion[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("questions")
     .select(`
       id,
@@ -76,7 +77,6 @@ export async function loadQuestionsForLevel(
         reflection
       )
     `)
-    .eq("level", level)
     .eq("status", "published")
     .eq(
       "question_translations.language_code",
@@ -88,6 +88,12 @@ export async function loadQuestionsForLevel(
     // live to players the instant a row exists, which is exactly what
     // "AI-generated translation must not become playable" forbids.
     .eq("question_translations.status", "published");
+
+  if (level !== undefined) {
+    query = query.eq("level", level);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
@@ -141,4 +147,20 @@ export async function loadQuestionsForLevel(
   });
 
   return questions;
+}
+
+export async function loadQuestionsForLevel(
+  level: number,
+  languageCode: string
+): Promise<LoadedQuestion[]> {
+  return fetchPublishedQuestions(languageCode, level);
+}
+
+/** Every published, exact-language question across ALL levels — used by
+ * Friends Battle, which (unlike Solo Play's per-level campaign structure)
+ * deliberately draws from one flat pool regardless of level (see
+ * friendsBattle/localQuestions.ts's own doc comment on why `level` isn't a
+ * real filter there). */
+export async function loadQuestionsForLanguage(languageCode: string): Promise<LoadedQuestion[]> {
+  return fetchPublishedQuestions(languageCode);
 }

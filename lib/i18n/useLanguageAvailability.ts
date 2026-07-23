@@ -6,11 +6,12 @@ import type { LanguageAvailability } from "./languageAvailability";
 export type { LanguageAvailability };
 
 /**
- * Mission 10 — the one client-side source every language selector reads
- * from, instead of each one hardcoding its own allowlist (LanguageSelector.tsx
- * and LanguageModal.tsx used to both independently define the same
- * `LANGUAGES.filter(FULLY_TRANSLATED_QUESTION_LANGS.includes(...))` line).
- * Backed by the public GET /api/languages/availability endpoint.
+ * The one client-side source every language selector reads from for
+ * informational "published questions available" signals. Mission 12: no
+ * selector uses this to disable/hide a language anymore (every language in
+ * SUPPORTED_LANGUAGE_CODES is always selectable) — it's purely a soft
+ * "content is live" indicator now. Backed by the public GET
+ * /api/languages/availability endpoint.
  */
 export function useLanguageAvailability() {
   const [availability, setAvailability] = useState<LanguageAvailability[] | null>(null);

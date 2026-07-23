@@ -10,7 +10,7 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: () => state.client,
 }));
 
-import { loadQuestionsForLevel } from "@/lib/questions/loadQuestions";
+import { loadQuestionsForLevel, loadQuestionsForLanguage } from "@/lib/questions/loadQuestions";
 import { loadQuestionById } from "@/lib/questions/loadQuestionById";
 
 function setFixture(fixture: FakeSupabaseFixture) {
@@ -119,6 +119,36 @@ describe("loadQuestionsForLevel — translation publish gating", () => {
     });
 
     const result = await loadQuestionsForLevel(1, "am");
+    expect(result).toEqual([]);
+  });
+});
+
+describe("loadQuestionsForLanguage — Friends Battle's all-levels DB loader", () => {
+  it("returns published, exact-language questions across every level (no level filter applied)", async () => {
+    setFixture({
+      questions: [
+        { ...baseQuestion, id: "Q1", level: 1 },
+        { ...baseQuestion, id: "Q2", level: 7 },
+      ],
+      translations: [
+        translation({ question_id: "Q1", status: "published", question_text: "Level 1 Amharic" }),
+        { ...translation({ status: "published", question_text: "Level 7 Amharic" }), question_id: "Q2" },
+      ],
+      answerKeys: [answerKey, { ...answerKey, question_id: "Q2" }],
+    });
+
+    const result = await loadQuestionsForLanguage("am");
+    expect(result.map((q) => q.id).sort()).toEqual(["Q1", "Q2"]);
+  });
+
+  it("still excludes ai_draft translations regardless of level", async () => {
+    setFixture({
+      questions: [baseQuestion],
+      translations: [translation({ status: "ai_draft" })],
+      answerKeys: [answerKey],
+    });
+
+    const result = await loadQuestionsForLanguage("am");
     expect(result).toEqual([]);
   });
 });

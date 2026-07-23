@@ -64,29 +64,29 @@ export default function LanguageModal({
             <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               {LANGUAGES.map((language) => {
                 const selected = language.code === lang;
-                const available = loading
-                  ? language.code === "en" || language.code === "am"
-                  : byCode.get(language.code)?.soloAvailable ?? false;
+                // Every configured language is always selectable — a
+                // language is never hidden or disabled just because it has
+                // fewer published questions than another. Missing content
+                // is surfaced later, at gameplay time, as an explicit
+                // unavailable-content message (CLAUDE.md rule 5), never by
+                // blocking the choice up front.
+                const hasLiveContent = !loading && (byCode.get(language.code)?.publishedCount ?? 0) > 0;
                 return (
                   <button
                     key={language.code}
                     type="button"
-                    disabled={!available}
-                    onClick={() => available && setLang(language.code)}
+                    onClick={() => setLang(language.code)}
                     aria-pressed={selected}
-                    aria-disabled={!available}
-                    title={!available ? "Coming soon — not enough published questions in this language yet." : undefined}
                     className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${
-                      !available
-                        ? "cursor-not-allowed border-white/5 bg-white/[0.02] text-[#5a606e]"
-                        : selected
+                      selected
                         ? "border-gold-500/60 bg-gold-500/15 text-gold-200"
                         : "border-white/10 bg-white/5 text-[#c6cbd6] hover:border-gold-500/30 hover:bg-white/10"
                     }`}
                   >
                     <span className="font-semibold">{language.nativeName}</span>
-                    <span className="text-xs uppercase tracking-wide opacity-70">
-                      {available ? language.englishName : "Coming Soon"}
+                    <span className="flex items-center gap-1.5 text-xs uppercase tracking-wide opacity-70">
+                      {language.englishName}
+                      {hasLiveContent && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" title="Published questions available" />}
                     </span>
                   </button>
                 );

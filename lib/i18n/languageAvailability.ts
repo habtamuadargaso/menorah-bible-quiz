@@ -13,8 +13,10 @@ export interface LanguageAvailability {
    * approximation of loadQuestionsForGame.ts's real per-category-per-level
    * selection, not an exact simulation of it — see WORK_LOG.md. */
   soloAvailable: boolean;
-  /** Friends Battle: exact — reuses the same static-bank-only check
-   * Friends Battle's own setup screen already uses (never Supabase). */
+  /** Friends Battle: true if either the static native bank alone has
+   * enough questions, OR there's at least one published DB translation for
+   * this language (Mission 12: Friends Battle now merges published DB
+   * content with the local bank — see friendsBattle/localQuestions.ts). */
   friendsBattleAvailable: boolean;
   /** Online multiplayer: true if at least one level has enough published,
    * exact-language DB translations to seed a full room (matches
@@ -72,7 +74,7 @@ export async function computeLanguageAvailability(): Promise<LanguageAvailabilit
       nativeName: lang.nativeName,
       englishName: lang.englishName,
       soloAvailable: completeLevelCount(lang.code) > 0 || publishedCount >= SOLO_DB_MIN_TOTAL,
-      friendsBattleAvailable: nativeQuestionBank(lang.code).length >= FRIENDS_BATTLE_QUESTION_COUNT,
+      friendsBattleAvailable: nativeQuestionBank(lang.code).length >= FRIENDS_BATTLE_QUESTION_COUNT || publishedCount > 0,
       onlineBattleAvailable,
       publishedCount,
     };

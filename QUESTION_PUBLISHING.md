@@ -9,10 +9,16 @@
 > before a player sees it; Mission 11 fixed two pathways
 > (`app/api/admin/factory-review/route.ts` and the editorial
 > `publish_editorial_question()` RPC) that published the parent question
-> but left its translations stuck at `ai_draft` forever. **Friends Battle
-> still does not read this table at all** (see store #1 below) — nothing in
-> Mission 11 changes that; a translation approved and published here is
-> playable in Solo Play and Live Battle, never in Friends Battle.
+> but left its translations stuck at `ai_draft` forever.
+>
+> **Mission 12 update**: Friends Battle now reads this table too. It used
+> to be local-bank-only; `lib/friendsBattle/localQuestions.ts` now merges
+> published, exact-language `question_translations` rows (via
+> `loadQuestionsForLanguage()`) with the static local bank, so a
+> translation approved and published here is playable in Solo Play, Live
+> Battle, AND Friends Battle. The local bank remains a genuine offline
+> fallback — if the DB is unreachable, Friends Battle still works from the
+> static bank alone (it never hard-fails to a network error).
 
 This app currently has **three separate question content stores**. That's confusing enough to be worth documenting precisely, verified against the code (not assumed) — and precisely which one "Published" affects for each, since the word is used in two unrelated systems.
 
@@ -20,13 +26,13 @@ This app currently has **three separate question content stores**. That's confus
 
 ### 1. Legacy static arrays — `lib/i18n/translations/en.ts`, `am.ts` (exposed via `lib/questions/index.ts`)
 
-- **Consumed by**: Friends Battle exclusively (`lib/friendsBattle/localQuestions.ts`), and as a fallback/supplement in solo play (`lib/questions/loadQuestionsForGame.ts`).
+- **Consumed by**: Friends Battle (`lib/friendsBattle/localQuestions.ts`) and Solo Play (`lib/questions/loadQuestionsForGame.ts`) — in both, as the offline-first fallback/supplement merged with store #2 (Mission 12: Friends Battle stopped being local-only).
 - **Compiled into the JS bundle** at build time — no database, no review workflow, no runtime "publish" step of any kind. Whatever is in the file ships to every player the moment it's deployed.
 - **Editing**: requires a code change + redeploy. Not touched by the admin dashboard at all.
 
 ### 2. Supabase `questions` / `question_translations` tables
 
-- **Consumed by**: solo play (primary source, `lib/questions/loadQuestions.ts`) and Live Battle.
+- **Consumed by**: Solo Play (primary source, `lib/questions/loadQuestions.ts`), Live Battle, and (Mission 12) Friends Battle.
 - **Populated by**: the AI Question Factory (`/api/questions/generate`, admin-gated), which writes rows with a `status` column (`'draft' | 'review' | 'approved' | 'published' | 'rejected'` — see `supabase/migrations/20260711_final_multiplayer.sql`).
 - **`status = 'published'` here has a REAL, direct gameplay effect**: `loadQuestionsForLevel()` filters `.eq("status", "published")` — only published rows are ever served to a player. This is the one place in the app where "publish" actually controls what ships to players today.
 - **Review UI** (fixed in Mission 7, Parts 1/5): the AI Factory used to write straight to `status: "published"` with zero human review — a direct violation of CLAUDE.md's non-negotiable rule 6 ("Do not publish AI-generated Bible content automatically"), found during this mission's release audit. It now writes `status: "draft"`, and the AI Question Factory tab shows a "Pending AI Review" list (`/api/admin/factory-review`) where an admin explicitly approves (-> published) or rejects each generated question before it can reach a player.

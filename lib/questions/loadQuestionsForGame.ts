@@ -1,85 +1,15 @@
 import type { CategoryId } from "@/lib/categories";
 import type { LangCode } from "@/lib/i18n/locales";
 import type {
-  Difficulty,
   Question,
 } from "@/lib/questions/types";
 
 import { shuffle } from "@/lib/shuffle";
 import { loadQuestionsForLevel } from "./loadQuestions";
 import { nativeQuestionBank, questionsForLevel } from "./index";
+import { categoryMatches, mapDifficulty } from "./mapDatabaseQuestion";
 
 const QUESTIONS_PER_GAME = 10;
-
-const DATABASE_CATEGORY_BY_GAME_CATEGORY: Record<
-  CategoryId,
-  string[]
-> = {
-  "old-testament": ["Old Testament", "old-testament"],
-  "new-testament": ["New Testament", "new-testament"],
-  "life-of-jesus": ["Life of Jesus", "life-of-jesus"],
-  apostles: ["Apostles", "apostles"],
-  "bible-characters": ["Bible Characters", "bible-characters"],
-  "youth-challenge": ["Youth Challenge", "youth-challenge"],
-  "psalms-proverbs": [
-    "Psalms & Proverbs",
-    "Psalms and Proverbs",
-    "psalms-proverbs",
-  ],
-  "faith-prayer": [
-    "Faith & Prayer",
-    "Faith and Prayer",
-    "faith-prayer",
-  ],
-  "gospel-challenge": ["Gospel Challenge", "gospel-challenge"],
-  "hard-questions": ["Hard Questions", "hard-questions"],
-};
-
-function normalizeCategory(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function categoryMatches(
-  databaseCategory: string,
-  categoryId: CategoryId
-): boolean {
-  const normalizedDatabaseCategory =
-    normalizeCategory(databaseCategory);
-
-  return DATABASE_CATEGORY_BY_GAME_CATEGORY[categoryId].some(
-    (acceptedValue) =>
-      normalizeCategory(acceptedValue) ===
-      normalizedDatabaseCategory
-  );
-}
-
-function mapDifficulty(value: string): Difficulty {
-  const normalized = value.trim().toLowerCase();
-
-  if (
-    normalized === "hard" ||
-    normalized === "hard-plus" ||
-    normalized === "expert" ||
-    normalized === "master" ||
-    normalized === "scholar"
-  ) {
-    return "Hard";
-  }
-
-  if (
-    normalized === "medium" ||
-    normalized === "medium-plus"
-  ) {
-    return "Medium";
-  }
-
-  return "Easy";
-}
 
 export async function loadQuestionsForGame(
   lang: LangCode,
