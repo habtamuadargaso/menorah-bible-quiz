@@ -18,6 +18,7 @@ import { QUESTIONS_ZH } from "./zh";
 import { QUESTIONS_KO } from "./ko";
 import { QUESTIONS_DE } from "./de";
 import { QUESTIONS_IT } from "./it";
+import { QUESTIONS_JA } from "./ja";
 
 export type { Question } from "./types";
 
@@ -36,6 +37,7 @@ const QUESTIONS_BY_LANG: Record<LangCode, Question[]> = {
   ko: QUESTIONS_KO,
   de: QUESTIONS_DE,
   it: QUESTIONS_IT,
+  ja: QUESTIONS_JA,
 };
 
 export interface CategoryQuestions {

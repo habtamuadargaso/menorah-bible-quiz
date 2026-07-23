@@ -22,6 +22,7 @@ const AIQuestionFactory = dynamic(() => import("@/components/admin/AIQuestionFac
 const DashboardOverview = dynamic(() => import("@/components/admin/DashboardOverview"), { loading: () => loadingFallback });
 const QuestionBank = dynamic(() => import("@/components/admin/QuestionBank"), { loading: () => loadingFallback });
 const TranslationCenter = dynamic(() => import("@/components/admin/TranslationCenter"), { loading: () => loadingFallback });
+const GlobalTranslations = dynamic(() => import("@/components/admin/GlobalTranslations"), { loading: () => loadingFallback });
 const ValidationCenter = dynamic(() => import("@/components/admin/ValidationCenter"), { loading: () => loadingFallback });
 const ImportExportPanel = dynamic(() => import("@/components/admin/ImportExportPanel"), { loading: () => loadingFallback });
 const DuplicateReview = dynamic(() => import("@/components/admin/DuplicateReview"), { loading: () => loadingFallback });
@@ -34,6 +35,7 @@ type Section =
   | "bank"
   | "review-queue"
   | "translation"
+  | "global-translations"
   | "validation"
   | "import-export"
   | "duplicates"
@@ -46,6 +48,12 @@ const NAV: Array<{ id: Section; label: string }> = [
   { id: "bank", label: "📚 Question Bank" },
   { id: "review-queue", label: "🔍 Review Queue" },
   { id: "translation", label: "🌍 Translation Center" },
+  // Mission 10: deliberately a separate tab from "Translation Center"
+  // above, which only ever compares the editorial English/Amharic pool
+  // (BibleQuestion.translations, capped at 2 languages by type). This tab
+  // is the live-table, many-language workflow against
+  // public.question_translations — different data, different lifecycle.
+  { id: "global-translations", label: "🗣️ Global Translations" },
   { id: "validation", label: "✅ Validation" },
   { id: "import-export", label: "📥 Import / 📤 Export" },
   { id: "duplicates", label: "🔁 Duplicates" },
@@ -282,6 +290,7 @@ export default function AdminQuestionsPage() {
             <QuestionBank secret={secret} reviewer={reviewer || "unknown-admin"} title="🔍 Review Queue" presetReviewStatus="needs-review" />
           )}
           {section === "translation" && <TranslationCenter secret={secret} />}
+          {section === "global-translations" && <GlobalTranslations secret={secret} reviewer={reviewer || "unknown-admin"} />}
           {section === "validation" && <ValidationCenter secret={secret} />}
           {section === "import-export" && <ImportExportPanel secret={secret} />}
           {section === "duplicates" && <DuplicateReview secret={secret} />}

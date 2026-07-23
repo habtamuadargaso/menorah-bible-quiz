@@ -1,19 +1,11 @@
-export type SupportedLanguage =
-  | "en"
-  | "am"
-  | "om"
-  | "ti"
-  | "es"
-  | "fr"
-  | "de"
-  | "it"
-  | "pt"
-  | "ar"
-  | "sw"
-  | "hi"
-  | "zh"
-  | "ja"
-  | "ko";
+// Mission 10: re-exports the app's one central language registry
+// (lib/i18n/locales.ts's LangCode) instead of maintaining a second,
+// independently-hand-written list — this file used to define its own
+// 15-language union that had drifted slightly out of sync with LangCode
+// (it included "ja" before LangCode did). Now there is exactly one place
+// that lists supported languages.
+export type { LangCode as SupportedLanguage } from "@/lib/i18n/locales";
+import type { LangCode as SupportedLanguage } from "@/lib/i18n/locales";
 
 export type GeneratedTranslation = {
   languageCode: SupportedLanguage;

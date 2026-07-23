@@ -59,6 +59,15 @@ export interface RoomQuestionView {
   choices: [string, string, string, string];
   correctIndex: number | null;
   explanation: string | null;
+  /** Mission 10: false means get_room_question() found no exact-language,
+   * published translation for this question — the RPC no longer silently
+   * substitutes English (see supabase/migrations/
+   * 20260730_mission10_translation_workflow.sql). seedRoomQuestions()
+   * already only ever seeds questions confirmed to have the room's
+   * language published, so this should be true in ordinary operation;
+   * false signals a genuine, exceptional data problem (e.g. a translation
+   * archived mid-battle) rather than a language mismatch to paper over. */
+  translationAvailable: boolean;
 }
 
 export class RoomError extends Error {
@@ -335,6 +344,7 @@ export async function fetchRoomQuestion(roomId: string, lang: LangCode): Promise
     choices: [row.choice_1, row.choice_2, row.choice_3, row.choice_4],
     correctIndex: row.correct_index,
     explanation: row.explanation,
+    translationAvailable: Boolean(row.translation_available),
   };
 }
 

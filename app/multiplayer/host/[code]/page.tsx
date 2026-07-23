@@ -105,6 +105,16 @@ export default function HostRoomPage() {
     try {
       const q = await fetchRoomQuestion(roomId, lang);
       if (questionRequestRef.current !== requestId) return null; // superseded by a newer request
+      // Mission 10: see the matching comment in
+      // app/multiplayer/play/[code]/page.tsx — get_room_question() now
+      // reports translationAvailable:false instead of silently
+      // substituting English.
+      if (q && !q.translationAvailable) {
+        console.error("Room question has no published translation for this room's language.");
+        setQuestion(null);
+        setAnsweredCount(0);
+        return null;
+      }
       setQuestion(q);
       setAnsweredCount(0);
       if (q) await refreshAnswerCount(q.roomQuestionId);

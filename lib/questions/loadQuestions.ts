@@ -81,7 +81,13 @@ export async function loadQuestionsForLevel(
     .eq(
       "question_translations.language_code",
       languageCode
-    );
+    )
+    // Mission 10: a translation's own workflow status must be 'published'
+    // too, not just its parent question's — otherwise an ai_draft/
+    // needs_review/approved-but-not-yet-published translation would go
+    // live to players the instant a row exists, which is exactly what
+    // "AI-generated translation must not become playable" forbids.
+    .eq("question_translations.status", "published");
 
   if (error) {
     throw new Error(error.message);

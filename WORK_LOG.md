@@ -1,5 +1,200 @@
 # Work Log
 
+## Mission 10C — Over-generation strategy for AI question reliability (2026-07-22)
+
+Replaced `lib/question-factory/generator.ts`'s "generate exactly N, fail if
+validation drops below N" flow with an over-generation strategy.
+
+**Sizing.** First pass now requests `max(N + 5, ceil(N * 1.5))` raw
+candidates from Gemini (e.g. 10 → 15, 50 → 75), chunked across calls of
+≤30 candidates each (`MAX_CANDIDATES_PER_CALL`) to stay inside Gemini's
+output-token budget. If validation still leaves fewer than N valid+unique
+questions after that pass, retries request only `missing + 3`
+(`RETRY_SAFETY_BUFFER`) more — never another full over-generation batch —
+bounded by `MAX_GENERATION_CALLS = 12` total Gemini calls so a pathological
+run can't loop forever.
+
+**Validation.** Every raw candidate is still checked by
+`validateEnglishCandidate` + `validateGeneratedQuestion` (missing fields,
+wrong answer count, non-unique answers, invalid schema) and deduped via the
+existing normalized-text comparison (`duplicates.ts`: lowercase, NFKD, strip
+punctuation, collapse whitespace). New: `validator.ts` now also rejects a
+present-but-malformed or unrecognized Bible reference
+(`isValidBibleReference`, format `Book chapter:verse[-verse]` checked
+against the canonical 66-book list in `lib/questions/canon.ts`) — previously
+only *presence* of a reference was checked, not validity.
+
+**Yield tracking.** Valid+unique candidates are no longer capped at N while
+being collected — the full valid pool is kept so diagnostics can report the
+true yield (e.g. 13 valid found when only 10 were needed), and only
+`slice(0, N)` is returned/saved. The generator throws only if the Gemini
+call budget is exhausted with still-too-few valid questions — never while
+another retry could plausibly close the gap.
+
+**Diagnostics.** `generateAndSaveQuestions` (and the `/api/questions/generate`
+response) now return a `diagnostics` object — `requested`, `generated`,
+`valid`, `duplicatesRemoved`, `invalidRemoved`, `returned` — replacing the
+old ad hoc `duplicatesRejected` / `invalidQuestionsRejected` /
+`generationAttempts` fields (no other caller depended on those field names).
+
+Scope: generation reliability only. Review, publishing, and the database
+save path (`database.ts`, `translator.ts`, admin review routes) are
+untouched.
+
+## Mission 10 — Global language platform (2026-07-22)
+
+Git checkpoint before this mission: annotated tag `checkpoint-before-mission-10`
+at commit `e0496db` (working tree clean; Mission 9 already applied and
+verified live per the prior commit).
+
+### Previous language architecture
+
+Three separate, overlapping language-code type definitions existed:
+`LangCode`/`LANGUAGES` (`lib/i18n/locales.ts`, 14 languages — the closest
+thing to a canonical registry), `SupportedLanguage`
+(`lib/question-factory/types.ts`, the same 14 **+ "ja"**, already drifted
+out of sync), and `SupportedQuestionLanguage` (`lib/questions/types.ts`,
+**en/am only** — a structural property of the editorial `BibleQuestion`
+pipeline, not a config value). `components/LanguageSelector.tsx` and
+`components/LanguageModal.tsx` each independently hardcoded the same
+`LANGUAGES.filter(FULLY_TRANSLATED_QUESTION_LANGS.includes(...))` line.
+`app/api/questions/generate/route.ts` had its own third hand-written
+15-language allowlist. A **third, previously-undiscovered question
+system** was also found during the audit: a per-language static bank
+(`lib/questions/<lang>.ts` + `lib/questions/index.ts`, legacy
+`Question`/`categoryId` shape) that solo campaign blends with the live DB
+via `loadQuestionsForGame.ts`. Only `en.ts` (~100 questions) and `am.ts`
+(~10 questions) had real content — the other 12 language files were
+`export const QUESTIONS_XX: Question[] = []` stubs whose comments falsely
+claimed "automatically falls back to English" (the actual code never did
+this — stale documentation, now corrected in all 12 files).
+
+An active, live English-fallback bug was also found in `get_room_question()`
+(the RPC serving multiplayer question text): `coalesce(qt.*, qt_en.*)`
+silently substituted English whenever the room's language was missing a
+translation. `lib/questions/loadQuestionById.ts` had the same bug
+client-side (`questionById(lang, id) ?? questionById("en", id)`) but zero
+callers anywhere in the app (confirmed by repo-wide search).
+
+Full detail on all of this is in the Phase 1 audit message earlier in this
+conversation (schemas, RLS, gameplay query paths for solo/Friends
+Battle/online multiplayer, published-question-count query, etc.) — not
+re-derived here to keep this log from duplicating it.
+
+### Final architecture
+
+`public.questions` stays the sole question identity; `public.question_translations`
+stays the actual per-language content gameplay reads — unchanged shapes,
+Mission 10 only adds workflow metadata columns to the latter. Nothing
+about the editorial canonical/`admin_imported_questions`/
+`question_review_overlay` pipeline (Missions 7-9) changed — it remains
+English/Amharic-only by design (per your explicit instruction not to widen
+`SupportedQuestionLanguage`); Mission 10's multi-language workflow
+operates entirely downstream of it, directly against the live table, using
+the already-published English `question_translations` row as its
+translation source.
+
+```
+question_translations (any language) row lifecycle:
+  missing → ai_draft → needs_review → approved → published
+                                    ↘ rejected / archived (from most states)
+
+Only status='published' (AND parent questions.status='published') is
+ever readable by `authenticated` or served to a player.
+```
+
+### Translation lifecycle & rules implemented
+
+- **Generation** (`lib/admin/translationWorkflow.ts::generateTranslations`) only ever reads from a source `question_translations` row with status `approved` or `published` — never `ai_draft`/`needs_review`/`rejected` (requirement: "never translate from a rejected or incomplete translation"). English is the hardcoded default source (`sourceLanguage = "en"` unless explicitly overridden — no UI currently exposes choosing another source, matching the mission's "English by default" framing without over-building an unused option).
+- **Idempotency** (`(question_id, language_code)`, matching the table's existing unique constraint): a fresh `ai_draft`/`needs_review`/`approved`/`rejected` row without `force_regenerate` returns `already_exists`, never a duplicate. A **published** row is refused unconditionally, even with `force_regenerate: true` — the only way to replace live content is an explicit `archive` action first, then translate again. A `WHERE status <> 'published'`-guarded UPDATE (not a blanket upsert) closes the narrow race between checking and writing; a `23505` unique-violation on fresh insert is treated the same as `already_exists`.
+- **Never treats AI output as reviewed**: every generation lands as `ai_draft`, full stop — `approve`/`reject`/`publish` are separate, explicit admin actions, each re-verifying eligibility server-side via a `WHERE status IN (...)`-guarded UPDATE (never trusting a status the browser last displayed).
+- **Editing resets review** (`editTranslation`): changing content on an `approved`/`published`/`rejected` translation resets it to `needs_review` and clears `reviewed_by`/`reviewed_at`/`published_at`/`rejection_reason` — mirroring the editorial pipeline's existing `applyEdit()` rule exactly. This means **editing a published translation immediately takes it out of live rotation** (gameplay only ever serves `status='published'`) — a deliberate safety property: unreviewed content must never stay live, not an accidental side effect.
+- **Structural validation** on every generated/edited translation: non-empty question text, exactly 4 non-empty choices, no duplicate choices (case-insensitive), non-empty explanation. Correct-answer position is never at risk of corruption because it isn't stored per-translation at all — `correct_index` lives only on the parent `questions` row, shared across every language; translation only ever supplies `choice_1..4` text in the same fixed positions.
+- **Controlled batching**: `generateTranslations` processes a hard-capped list (max 60 question×language pairs per request, enforced in `app/api/admin/translations/generate/route.ts`) with concurrency limited to 3 in flight at a time — never "hundreds of AI requests simultaneously."
+- **Quality score**: column exists, always `NULL` for AI-generated rows — Gemini's text-generation API returns no confidence signal, and none is fabricated.
+
+### Database mapping / migration
+
+`supabase/migrations/20260730_mission10_translation_workflow.sql`:
+- 9 new nullable columns on `question_translations` per your Decision 1: `status` (`not null default 'ai_draft'`, added via alter+backfill+set-not-null so the default never blindly overwrites existing rows), `source_language`, `translation_provider`, `ai_model`, `generated_at`, `reviewed_by`, `reviewed_at`, `rejection_reason`, `quality_score`, `published_at`.
+- **Safe backfill**: existing rows get their `status` derived from their **parent question's** status at migration time (`published→published`, `approved→approved`, `review→needs_review`, `rejected→rejected`, else `ai_draft`) — every currently-playable translation stays exactly as playable as it was before this migration touched anything. Re-running the migration is a no-op for already-backfilled rows (`WHERE status IS NULL` guard).
+- **Strengthened RLS** (per Decision 1): the `authenticated` SELECT policy on `question_translations` now requires `status = 'published'` **and** the parent question's `status = 'published'` — previously only the parent's status was checked, meaning an `ai_draft` row was already readable via a raw PostgREST call even before any app code caught up. `service_role` gets an explicit (defensive/idempotent) `UPDATE` grant added to its existing implicit SELECT/INSERT.
+- **`translation_review_history`**: new append-only table, identical shape/RLS/grant pattern to Mission 7's `question_review_history` (select+insert only, no update/delete policy for any role, ever).
+- **Indexes**: `(language_code, status)` on `question_translations`, `(status)` on `questions` — support both the gameplay filter and the stats/availability aggregate queries.
+- **`get_room_question()` rewritten** (per Decision 2): dropped and recreated (changing a `returns table(...)` shape requires this — `CREATE OR REPLACE` can't alter return columns) with the English-coalesce fallback removed entirely. It now joins only the exact requested language and only a `status='published'` translation row, and returns a new `translation_available boolean` column so the caller can distinguish "real content" from "nothing found" — no substitution, ever. `seedRoomQuestions()` already guarantees every seeded question has the room's language published before the room starts, so this is expected to be `true` in all ordinary play; it exists to make the exceptional case (a translation archived mid-battle) loud instead of silently wrong.
+- **`get_translation_stats()`**: one aggregate `GROUP BY` RPC backing the stats endpoint and the availability calculation, so neither has to load full question/translation content just to count rows.
+- Full rollback instructions are inline as a comment at the top of the migration file.
+
+### Gameplay behavior changes
+
+- **`lib/questions/loadQuestions.ts`** (`loadQuestionsForLevel`, used by solo play and Friends-Battle/Online-Church-Mode room seeding): added `.eq("question_translations.status", "published")` — without this, an `ai_draft` row would have gone live to players the instant it existed, entirely defeating the workflow.
+- **`lib/questions/loadQuestionById.ts`** (per Decision 3 — fixed in place, not deleted, despite having zero current callers): removed the `?? questionById("en", questionId)` fallback and added the same `status='published'` filter to its DB query. Requires an exact-language match, DB or static-bank, or returns `null` — never substitutes another language.
+- **`get_room_question()`**: see above. **`lib/liveBattleRoom.ts`**'s `RoomQuestionView` gained a `translationAvailable: boolean` field; both `app/multiplayer/host/[code]/page.tsx` and `app/multiplayer/play/[code]/page.tsx` now treat `translationAvailable: false` the same as a failed fetch (log an error, `setQuestion(null)`) rather than rendering a half-null question object. Given `translationAvailable` should be `true` in all ordinary operation, this is a safety net for an exceptional case, not a feature with its own dedicated UI treatment — a fuller "translation unavailable, ask the host" banner would be a reasonable follow-up but wasn't built here to avoid scope creep into several more presentational components under this mission's already very large surface.
+- **Friends Battle** (`lib/friendsBattle/localQuestions.ts`, `components/friendsBattle/FriendsBattleSetup.tsx`): confirmed already fully compliant — 100% static-bank-only (never Supabase), already shows all `LANGUAGES` with a real content-check (`hasEnoughFriendsBattleContent`) and a clear error rather than any fallback. **Not modified.** Per your explicit instruction, Friends Battle still does not and must not depend on Supabase — see "Offline limitation" below for what that means for Mission 10's new content specifically.
+- **Online multiplayer**: still exactly one language per room, set at creation (per your Decision "keep one exact language per room for Mission 10" — no per-player rendering claimed or built). `seedRoomQuestions()`'s existing requirement (enough exact-language published content or room creation fails with a clear error) is unchanged and now additionally benefits from the strengthened translation-status filter upstream.
+
+### Offline limitation (Friends Battle)
+
+Mission 10's new translation workflow only ever writes to `public.question_translations` (the live DB table). Friends Battle deliberately never reads that table — it only reads the static per-language bundle (`lib/questions/<lang>.ts`), which nothing in this mission populates. **A Spanish translation approved and published via Global Translations today will be playable in solo campaign and online multiplayer, but not in Friends Battle**, until a separate, deliberate bundling step exists (e.g., an admin "export approved translations for a language into a static bundle" action, run at build/deploy time). That's a real, explicit product gap this mission does not close — flagged rather than silently left implicit, exactly as the mission requested.
+
+### API endpoints added
+
+- `POST /api/admin/translations/generate` — single/bulk AI generation. Batch-capped (60 pairs), concurrency-limited (3).
+- `POST /api/admin/translations/review` — `approve | reject | publish | archive | regenerate`, ids + action only from the browser.
+- `GET /api/admin/translations` — paginated/filterable list (target language, level, status, source type, search) for the Global Translations table; bounded browse-and-filter-in-JS over up to 2000 published questions per request, same pattern `lib/admin/adminQuestions.ts` already uses for the editorial Question Bank.
+- `GET /api/admin/translations/detail` + `PATCH /api/admin/translations/[id]` — Translation Editor fetch (keyed by `questionId`+`targetLanguage`, so it works even for a "missing" row with no uuid yet) and edit (keyed by the translation's own uuid, which by definition only exists once a row does).
+- `GET /api/admin/translations/stats` — aggregate counts via `get_translation_stats()`, not full-content loads.
+- `GET /api/languages/availability` — public, read-only, rate-limited. Backs both language selectors and the Global Translations tab's per-language stat pills.
+
+### Language registry consolidation (per Decision 5)
+
+- `lib/i18n/locales.ts`: added `"ja"` to `LangCode` and a `{code:"ja", nativeName:"日本語", englishName:"Japanese"}` entry to `LANGUAGES`. Added matching stub entries (`lib/questions/ja.ts` — empty static bank, `lib/i18n/translations/ja.ts` — empty UI-string override, both required by existing `Record<LangCode, ...>` types) so the build stays exhaustive. Japanese has no content in either system yet — it will show "Coming Soon" everywhere until real content exists, exactly like the other under-served languages.
+- `lib/question-factory/types.ts`: `SupportedLanguage` is now `export type { LangCode as SupportedLanguage } from "@/lib/i18n/locales"` — a re-export, not a second hand-maintained list.
+- `app/api/questions/generate/route.ts`: `normalizeLanguages()`'s hardcoded 15-language `Set` replaced with `new Set(LANGUAGES.map((l) => l.code))`.
+- `components/LanguageSelector.tsx` / `components/LanguageModal.tsx`: both now render every `LANGUAGES` entry, disabling (with a "Coming Soon" label) any whose `soloAvailable` (from the new `useLanguageAvailability()` hook / `/api/languages/availability`) is false — replacing the old hardcoded `FULLY_TRANSLATED_QUESTION_LANGS` two-language allowlist duplicated in both files.
+
+### Statistics
+
+`GET /api/admin/translations/stats` returns, per language: published/ai_draft/needs_review/approved/rejected/archived counts, a derived `missing` count (`total published questions − sum of all statuses accounted for`), and `completionPercent` (`published / total published questions`). All from one grouped SQL aggregate (`get_translation_stats()`) plus two cheap count queries (total published questions; recent generation failures from `translation_review_history`) — no full question/translation content is loaded to compute any of this.
+
+### Translation Center UI (per Decision 4)
+
+Added as a **new, separate tab** — "🗣️ Global Translations" (`components/admin/GlobalTranslations.tsx` + `components/admin/TranslationEditor.tsx`) — sitting alongside the existing "🌍 Translation Center" tab, which is untouched and keeps doing exactly what it already did (editorial English/Amharic side-by-side QA). The new tab: target-language selector, per-language stat pills, filters (level/status/source-type/search), a paginated table (source preview, target preview, status badge, source badge — "Editorial"/"Imported"/"AI Factory" — last-generated time, reviewer), bulk actions (Translate Selected, Translate All Missing on Page, Approve/Reject/Publish/Regenerate/Archive Selected — one confirmation dialog per action, never per question), and a slide-over Translation Editor (source read-only on the left, editable target on the right, fixed choice ordering with an explicit note that correct-answer position lives on the shared parent question and can't be reordered here, live validation, and the same approve/reject/publish/regenerate/archive actions available per-row).
+
+### AI Factory compatibility
+
+Not touched beyond the language-registry dedup (`normalizeLanguages`) and the shared `getGeminiModel()` export (newly exported, not modified) — generation, Pending AI Review, bulk approve/publish/reject/delete, and direct live question creation all use unchanged code paths. Existing AI-Factory-authored `question_translations` rows are backward-compatible via the safe backfill (parent-status-derived, not a blind default).
+
+### Build/verification
+
+- `npx tsc --noEmit` — clean.
+- `npm run build` — clean; all new routes present in the build output (`/api/admin/translations`, `/[id]`, `/detail`, `/generate`, `/review`, `/stats`, `/api/languages/availability`).
+- No automated test framework exists in this repo (same situation as Missions 8/9). A standalone script mirroring the real eligibility/idempotency/validation/availability-threshold logic in `lib/admin/translationWorkflow.ts` and `lib/i18n/languageAvailability.ts` ran 19 cases — unsupported language, same-source-as-target, missing source, invalid (ai_draft/rejected) source, valid (approved/published) source, published-always-protected-even-with-force, already_exists vs regenerate-with-force, choice validation (empty/duplicate), and solo/Friends-Battle/online availability thresholds — all passed. Deleted after use.
+
+### Unverified live-Supabase steps
+
+Everything below needs your actual database and a browser session — I cannot execute SQL or drive a live multiplayer room from this environment:
+- Running `20260730_mission10_translation_workflow.sql` itself.
+- The full 22-item manual checklist from the mission brief (generate → review → approve → publish → confirm same `question_id` → confirm no duplicate live row → confirm Spanish gameplay loads it → regenerate-protection → reject → bulk partial-failure reporting → history append-only → English/Amharic still work → unsupported/unavailable languages blocked in the UI → online multiplayer scoring sync → AI Factory still works → Mission 9 publishing still works).
+- Whether `service_role`'s implicit UPDATE privilege on `question_translations` (inferred from existing INSERT/SELECT usage, same reasoning applied successfully in Missions 8/9) actually holds — the defensive explicit grant in this migration should make this moot either way, but it's still an inference, not a confirmed fact, until it runs.
+- Real published-question-per-language counts (Phase 1 audit items 11/12) — I gave you the query design, not fabricated numbers.
+
+**Environment variables required**: none new. Translation generation reuses the existing `GEMINI_API_KEY` / `GEMINI_MODEL` (already required for the AI Question Factory) — no new secret, no new provider.
+
+**AI provider usage and limits**: same Gemini endpoint the AI Factory already uses (`lib/question-factory/gemini.ts`, unchanged). New usage source is `generateTranslations()`, capped at 60 question×language pairs per API request with 3-way concurrency — a full "translate everything into every language" run would need to be issued as several requests from the admin UI (one per "Translate All Missing on Page" click, page by page), which is intentional friction against an accidental massive AI bill, not an oversight.
+
+### Remaining risks
+
+1. Migration not yet applied to production — everything above is code-correct and internally consistent but unconfirmed against your actual schema/data until you run it.
+2. `soloAvailable`'s DB-content threshold (`>= 10 published translations, anywhere across all levels`) is a scoped approximation of `loadQuestionsForGame.ts`'s real per-category-per-level selection logic, not an exact simulation — documented in `lib/i18n/languageAvailability.ts`'s own comment. A language could show as "available" while still lacking a complete round for every specific category, or vice versa in an edge case.
+3. Friends Battle offline gap (above) — real, not fixed, deliberately scoped out.
+4. `get_room_question()`'s `translation_available: false` case is handled as a generic "treat like a failed fetch" in the host/player pages rather than a dedicated user-facing banner — reasonable given how rare it should be, but worth a proper UI treatment if it's ever observed in practice.
+5. The Global Translations list endpoint scans up to 2000 published questions per request before filtering/paginating in memory (same pattern as the existing editorial Question Bank) — fine at this app's current scale, would need a real paginated SQL query (not a JS-side filter) if the live question count grows into the tens of thousands.
+
+### Release-readiness recommendation
+
+**Not production-ready yet** — the migration must be applied and the manual checklist walked through first, per the mission's own closing instruction ("do not claim Mission 10 complete until the migration is applied and the manual end-to-end language tests pass"). Once that's done, this is a genuinely additive, backward-compatible change: no existing RLS was loosened, no existing route's behavior changed except where explicitly decided (get_room_question's fallback removal, loadQuestionById's fallback removal), and every new write path re-verifies eligibility server-side rather than trusting the client.
+
 ## Mission 9 — Unify the question content pipelines (2026-07-22)
 
 Git checkpoint before this mission: annotated tag `checkpoint-before-mission-9`

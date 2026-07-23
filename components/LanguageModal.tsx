@@ -3,11 +3,8 @@
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { FULLY_TRANSLATED_QUESTION_LANGS, LANGUAGES } from "@/lib/i18n/locales";
-
-const PLAYABLE_LANGUAGES = LANGUAGES.filter((language) =>
-  FULLY_TRANSLATED_QUESTION_LANGS.includes(language.code)
-);
+import { LANGUAGES } from "@/lib/i18n/locales";
+import { useLanguageAvailability } from "@/lib/i18n/useLanguageAvailability";
 
 export default function LanguageModal({
   open,
@@ -19,6 +16,8 @@ export default function LanguageModal({
   onContinue: () => void;
 }) {
   const { lang, setLang } = useLanguage();
+  const { availability, loading } = useLanguageAvailability();
+  const byCode = new Map((availability ?? []).map((a) => [a.code, a]));
 
   useEffect(() => {
     if (!open) return;
@@ -63,23 +62,31 @@ export default function LanguageModal({
             </p>
 
             <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {PLAYABLE_LANGUAGES.map((language) => {
+              {LANGUAGES.map((language) => {
                 const selected = language.code === lang;
+                const available = loading
+                  ? language.code === "en" || language.code === "am"
+                  : byCode.get(language.code)?.soloAvailable ?? false;
                 return (
                   <button
                     key={language.code}
                     type="button"
-                    onClick={() => setLang(language.code)}
+                    disabled={!available}
+                    onClick={() => available && setLang(language.code)}
                     aria-pressed={selected}
+                    aria-disabled={!available}
+                    title={!available ? "Coming soon — not enough published questions in this language yet." : undefined}
                     className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${
-                      selected
+                      !available
+                        ? "cursor-not-allowed border-white/5 bg-white/[0.02] text-[#5a606e]"
+                        : selected
                         ? "border-gold-500/60 bg-gold-500/15 text-gold-200"
                         : "border-white/10 bg-white/5 text-[#c6cbd6] hover:border-gold-500/30 hover:bg-white/10"
                     }`}
                   >
                     <span className="font-semibold">{language.nativeName}</span>
                     <span className="text-xs uppercase tracking-wide opacity-70">
-                      {language.englishName}
+                      {available ? language.englishName : "Coming Soon"}
                     </span>
                   </button>
                 );

@@ -15,6 +15,7 @@ import { zh } from "./zh";
 import { ko } from "./ko";
 import { de } from "./de";
 import { it } from "./it";
+import { ja } from "./ja";
 
 // English is the only required, fully-complete translation (source of
 // truth / fallback). Every other language may be partial — any missing key
@@ -34,4 +35,5 @@ export const TRANSLATIONS: Record<LangCode, DeepPartial<UIStrings>> = {
   ko,
   de,
   it,
+  ja,
 };

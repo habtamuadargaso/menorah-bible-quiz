@@ -12,7 +12,8 @@ export type LangCode =
   | "zh"
   | "ko"
   | "de"
-  | "it";
+  | "it"
+  | "ja";
 
 export interface LanguageInfo {
   code: LangCode;
@@ -38,6 +39,7 @@ export const LANGUAGES: LanguageInfo[] = [
   { code: "ko", nativeName: "한국어", englishName: "Korean" },
   { code: "de", nativeName: "Deutsch", englishName: "German" },
   { code: "it", nativeName: "Italiano", englishName: "Italian" },
+  { code: "ja", nativeName: "日本語", englishName: "Japanese" },
 ];
 
 export const DEFAULT_LANG: LangCode = "en";

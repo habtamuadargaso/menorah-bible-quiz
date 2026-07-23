@@ -75,6 +75,18 @@ export default function PlayerRoomPage() {
     try {
       const q = await fetchRoomQuestion(roomId, lang);
       if (questionRequestRef.current !== requestId) return null; // superseded by a newer request
+      // Mission 10: get_room_question() no longer silently substitutes
+      // English when the room's language is missing a published
+      // translation — it reports translationAvailable:false instead.
+      // seedRoomQuestions() already only ever seeds questions confirmed to
+      // have this room's language, so this should be exceptionally rare;
+      // treat it like a failed fetch rather than rendering a
+      // half-null question.
+      if (q && !q.translationAvailable) {
+        console.error("Room question has no published translation for this room's language.");
+        setQuestion(null);
+        return null;
+      }
       setQuestion(q);
       return q;
     } catch (err) {

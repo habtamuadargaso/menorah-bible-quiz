@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateAndSaveQuestions } from "@/lib/question-factory/generator";
 import { isAuthorizedAdmin } from "@/lib/admin/auth";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { LANGUAGES } from "@/lib/i18n/locales";
 import type {
   GenerateQuestionsInput,
   SupportedLanguage,
@@ -35,26 +36,15 @@ function getErrorMessage(error: unknown): string {
   return "Unknown question-generation error.";
 }
 
+// Mission 10: derives from the one central language registry
+// (lib/i18n/locales.ts) instead of a second, hand-maintained list that had
+// already drifted out of sync with it (see lib/question-factory/types.ts).
+const SUPPORTED_LANGUAGE_CODES = new Set<SupportedLanguage>(LANGUAGES.map((l) => l.code));
+
 function normalizeLanguages(
   languages: string[] | undefined
 ): SupportedLanguage[] {
-  const supportedLanguages = new Set<SupportedLanguage>([
-    "en",
-    "am",
-    "om",
-    "ti",
-    "es",
-    "fr",
-    "de",
-    "it",
-    "pt",
-    "ar",
-    "sw",
-    "hi",
-    "zh",
-    "ja",
-    "ko",
-  ]);
+  const supportedLanguages = SUPPORTED_LANGUAGE_CODES;
 
   const normalized = Array.from(
     new Set(
@@ -130,12 +120,7 @@ export async function POST(request: NextRequest) {
       languages: result.languages,
       correctAnswerPositions:
         result.correctAnswerPositions,
-      duplicatesRejected:
-        result.duplicatesRejected,
-      invalidQuestionsRejected:
-        result.invalidQuestionsRejected,
-      generationAttempts:
-        result.generationAttempts,
+      diagnostics: result.diagnostics,
       questionIds: result.questionIds,
       message: `${result.questionsSaved} new unique questions and ${result.translationsSaved} translations were saved successfully.`,
     });

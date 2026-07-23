@@ -3,10 +3,14 @@ import type { Question } from "./types";
 // ---------------------------------------------------------------------------
 // Tigrinya question bank — PLACEHOLDER.
 //
-// This language does not have its own questions yet. The quiz engine
-// automatically falls back to the English question bank (lib/questions/en.ts)
-// for any category with no Tigrinya questions, and shows a small notice to
-// the player that the questions are still in English.
+// This language does not have its own questions yet. The quiz engine does
+// NOT fall back to English content for an empty bank (an earlier version
+// of this comment incorrectly claimed it did) -- solo campaign and
+// Friends Battle both show a clear "not enough content" message instead
+// (see lib/questions/index.ts and lib/friendsBattle/localQuestions.ts).
+// Real per-language content can also come from public.questions /
+// question_translations via Mission 10's translation workflow (Admin ->
+// Global Translations) once questions are published there.
 //
 // To add real Tigrinya questions: copy the shape from lib/questions/en.ts
 // (or lib/questions/am.ts for a second worked example) and fill in

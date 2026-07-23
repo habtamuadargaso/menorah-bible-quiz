@@ -42,6 +42,15 @@ import {
     reflection?: string;
   };
   
+  export type GenerationDiagnostics = {
+    requested: number;
+    generated: number;
+    valid: number;
+    duplicatesRemoved: number;
+    invalidRemoved: number;
+    returned: number;
+  };
+
   export type GenerateAndSaveResult = {
     questionsSaved: number;
     translationsSaved: number;
@@ -49,19 +58,35 @@ import {
     correctAnswerPositions: number[];
     languages: SupportedLanguage[];
     level: number;
-    duplicatesRejected: number;
-    invalidQuestionsRejected: number;
-    generationAttempts: number;
+    diagnostics: GenerationDiagnostics;
   };
-  
-  const MAX_GENERATION_ATTEMPTS = 5;
-  const EXTRA_CANDIDATES_PER_ATTEMPT = 4;
-  // Raised alongside the count ceiling (10 -> 100, Mission 8): each attempt
-  // requests at most this many candidates from Gemini in one call, so
-  // reaching count=100 within MAX_GENERATION_ATTEMPTS needs a higher
-  // per-call cap than the old 15 (which was sized for a max count of 10 and
-  // structurally could never produce more than 5 * 15 = 75 candidates).
-  const MAX_CANDIDATES_PER_ATTEMPT = 30;
+
+  // Mission 10C: over-generation strategy. Rather than generating exactly N
+  // candidates and failing if validation whittles that below N, we ask for
+  // more than N up front, then keep the first N valid+unique results and
+  // discard the rest — retrying only for whatever is still missing.
+  const OVER_GENERATION_MIN_BUFFER = 5;
+  const OVER_GENERATION_MULTIPLIER = 1.5;
+  const RETRY_SAFETY_BUFFER = 3;
+
+  // Each Gemini call is capped at this many candidates (prompt/output-token
+  // budget), so a large over-generation target (e.g. 150 for count=100) is
+  // requested across several calls rather than one huge prompt.
+  const MAX_CANDIDATES_PER_CALL = 30;
+  // Hard ceiling on total Gemini calls for one generation request, covering
+  // both the initial over-generation batch and any missing-only retries.
+  const MAX_GENERATION_CALLS = 12;
+
+  function computeOverGenerationTarget(count: number): number {
+    return Math.max(
+      count + OVER_GENERATION_MIN_BUFFER,
+      Math.ceil(count * OVER_GENERATION_MULTIPLIER)
+    );
+  }
+
+  function computeRetryTarget(missing: number): number {
+    return missing + RETRY_SAFETY_BUFFER;
+  }
 
   function normalizeInput(
     input: GenerateQuestionsInput
@@ -339,53 +364,60 @@ import {
     input: GenerateQuestionsInput
   ): Promise<{
     questions: GeneratedQuestion[];
-    duplicatesRejected: number;
-    invalidQuestionsRejected: number;
-    generationAttempts: number;
+    diagnostics: GenerationDiagnostics;
   }> {
     const existingQuestionTexts =
       await loadExistingEnglishQuestions(
         input.level
       );
-  
-    const acceptedQuestions: GeneratedQuestion[] =
+
+    // Every valid, unique candidate found so far, kept in full (even past
+    // input.count) so diagnostics report the true valid yield. Only the
+    // first input.count are returned to the caller.
+    const validQuestions: GeneratedQuestion[] =
       [];
-  
-    const acceptedQuestionTexts =
+
+    const validQuestionTexts =
       new Set<string>();
-  
-    let duplicatesRejected = 0;
-    let invalidQuestionsRejected = 0;
-    let generationAttempts = 0;
-  
+
+    let generatedRaw = 0;
+    let duplicatesRemoved = 0;
+    let invalidRemoved = 0;
+    let apiCalls = 0;
+
+    // How many more raw candidates to request before re-checking whether
+    // enough valid ones have been found. Starts at the over-generation
+    // target and, if exhausted with too few valid results, is refilled to
+    // exactly the missing amount plus a small safety buffer (never a full
+    // fresh over-generation pass).
+    let requestTarget =
+      computeOverGenerationTarget(input.count);
+
     while (
-      acceptedQuestions.length < input.count &&
-      generationAttempts <
-        MAX_GENERATION_ATTEMPTS
+      validQuestions.length < input.count &&
+      apiCalls < MAX_GENERATION_CALLS &&
+      requestTarget > 0
     ) {
-      generationAttempts += 1;
-  
-      const remaining =
-        input.count -
-        acceptedQuestions.length;
-  
+      apiCalls += 1;
+
       const candidateCount = Math.min(
-        MAX_CANDIDATES_PER_ATTEMPT,
-        remaining +
-          EXTRA_CANDIDATES_PER_ATTEMPT
+        MAX_CANDIDATES_PER_CALL,
+        requestTarget
       );
-  
+
+      requestTarget -= candidateCount;
+
       const examplesToAvoid = Array.from(
         existingQuestionTexts
       ).slice(0, 250);
-  
+
       const prompt =
         buildEnglishGenerationPrompt(
           input,
           candidateCount,
           examplesToAvoid
         );
-  
+
       const responseText =
         await generateWithGemini(prompt, {
           temperature: 0.8,
@@ -393,103 +425,122 @@ import {
           responseMimeType:
             "application/json",
         });
-  
+
       const candidates =
         parseGeminiJson<
           EnglishQuestionCandidate[]
         >(responseText);
-  
+
       if (!Array.isArray(candidates)) {
         throw new Error(
           "Gemini did not return a question array."
         );
       }
-  
+
+      generatedRaw += candidates.length;
+
       for (const candidate of candidates) {
-        if (
-          acceptedQuestions.length >=
-          input.count
-        ) {
-          break;
-        }
-  
         const validationErrors =
           validateEnglishCandidate(
             candidate
           );
-  
+
         if (
           validationErrors.length > 0
         ) {
-          invalidQuestionsRejected += 1;
+          invalidRemoved += 1;
           continue;
         }
-  
+
         const normalizedQuestion =
           normalizeQuestionText(
             candidate.question ?? ""
           );
-  
+
         if (
           existingQuestionTexts.has(
             normalizedQuestion
           ) ||
-          acceptedQuestionTexts.has(
+          validQuestionTexts.has(
             normalizedQuestion
           )
         ) {
-          duplicatesRejected += 1;
+          duplicatesRemoved += 1;
           continue;
         }
-  
+
         const generatedQuestion =
           convertCandidateToQuestion(
             candidate,
             input
           );
-  
+
         const completeValidationErrors =
           validateGeneratedQuestion(
             generatedQuestion,
             ["en"]
           );
-  
+
         if (
           completeValidationErrors.length >
           0
         ) {
-          invalidQuestionsRejected += 1;
+          invalidRemoved += 1;
           continue;
         }
-  
-        acceptedQuestionTexts.add(
+
+        validQuestionTexts.add(
           normalizedQuestion
         );
-  
+
         existingQuestionTexts.add(
           normalizedQuestion
         );
-  
-        acceptedQuestions.push(
+
+        validQuestions.push(
           generatedQuestion
         );
       }
+
+      // This phase's requested candidates are all accounted for. If still
+      // short of input.count, queue a focused retry for exactly what's
+      // missing rather than another full over-generation batch.
+      if (
+        requestTarget <= 0 &&
+        validQuestions.length < input.count
+      ) {
+        const missing =
+          input.count - validQuestions.length;
+
+        requestTarget =
+          computeRetryTarget(missing);
+      }
     }
-  
+
     if (
-      acceptedQuestions.length <
+      validQuestions.length <
       input.count
     ) {
       throw new Error(
-        `The AI generated only ${acceptedQuestions.length} valid unique questions after ${generationAttempts} attempts. Please try again with fewer questions or a different chapter.`
+        `The AI generated only ${validQuestions.length} valid unique questions after ${apiCalls} generation calls. Please try again with fewer questions or a different chapter.`
       );
     }
-  
+
+    const diagnostics: GenerationDiagnostics = {
+      requested: input.count,
+      generated: generatedRaw,
+      valid: validQuestions.length,
+      duplicatesRemoved,
+      invalidRemoved,
+      returned: input.count,
+    };
+
     return {
-      questions: acceptedQuestions,
-      duplicatesRejected,
-      invalidQuestionsRejected,
-      generationAttempts,
+      questions: validQuestions.slice(
+        0,
+        input.count
+      ),
+      diagnostics,
     };
   }
   
@@ -558,11 +609,7 @@ import {
         savedResult.correctAnswerPositions,
       languages: input.languages,
       level: input.level,
-      duplicatesRejected:
-        englishGeneration.duplicatesRejected,
-      invalidQuestionsRejected:
-        englishGeneration.invalidQuestionsRejected,
-      generationAttempts:
-        englishGeneration.generationAttempts,
+      diagnostics:
+        englishGeneration.diagnostics,
     };
   }

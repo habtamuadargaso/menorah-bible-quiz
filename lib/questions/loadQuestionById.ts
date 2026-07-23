@@ -3,6 +3,17 @@ import { createClient } from "@/lib/supabase/client";
 import { questionById } from "./index";
 import type { LoadedQuestion } from "./loadQuestions";
 
+/**
+ * Mission 10: this function has no callers anywhere in the app today
+ * (verified by repo-wide search) — kept available rather than deleted, in
+ * case a dynamic/future call path needs it. Its English-fallback bug is
+ * fixed regardless, so it's safe to start relying on again: it used to
+ * return `questionById(languageCode, questionId) ?? questionById("en", questionId)`,
+ * silently substituting an English question whenever the exact requested
+ * language had none — exactly the "unintended fallback" rule this mission
+ * removes. It now requires an exact-language match, DB or local, or
+ * returns null.
+ */
 export async function loadQuestionById(
   questionId: string,
   languageCode: LangCode
@@ -12,6 +23,9 @@ export async function loadQuestionById(
   // See loadQuestions.ts: correct_index/explanation are no longer directly
   // SELECT-able, so the answer key is fetched separately via the
   // get_question_answer_keys RPC (safe for solo play, phase-gated for battle).
+  // Also requires question_translations.status = 'published' (Mission 10) —
+  // an ai_draft/needs_review/approved-but-not-published translation must
+  // never be handed to a player just because its parent question is live.
   const { data, error } = await supabase
     .from("questions")
     .select(`
@@ -34,6 +48,7 @@ export async function loadQuestionById(
     .eq("id", questionId)
     .eq("status", "published")
     .eq("question_translations.language_code", languageCode)
+    .eq("question_translations.status", "published")
     .maybeSingle();
 
   if (!error && data) {
@@ -80,7 +95,12 @@ export async function loadQuestionById(
     }
   }
 
-  const local = questionById(languageCode, questionId) ?? questionById("en", questionId);
+  // Exact-language local fallback only — never cross into English (or any
+  // other language) here. If the DB has no published exact-language row
+  // AND the local bank has no exact-language row either, there is
+  // genuinely no content to show; the caller must handle null as "not
+  // available in this language," not silently substitute anything.
+  const local = questionById(languageCode, questionId);
   if (!local) return null;
   return {
     id: local.id,
