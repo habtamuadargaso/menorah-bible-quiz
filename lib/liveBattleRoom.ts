@@ -49,6 +49,11 @@ export interface RoomPlayerState {
   currentStreak: number;
   lastSeenAt: string;
   joinedAt: string;
+  /** Mission 13: this player's own display language — independent of the
+   * host's rooms.language, which only ever affects the host's own screen.
+   * Chosen before joining, changeable while the room is still "waiting"
+   * (see setPlayerLanguage), locked once the battle starts. */
+  languageCode: LangCode;
 }
 
 export interface RoomQuestionView {
@@ -119,6 +124,19 @@ export function getSavedPlayerName(): string {
   return window.localStorage.getItem("menorah-player-name") ?? "";
 }
 
+/** The language a player picked the last time they joined a battle — used
+ * only to prefill the join form's language step, never to skip it. */
+export function getSavedPlayerLanguage(): LangCode | null {
+  if (typeof window === "undefined") return null;
+  const saved = window.localStorage.getItem("menorah-player-language");
+  return (saved as LangCode) || null;
+}
+
+function savePlayerLanguage(language: LangCode): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem("menorah-player-language", language);
+}
+
 export async function createBattleRoom({
   hostName,
   categoryId,
@@ -183,6 +201,11 @@ export async function createBattleRoom({
     display_name: hostName,
     is_ready: true,
     last_seen_at: new Date().toISOString(),
+    // The host's own room_players row carries the host's language too, so
+    // the waiting room's player list can show it consistently — this never
+    // affects any other player's question fetch, which always uses its own
+    // row's language_code (see fetchRoomQuestion callers).
+    language_code: language,
   });
 
   if (playerError) {
@@ -236,6 +259,11 @@ export async function joinBattleRoom({
     display_name: playerName,
     is_ready: true,
     last_seen_at: new Date().toISOString(),
+    // This player's own chosen language — independent of the host's
+    // room.language. Every later question fetch for this player reads it
+    // back from this row (see fetchRoomPlayers / the player page), never
+    // from the room itself.
+    language_code: language,
   });
 
   if (joinError && joinError.code !== "23505") {
@@ -248,6 +276,8 @@ export async function joinBattleRoom({
 
     throw joinError;
   }
+
+  savePlayerLanguage(language);
 
   return { roomId: room.id, language: room.language as LangCode };
 }
@@ -314,7 +344,7 @@ export async function fetchRoomPlayers(roomId: string): Promise<RoomPlayerState[
   const supabase = createClient();
   const { data, error } = await supabase
     .from("room_players")
-    .select("id, player_id, display_name, score, is_ready, current_streak, last_seen_at, joined_at")
+    .select("id, player_id, display_name, score, is_ready, current_streak, last_seen_at, joined_at, language_code")
     .eq("room_id", roomId)
     .order("joined_at", { ascending: true });
   if (error) throw error;
@@ -327,6 +357,7 @@ export async function fetchRoomPlayers(roomId: string): Promise<RoomPlayerState[
     currentStreak: p.current_streak,
     lastSeenAt: p.last_seen_at,
     joinedAt: p.joined_at,
+    languageCode: p.language_code as LangCode,
   }));
 }
 
@@ -518,6 +549,22 @@ export async function toggleReady(roomId: string, playerId: string, ready: boole
   const supabase = createClient();
   const { error } = await supabase.from("room_players").update({ is_ready: ready }).eq("room_id", roomId).eq("player_id", playerId);
   if (error) throw error;
+}
+
+/** Changes the caller's own language while still in the waiting room. Goes
+ * through set_room_player_language() rather than a direct column update —
+ * that RPC is the only thing that can write room_players.language_code
+ * after the initial join, and it rejects the call once room.status is no
+ * longer "waiting", so language really is locked once the battle starts
+ * regardless of what a client attempts. */
+export async function setPlayerLanguage(roomId: string, languageCode: LangCode): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("set_room_player_language", {
+    p_room_id: roomId,
+    p_language_code: languageCode,
+  });
+  if (error) throw error;
+  savePlayerLanguage(languageCode);
 }
 
 export async function heartbeat(roomId: string, playerId: string): Promise<void> {

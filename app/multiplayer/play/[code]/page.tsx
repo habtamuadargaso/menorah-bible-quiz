@@ -6,6 +6,7 @@ import { AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { createClient } from "@/lib/supabase/client";
 import { playButtonClick } from "@/lib/sound";
+import type { LangCode } from "@/lib/i18n/locales";
 import {
   advancePhaseIfExpired,
   ensureAnonymousSession,
@@ -13,15 +14,13 @@ import {
   fetchRoomByCode,
   fetchRoomPlayers,
   fetchRoomQuestion,
-  getSavedPlayerName,
   isConnected,
-  joinBattleRoom,
   leaveRoom,
   resolveRoundIfExpired,
+  setPlayerLanguage,
   startHeartbeat,
   submitAnswer,
   toggleReady,
-  RoomError,
   type AnswerRow,
   type RoomPlayerState,
   type RoomQuestionView,
@@ -50,6 +49,13 @@ export default function PlayerRoomPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [connectionState, setConnectionState] = useState<"connected" | "reconnecting" | "disconnected">("reconnecting");
 
+  // This player's OWN display language — read from their room_players row,
+  // never from room.language (that's the host's language and only ever
+  // drives the host's own screen). A ref because it needs to be read
+  // synchronously from realtime callbacks without becoming a dependency
+  // that re-subscribes the channel on every language change.
+  const myLanguageRef = useRef<LangCode>("en");
+
   const refreshPlayers = useCallback(async (roomId: string) => {
     try {
       setPlayers(await fetchRoomPlayers(roomId));
@@ -75,18 +81,15 @@ export default function PlayerRoomPage() {
     try {
       const q = await fetchRoomQuestion(roomId, lang);
       if (questionRequestRef.current !== requestId) return null; // superseded by a newer request
-      // Mission 10: get_room_question() no longer silently substitutes
-      // English when the room's language is missing a published
-      // translation — it reports translationAvailable:false instead.
-      // seedRoomQuestions() already only ever seeds questions confirmed to
-      // have this room's language, so this should be exceptionally rare;
-      // treat it like a failed fetch rather than rendering a
-      // half-null question.
-      if (q && !q.translationAvailable) {
-        console.error("Room question has no published translation for this room's language.");
-        setQuestion(null);
-        return null;
-      }
+      // Mission 13: `lang` here is THIS player's own room_players.language_code,
+      // never the room's/host's language — see myLanguageRef below. When
+      // this player's language has no published translation for the
+      // current question, get_room_question() still returns English text
+      // (translationAvailable: false flags it) rather than nothing, so the
+      // player always has a playable question; the UI shows an explicit
+      // "Translation unavailable. Showing English." banner instead of
+      // silently pretending it's a real translation. This never affects
+      // any other player, since each fetch is scoped to its own lang.
       setQuestion(q);
       return q;
     } catch (err) {
@@ -136,45 +139,26 @@ export default function PlayerRoomPage() {
         }
 
         const existingPlayers = await fetchRoomPlayers(initialRoom.id);
-        let mine = existingPlayers.find((p) => p.playerId === userId);
+        const mine = existingPlayers.find((p) => p.playerId === userId);
 
+        // Mission 13: language is chosen on the join screen, before a
+        // player ever reaches this page — so if this device hasn't joined
+        // yet, send it through that flow instead of auto-joining here with
+        // whatever the room's (host's) language happens to be.
         if (!mine) {
-          const savedName = getSavedPlayerName();
-          if (!savedName) {
-            router.replace(`/multiplayer/join?code=${initialRoom.code}`);
-            return;
-          }
-          try {
-            await joinBattleRoom({ code: initialRoom.code, playerName: savedName, language: initialRoom.language });
-          } catch (err) {
-            if (err instanceof RoomError) {
-              setError(
-                err.code === "ROOM_STARTED"
-                  ? t.multiplayerLobby.errorRoomStarted
-                  : err.code === "ROOM_FULL"
-                    ? t.multiplayerLobby.errorRoomFull
-                    : t.multiplayerLobby.errorRoomNotFound
-              );
-            } else {
-              setError(t.multiplayerLobby.errorGeneric);
-            }
-            setIsLoading(false);
-            return;
-          }
-          const refreshed = await fetchRoomPlayers(initialRoom.id);
-          mine = refreshed.find((p) => p.playerId === userId);
-          setPlayers(refreshed);
-        } else {
-          setPlayers(existingPlayers);
+          router.replace(`/multiplayer/join?code=${initialRoom.code}`);
+          return;
         }
+        setPlayers(existingPlayers);
+        myLanguageRef.current = mine.languageCode;
 
         if (cancelled) return;
         setMyPlayerId(userId);
-        setPlayerName(mine?.displayName ?? getSavedPlayerName());
+        setPlayerName(mine.displayName);
         setRoom(initialRoom);
 
         if (initialRoom.status === "question" || initialRoom.status === "reveal") {
-          await refreshQuestion(initialRoom.id, initialRoom.language);
+          await refreshQuestion(initialRoom.id, myLanguageRef.current);
         }
         if (initialRoom.status !== "waiting") {
           await refreshMyAnswers(initialRoom.id, userId);
@@ -208,9 +192,9 @@ export default function PlayerRoomPage() {
                   : prev
               );
               if (nextStatus === "question") {
-                await refreshQuestion(initialRoom.id, initialRoom.language);
+                await refreshQuestion(initialRoom.id, myLanguageRef.current);
               } else if (nextStatus === "reveal") {
-                await refreshQuestion(initialRoom.id, initialRoom.language);
+                await refreshQuestion(initialRoom.id, myLanguageRef.current);
                 await refreshMyAnswers(initialRoom.id, userId);
               } else if (nextStatus === "finished") {
                 await refreshMyAnswers(initialRoom.id, userId);
@@ -288,6 +272,18 @@ export default function PlayerRoomPage() {
     return () => window.clearTimeout(timeout);
   }, [room]);
 
+  // Keeps myLanguageRef current whenever this player's own room_players row
+  // changes — covers "change language while waiting" (handleChangeLanguage
+  // below updates the row via the server, which comes back through the
+  // room_players realtime subscription into `players`) as well as another
+  // tab/device changing it. Never fires mid-question, since the language
+  // picker is only shown in the waiting room and set_room_player_language()
+  // itself refuses the change once the room has left "waiting".
+  useEffect(() => {
+    const mine = players.find((p) => p.playerId === myPlayerId);
+    if (mine) myLanguageRef.current = mine.languageCode;
+  }, [players, myPlayerId]);
+
   async function handleToggleReady() {
     if (!room || !myPlayerId) return;
     const mine = players.find((p) => p.playerId === myPlayerId);
@@ -295,6 +291,17 @@ export default function PlayerRoomPage() {
       await toggleReady(room.id, myPlayerId, !mine?.isReady);
     } catch (err) {
       console.error("Toggle ready failed:", err);
+    }
+  }
+
+  async function handleChangeLanguage(languageCode: LangCode) {
+    if (!room || !myPlayerId) return;
+    try {
+      await setPlayerLanguage(room.id, languageCode);
+      myLanguageRef.current = languageCode;
+      setPlayers((prev) => prev.map((p) => (p.playerId === myPlayerId ? { ...p, languageCode } : p)));
+    } catch (err) {
+      console.error("Change language failed:", err);
     }
   }
 
@@ -444,6 +451,8 @@ export default function PlayerRoomPage() {
           players={players}
           isReady={myPlayer?.isReady ?? false}
           onToggleReady={handleToggleReady}
+          myLanguageCode={myPlayer?.languageCode ?? "en"}
+          onChangeLanguage={handleChangeLanguage}
         />
       );
       break;

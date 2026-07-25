@@ -70,6 +70,15 @@ export default function HostBattleScreen({
           <SharedBattleTimer endsAt={questionEndsAt} totalSeconds={ROUND_SECONDS} size="lg" timeUpLabel={tb.timeUpLabel} />
         </div>
 
+        {!question.translationAvailable && (
+          <div
+            role="status"
+            className="mx-auto w-full max-w-4xl rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs font-semibold text-amber-200"
+          >
+            {t.multiplayerPlayer.translationUnavailableMessage}
+          </div>
+        )}
+
         <motion.div
           key={question.roomQuestionId}
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}

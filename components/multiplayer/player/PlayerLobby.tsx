@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import type { UIStrings } from "@/lib/i18n/types";
+import { LANGUAGES, type LangCode } from "@/lib/i18n/locales";
 import type { RoomPlayerState } from "@/lib/liveBattleRoom";
 import ConnectedPlayerList from "../shared/ConnectedPlayerList";
 import ReadyButton from "../ReadyButton";
@@ -15,6 +16,8 @@ export default function PlayerLobby({
   players,
   isReady,
   onToggleReady,
+  myLanguageCode,
+  onChangeLanguage,
 }: {
   t: UIStrings;
   roomCode: string;
@@ -24,6 +27,8 @@ export default function PlayerLobby({
   players: RoomPlayerState[];
   isReady: boolean;
   onToggleReady: () => void;
+  myLanguageCode: LangCode;
+  onChangeLanguage: (languageCode: LangCode) => void;
 }) {
   const reduceMotion = useReducedMotion();
   const tm = t.multiplayerLobby;
@@ -50,6 +55,25 @@ export default function PlayerLobby({
 
         <div className="rounded-card border border-white/10 bg-white/[0.04] p-5 text-center shadow-premium">
           <p className="text-sm text-[#a7aebd]">{tm.waitingForHost}</p>
+        </div>
+
+        <div className="rounded-card border border-white/10 bg-white/[0.04] p-5 shadow-premium">
+          <label htmlFor="player-lobby-language" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[#9aa1b0]">
+            {tm.yourLanguageLabel}
+          </label>
+          <select
+            id="player-lobby-language"
+            value={myLanguageCode}
+            onChange={(event) => onChangeLanguage(event.target.value as LangCode)}
+            className="w-full appearance-none rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-[#f3efe2] outline-none transition-colors focus:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
+            {LANGUAGES.map((language) => (
+              <option key={language.code} value={language.code} className="bg-navy-950 text-[#f3efe2]">
+                {language.flag} {language.nativeName} ({language.englishName})
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-xs text-[#8d94a3]">{tm.languageLockedHint}</p>
         </div>
 
         <ReadyButton

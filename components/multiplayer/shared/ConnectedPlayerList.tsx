@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { LANGUAGES } from "@/lib/i18n/locales";
 import { isConnected, type RoomPlayerState } from "@/lib/liveBattleRoom";
 
 const PlayerRow = memo(function PlayerRow({
@@ -27,6 +28,7 @@ const PlayerRow = memo(function PlayerRow({
 }) {
   const reduceMotion = useReducedMotion();
   const connected = isConnected(player.lastSeenAt);
+  const playerLanguage = LANGUAGES.find((l) => l.code === player.languageCode) ?? LANGUAGES[0];
 
   return (
     <motion.li
@@ -60,6 +62,10 @@ const PlayerRow = memo(function PlayerRow({
           <div className="flex items-center gap-1.5 truncate text-sm font-semibold text-[#f3efe2]">
             <span className="truncate">{player.displayName}</span>
             {isYou && <span className="text-xs font-normal text-[#8d94a3]">(you)</span>}
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-[#8d94a3]">
+            <span aria-hidden>{playerLanguage.flag}</span>
+            <span className="truncate">{playerLanguage.englishName}</span>
           </div>
           {isHost ? (
             <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-gold-400">

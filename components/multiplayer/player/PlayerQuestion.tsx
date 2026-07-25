@@ -84,6 +84,15 @@ export default function PlayerQuestion({
           </div>
         </div>
 
+        {!question.translationAvailable && (
+          <div
+            role="status"
+            className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs font-semibold text-amber-200"
+          >
+            {tp.translationUnavailableMessage}
+          </div>
+        )}
+
         <motion.div
           key={question.roomQuestionId}
           initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}

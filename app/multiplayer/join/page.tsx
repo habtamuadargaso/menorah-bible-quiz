@@ -4,7 +4,8 @@ import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { getSavedPlayerName, joinBattleRoom, RoomError } from "@/lib/liveBattleRoom";
+import { LANGUAGES, type LangCode } from "@/lib/i18n/locales";
+import { getSavedPlayerLanguage, getSavedPlayerName, joinBattleRoom, RoomError } from "@/lib/liveBattleRoom";
 
 function JoinBattleForm() {
   const router = useRouter();
@@ -15,12 +16,19 @@ function JoinBattleForm() {
 
   const [playerName, setPlayerName] = useState("");
   const [roomCode, setRoomCode] = useState("");
+  // Enter Room Code -> Enter Player Name -> Select Language -> Join Battle
+  // (Mission 13). Defaults to whatever language this device last picked for
+  // a battle, falling back to the app's current UI language — but it's
+  // always shown and always changeable, never silently reused.
+  const [playerLanguage, setPlayerLanguage] = useState<LangCode>(lang);
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const savedName = getSavedPlayerName();
     if (savedName) setPlayerName(savedName);
+    const savedLanguage = getSavedPlayerLanguage();
+    if (savedLanguage) setPlayerLanguage(savedLanguage);
     // Accept either ?room= (used by the host dashboard's QR code) or the
     // original ?code= param, so existing links/QR codes keep working.
     const codeFromUrl = searchParams.get("room") ?? searchParams.get("code");
@@ -65,7 +73,7 @@ function JoinBattleForm() {
     setStatus(tm.joiningRoom);
 
     try {
-      await joinBattleRoom({ code: cleanCode, playerName: cleanName, language: lang });
+      await joinBattleRoom({ code: cleanCode, playerName: cleanName, language: playerLanguage });
       router.push(`/multiplayer/play/${cleanCode}`);
     } catch (error: unknown) {
       console.error("Join room error:", error);
@@ -129,6 +137,25 @@ function JoinBattleForm() {
               placeholder={tm.playerNamePlaceholder}
               className={inputClass}
             />
+          </div>
+
+          <div>
+            <label htmlFor="join-player-language" className="mb-1.5 block text-xs font-semibold text-[#c6cbd6]">
+              {tm.yourLanguageLabel}
+            </label>
+            <select
+              id="join-player-language"
+              value={playerLanguage}
+              onChange={(event) => setPlayerLanguage(event.target.value as LangCode)}
+              className={`${inputClass} appearance-none`}
+            >
+              {LANGUAGES.map((language) => (
+                <option key={language.code} value={language.code} className="bg-navy-950 text-[#f3efe2]">
+                  {language.flag} {language.nativeName} ({language.englishName})
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-xs text-[#8d94a3]">{tm.yourLanguageHint}</p>
           </div>
 
           <motion.button

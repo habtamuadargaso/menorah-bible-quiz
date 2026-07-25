@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { flagForLanguage } from "@/lib/i18n/locales";
 import { isConnected, type RoomPlayerState } from "@/lib/liveBattleRoom";
 
 // Host-dashboard-only roster row: adds the score column and the 🟢/🟡/🔴
@@ -61,6 +62,9 @@ const RosterRow = memo(function RosterRow({
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 truncate text-sm font-semibold text-[#f3efe2]">
             <span className="truncate">{player.displayName}</span>
+            <span aria-hidden className="flex-shrink-0">
+              {flagForLanguage(player.languageCode)}
+            </span>
           </div>
           {isHost && (
             <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-gold-400">

@@ -326,6 +326,9 @@ export const am: UIStrings = {
     roomNotFoundMessage: "ክፍል አልተገኘም።",
     joinPageHeading: "ውድድር ተቀላቀል",
     joinPageSubheading: "በአስተናጋጁ ስክሪን ላይ የሚታየውን የክፍል ኮድ ያስገቡ።",
+    yourLanguageLabel: "የእርስዎ ቋንቋ",
+    yourLanguageHint: "ጥያቄዎችን በዚህ ቋንቋ ያያሉ — ሁሉም ሰው አሁንም በተመሳሳይ ጊዜ ተመሳሳዩን ጥያቄ ይመልሳል።",
+    languageLockedHint: "አስተናጋጁ ውድድሩን ሲጀምር ቋንቋው ይቆለፋል።",
   },
   battleShared: {
     connectedLabel: "ተገናኝቷል",
@@ -424,6 +427,7 @@ export const am: UIStrings = {
     errorExpiredRoom: "ይህ ክፍል ከአሁን በኋላ የለም።",
     reconnectingMessage: "ከውድድሩ ጋር በመገናኘት ላይ…",
     hostDisconnectedMessage: "አስተናጋጁ እንደገና እስኪገናኝ በመጠበቅ ላይ…",
+    translationUnavailableMessage: "ትርጉም አይገኝም። በእንግሊዝኛ እየታየ ነው።",
   },
   globalLeaderboard: {
     navLabel: "ደረጃዎች",

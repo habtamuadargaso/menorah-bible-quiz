@@ -323,6 +323,9 @@ export const en: UIStrings = {
     roomNotFoundMessage: "Room not found.",
     joinPageHeading: "Join Battle",
     joinPageSubheading: "Enter the room code shown on the host's screen.",
+    yourLanguageLabel: "Your Language",
+    yourLanguageHint: "You'll see every question in this language — everyone still answers the same question at the same time.",
+    languageLockedHint: "Language locks once the host starts the battle.",
   },
   battleShared: {
     connectedLabel: "Connected",
@@ -421,6 +424,7 @@ export const en: UIStrings = {
     errorExpiredRoom: "This room no longer exists.",
     reconnectingMessage: "Reconnecting to the battle…",
     hostDisconnectedMessage: "Waiting for the host to reconnect…",
+    translationUnavailableMessage: "Translation unavailable. Showing English.",
   },
   globalLeaderboard: {
     navLabel: "Rankings",

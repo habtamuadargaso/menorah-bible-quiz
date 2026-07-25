@@ -326,6 +326,9 @@ export interface UIStrings {
     roomNotFoundMessage: string;
     joinPageHeading: string;
     joinPageSubheading: string;
+    yourLanguageLabel: string;
+    yourLanguageHint: string;
+    languageLockedHint: string;
   };
   battleShared: {
     connectedLabel: string;
@@ -424,6 +427,7 @@ export interface UIStrings {
     errorExpiredRoom: string;
     reconnectingMessage: string;
     hostDisconnectedMessage: string;
+    translationUnavailableMessage: string;
   };
   globalLeaderboard: {
     navLabel: string;
