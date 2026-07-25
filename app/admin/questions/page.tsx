@@ -23,6 +23,7 @@ const DashboardOverview = dynamic(() => import("@/components/admin/DashboardOver
 const QuestionBank = dynamic(() => import("@/components/admin/QuestionBank"), { loading: () => loadingFallback });
 const TranslationCenter = dynamic(() => import("@/components/admin/TranslationCenter"), { loading: () => loadingFallback });
 const GlobalTranslations = dynamic(() => import("@/components/admin/GlobalTranslations"), { loading: () => loadingFallback });
+const LiveBattleEligibility = dynamic(() => import("@/components/admin/LiveBattleEligibility"), { loading: () => loadingFallback });
 const ValidationCenter = dynamic(() => import("@/components/admin/ValidationCenter"), { loading: () => loadingFallback });
 const ImportExportPanel = dynamic(() => import("@/components/admin/ImportExportPanel"), { loading: () => loadingFallback });
 const DuplicateReview = dynamic(() => import("@/components/admin/DuplicateReview"), { loading: () => loadingFallback });
@@ -36,6 +37,7 @@ type Section =
   | "review-queue"
   | "translation"
   | "global-translations"
+  | "live-battle-eligibility"
   | "validation"
   | "import-export"
   | "duplicates"
@@ -54,6 +56,7 @@ const NAV: Array<{ id: Section; label: string }> = [
   // is the live-table, many-language workflow against
   // public.question_translations — different data, different lifecycle.
   { id: "global-translations", label: "🗣️ Global Translations" },
+  { id: "live-battle-eligibility", label: "🎮 Live Battle Eligibility" },
   { id: "validation", label: "✅ Validation" },
   { id: "import-export", label: "📥 Import / 📤 Export" },
   { id: "duplicates", label: "🔁 Duplicates" },
@@ -291,6 +294,7 @@ export default function AdminQuestionsPage() {
           )}
           {section === "translation" && <TranslationCenter secret={secret} />}
           {section === "global-translations" && <GlobalTranslations secret={secret} reviewer={reviewer || "unknown-admin"} />}
+          {section === "live-battle-eligibility" && <LiveBattleEligibility secret={secret} />}
           {section === "validation" && <ValidationCenter secret={secret} />}
           {section === "import-export" && <ImportExportPanel secret={secret} />}
           {section === "duplicates" && <DuplicateReview secret={secret} />}

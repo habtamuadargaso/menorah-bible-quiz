@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { completeLevelCount, nativeQuestionBank } from "@/lib/questions";
 import { FRIENDS_BATTLE_QUESTION_COUNT } from "@/lib/friendsBattle/types";
+import { MAX_GAME_LEVEL, difficultyForLevel } from "@/lib/levels";
 import { LANGUAGES, type LangCode } from "./locales";
 
 export interface LanguageAvailability {
@@ -77,6 +78,123 @@ export async function computeLanguageAvailability(): Promise<LanguageAvailabilit
       friendsBattleAvailable: nativeQuestionBank(lang.code).length >= FRIENDS_BATTLE_QUESTION_COUNT || publishedCount > 0,
       onlineBattleAvailable,
       publishedCount,
+    };
+  });
+}
+
+export interface LevelEligibilityRow {
+  level: number;
+  difficulty: "Easy" | "Medium" | "Hard";
+  /** Published questions at this level, independent of language (a
+   * question with zero published translations still counts here). */
+  publishedQuestionCount: number;
+  /** Published, exact-language translations at this level whose parent
+   * question is also published — same query seedRoomQuestions() itself
+   * runs (loadQuestionsForLevel), before Mission 14's category/shuffle
+   * layer narrows it further. This is the number that actually bounds how
+   * many unique questions a Live Battle room at this level+language can
+   * ever draw from. */
+  gameplayEligibleCount: number;
+}
+
+export interface TranslationStatusBreakdown {
+  aiDraft: number;
+  needsReview: number;
+  approved: number;
+  published: number;
+  rejected: number;
+  archived: number;
+}
+
+export interface LiveBattleEligibility {
+  code: LangCode;
+  nativeName: string;
+  englishName: string;
+  levels: LevelEligibilityRow[];
+  /** Mission 14 #19: distinguishes draft / pending review / published
+   * translation for this language, independent of level. Per-level status
+   * breakdowns aren't available without a new RPC (get_translation_stats
+   * only groups by language+status, not level) — the per-level table above
+   * already answers the question that actually matters for room creation
+   * (how many questions are truly gameplay-eligible), so that gap is
+   * documented rather than closed with a new migration. */
+  translationStatus: TranslationStatusBreakdown;
+}
+
+/**
+ * Mission 14 Part C — admin-only, exact (not threshold/boolean) eligibility
+ * counts per language × level, plus the translation review pipeline's
+ * status breakdown per language. Backs the "Live Battle Eligibility" admin
+ * tab so publishing new questions/translations can be verified to actually
+ * be gameplay-eligible, not just present somewhere in the review pipeline.
+ */
+export async function computeLiveBattleEligibility(): Promise<LiveBattleEligibility[]> {
+  const supabase = createServiceRoleClient();
+
+  const { data: statsRows, error: statsError } = await supabase.rpc("get_translation_stats");
+  if (statsError) throw new Error(statsError.message);
+
+  const statusByLang = new Map<string, TranslationStatusBreakdown>();
+  for (const row of (statsRows ?? []) as Array<{ language_code: string; status: string; count: number }>) {
+    const entry =
+      statusByLang.get(row.language_code) ??
+      ({ aiDraft: 0, needsReview: 0, approved: 0, published: 0, rejected: 0, archived: 0 } satisfies TranslationStatusBreakdown);
+    const count = Number(row.count);
+    if (row.status === "ai_draft") entry.aiDraft += count;
+    else if (row.status === "needs_review") entry.needsReview += count;
+    else if (row.status === "approved") entry.approved += count;
+    else if (row.status === "published") entry.published += count;
+    else if (row.status === "rejected") entry.rejected += count;
+    else if (row.status === "archived") entry.archived += count;
+    statusByLang.set(row.language_code, entry);
+  }
+
+  // Published-question counts per level, language-independent (a question
+  // with zero translations still counts here — surfaces "content exists
+  // but nobody's translated it yet" as distinct from "no content at all").
+  const { data: questionRows, error: questionError } = await supabase.from("questions").select("level").eq("status", "published");
+  if (questionError) throw new Error(questionError.message);
+  const publishedQuestionsByLevel = new Map<number, number>();
+  for (const row of (questionRows ?? []) as Array<{ level: number }>) {
+    publishedQuestionsByLevel.set(row.level, (publishedQuestionsByLevel.get(row.level) ?? 0) + 1);
+  }
+
+  // Gameplay-eligible counts per language × level — published translation
+  // whose parent question is also published, exactly seedRoomQuestions()'s
+  // own bar (loadQuestionsForLevel), before the per-room category filter.
+  const { data: perLevelRows, error: levelError } = await supabase
+    .from("question_translations")
+    .select("language_code, questions!inner(level, status)")
+    .eq("status", "published")
+    .eq("questions.status", "published");
+  if (levelError) throw new Error(levelError.message);
+
+  const eligibleByLangLevel = new Map<string, Map<number, number>>();
+  for (const row of (perLevelRows ?? []) as unknown as Array<{ language_code: string; questions: { level: number } }>) {
+    const byLevel = eligibleByLangLevel.get(row.language_code) ?? new Map<number, number>();
+    byLevel.set(row.questions.level, (byLevel.get(row.questions.level) ?? 0) + 1);
+    eligibleByLangLevel.set(row.language_code, byLevel);
+  }
+
+  return LANGUAGES.map((lang) => {
+    const eligibleLevels = eligibleByLangLevel.get(lang.code);
+    const levels: LevelEligibilityRow[] = Array.from({ length: MAX_GAME_LEVEL }, (_, i) => {
+      const level = i + 1;
+      return {
+        level,
+        difficulty: difficultyForLevel(level),
+        publishedQuestionCount: publishedQuestionsByLevel.get(level) ?? 0,
+        gameplayEligibleCount: eligibleLevels?.get(level) ?? 0,
+      };
+    });
+
+    return {
+      code: lang.code,
+      nativeName: lang.nativeName,
+      englishName: lang.englishName,
+      levels,
+      translationStatus:
+        statusByLang.get(lang.code) ?? { aiDraft: 0, needsReview: 0, approved: 0, published: 0, rejected: 0, archived: 0 },
     };
   });
 }

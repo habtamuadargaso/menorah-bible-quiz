@@ -282,6 +282,7 @@ export const en: UIStrings = {
     quickMatchTitle: "Quick Match",
     quickMatchDescription: "Get matched with players instantly — coming soon.",
     maxPlayersLabel: "Max Players",
+    levelLabel: "Level",
     categoryLabel: "Category",
     difficultyLabel: "Difficulty",
     roomNameLabel: "Room Name",

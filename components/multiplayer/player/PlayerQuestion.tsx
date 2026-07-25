@@ -12,6 +12,7 @@ export default function PlayerQuestion({
   t,
   question,
   questionCount,
+  level,
   questionEndsAt,
   score,
   streak,
@@ -23,6 +24,7 @@ export default function PlayerQuestion({
   t: UIStrings;
   question: RoomQuestionView;
   questionCount: number;
+  level: number;
   questionEndsAt: string | null;
   score: number;
   streak: number;
@@ -59,10 +61,15 @@ export default function PlayerQuestion({
       style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
     >
       <div className="mx-auto flex max-w-md flex-col gap-5">
-        <header className="flex items-center justify-between">
-          <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-[#c6cbd6]">
-            {question.questionNumber}/{questionCount}
-          </span>
+        <header className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-[#c6cbd6]">
+              {question.questionNumber}/{questionCount}
+            </span>
+            <span className="rounded-full border border-gold-500/30 bg-gold-500/10 px-3 py-1.5 text-xs font-bold text-gold-300">
+              {t.multiplayerLobby.levelLabel} {level}
+            </span>
+          </div>
           <ConnectionStatus
             state={connectionState}
             connectedLabel={tb.connectedLabel}

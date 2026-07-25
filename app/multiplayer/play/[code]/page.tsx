@@ -453,6 +453,8 @@ export default function PlayerRoomPage() {
           onToggleReady={handleToggleReady}
           myLanguageCode={myPlayer?.languageCode ?? "en"}
           onChangeLanguage={handleChangeLanguage}
+          level={room.gameLevel}
+          categoryId={room.categoryId}
         />
       );
       break;
@@ -466,6 +468,7 @@ export default function PlayerRoomPage() {
           t={t}
           question={question}
           questionCount={room.questionCount}
+          level={room.gameLevel}
           questionEndsAt={room.questionEndsAt}
           score={myPlayer?.score ?? 0}
           streak={myPlayer?.currentStreak ?? 0}

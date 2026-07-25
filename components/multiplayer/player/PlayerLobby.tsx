@@ -3,6 +3,8 @@
 import { motion, useReducedMotion } from "framer-motion";
 import type { UIStrings } from "@/lib/i18n/types";
 import { LANGUAGES, type LangCode } from "@/lib/i18n/locales";
+import type { CategoryId } from "@/lib/categories";
+import { difficultyForLevel } from "@/lib/levels";
 import type { RoomPlayerState } from "@/lib/liveBattleRoom";
 import ConnectedPlayerList from "../shared/ConnectedPlayerList";
 import ReadyButton from "../ReadyButton";
@@ -18,6 +20,8 @@ export default function PlayerLobby({
   onToggleReady,
   myLanguageCode,
   onChangeLanguage,
+  level,
+  categoryId,
 }: {
   t: UIStrings;
   roomCode: string;
@@ -29,10 +33,14 @@ export default function PlayerLobby({
   onToggleReady: () => void;
   myLanguageCode: LangCode;
   onChangeLanguage: (languageCode: LangCode) => void;
+  level: number;
+  categoryId: CategoryId;
 }) {
   const reduceMotion = useReducedMotion();
   const tm = t.multiplayerLobby;
   const tp = t.multiplayerPlayer;
+  const categoryLabel = t.categories[categoryId]?.title ?? categoryId;
+  const difficultyLabel = t.quiz.difficulty[difficultyForLevel(level)];
 
   return (
     <main
@@ -52,6 +60,21 @@ export default function PlayerLobby({
           </div>
           <p className="mt-3 text-sm text-[#c6cbd6]">{tp.joinedAsLabel.replace("{name}", playerName)}</p>
         </motion.header>
+
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-center">
+            <div className="text-[10px] uppercase tracking-wide text-[#9aa1b0]">{tm.levelLabel}</div>
+            <div className="mt-0.5 font-display text-sm font-bold text-gold-300">{level}</div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-center">
+            <div className="text-[10px] uppercase tracking-wide text-[#9aa1b0]">{tm.categoryLabel}</div>
+            <div className="mt-0.5 truncate font-display text-sm font-bold text-gold-300">{categoryLabel}</div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-center">
+            <div className="text-[10px] uppercase tracking-wide text-[#9aa1b0]">{tm.difficultyLabel}</div>
+            <div className="mt-0.5 font-display text-sm font-bold text-gold-300">{difficultyLabel}</div>
+          </div>
+        </div>
 
         <div className="rounded-card border border-white/10 bg-white/[0.04] p-5 text-center shadow-premium">
           <p className="text-sm text-[#a7aebd]">{tm.waitingForHost}</p>

@@ -12,7 +12,9 @@
 import { createClient } from "@/lib/supabase/client";
 import type { LangCode } from "@/lib/i18n/locales";
 import type { CategoryId } from "@/lib/categories";
+import { difficultyForLevel } from "@/lib/levels";
 import { loadQuestionsForLevel } from "@/lib/questions/loadQuestions";
+import { selectRoomQuestionIds } from "@/lib/questions/selectRoomQuestions";
 
 export type RoomPhase = "waiting" | "countdown" | "question" | "reveal" | "leaderboard" | "finished";
 
@@ -578,6 +580,31 @@ export function startHeartbeat(roomId: string, playerId: string): () => void {
   return () => window.clearInterval(id);
 }
 
+/** The host's own most recently COMPLETED room (any level/category),
+ * excluding the brand-new room currently being seeded. Its question ids
+ * are used by seedRoomQuestions() as a best-effort "don't immediately
+ * repeat" exclusion (Mission 14 #15) — harmless no-op overlap with a
+ * different level's pool, since a question only ever belongs to one level. */
+async function fetchRecentlyUsedQuestionIds(
+  supabase: ReturnType<typeof createClient>,
+  hostId: string,
+  excludeRoomId: string
+): Promise<Set<string>> {
+  const { data: recentRoom } = await supabase
+    .from("rooms")
+    .select("id")
+    .eq("host_id", hostId)
+    .eq("status", "finished")
+    .neq("id", excludeRoomId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!recentRoom) return new Set();
+
+  const { data: recentQuestions } = await supabase.from("room_questions").select("question_id").eq("room_id", recentRoom.id);
+  return new Set((recentQuestions ?? []).map((r) => r.question_id as string));
+}
+
 /** Chooses the room's 10 (or configured) question ids and inserts
  * room_questions. Online Church Mode only ever uses question IDs verified
  * to exist (and be published) in Supabase — unlike solo play, it never
@@ -588,20 +615,57 @@ export function startHeartbeat(roomId: string, playerId: string): () => void {
  * battle must not be created — the caller (the create-room flow) surfaces
  * this as an error instead of a broken room. Must run before
  * start_battle() (which independently re-verifies every row it inserted
- * still joins to a real, published question). */
+ * still joins to a real, published question).
+ *
+ * Mission 14 root cause this fixes: the old version fetched the full
+ * eligible pool (loadQuestionsForLevel already applies no DB LIMIT) but
+ * then did `dbQuestions.slice(0, questionCount)` — Postgres returns rows
+ * with no ORDER BY in a stable-but-unspecified (effectively physical/
+ * insertion) order, so every room for the same level+language got the
+ * exact same first N questions every time, and newly published questions
+ * inserted later never surfaced unless they happened to sort earlier. This
+ * always sampled the FULL published-and-language-matched pool via
+ * loadQuestionsForLevel (never DB-side LIMIT'd), then shuffles that whole
+ * pool (lib/shuffle.ts's Fisher-Yates, the same helper solo play's
+ * loadQuestionsForGame.ts already uses) before taking the first N —
+ * genuine randomization over the true eligible set, not a reshuffle of an
+ * already-small slice. Each new room also gets fresh room_questions rows
+ * tied to its own brand-new room id, so a previous/abandoned room's rows
+ * are never reused (room_questions is always empty for a room id that was
+ * just created; the delete below is defensive/idempotent only). */
 export async function seedRoomQuestions(room: RoomState): Promise<void> {
   const supabase = createClient();
-  const dbQuestions = await loadQuestionsForLevel(room.gameLevel, room.language);
-  const ids = dbQuestions.slice(0, room.questionCount).map((q) => q.id);
+  const levelLanguagePool = await loadQuestionsForLevel(room.gameLevel, room.language);
+  const recentlyUsedIds = await fetchRecentlyUsedQuestionIds(supabase, room.hostId, room.id);
 
-  if (ids.length < room.questionCount) {
-    throw new Error(
-      `This level only has ${ids.length} online question(s) available — Online Church Mode needs at least ${room.questionCount}. Add more questions in Supabase or choose a different level.`
-    );
+  const result = selectRoomQuestionIds({
+    levelLanguagePool,
+    categoryId: room.categoryId,
+    questionCount: room.questionCount,
+    recentlyUsedIds,
+  });
+
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[seedRoomQuestions]", {
+      roomId: room.id,
+      level: room.gameLevel,
+      difficulty: difficultyForLevel(room.gameLevel),
+      language: room.language,
+      categoryId: room.categoryId,
+      eligibleCount: result.eligibleCount,
+      categoryEligibleCount: result.categoryEligibleCount,
+      usedCategoryFallback: result.usedCategoryFallback,
+      usedRecentExclusion: result.usedRecentExclusion,
+      selectedQuestionIds: result.selectedQuestionIds,
+    });
   }
 
   await supabase.from("room_questions").delete().eq("room_id", room.id);
-  const rows = ids.map((questionId, index) => ({ room_id: room.id, question_number: index + 1, question_id: questionId }));
+  const rows = result.selectedQuestionIds.map((questionId, index) => ({
+    room_id: room.id,
+    question_number: index + 1,
+    question_id: questionId,
+  }));
   const { error } = await supabase.from("room_questions").insert(rows);
   if (error) throw error;
 }

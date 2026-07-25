@@ -285,6 +285,7 @@ export interface UIStrings {
     quickMatchTitle: string;
     quickMatchDescription: string;
     maxPlayersLabel: string;
+    levelLabel: string;
     categoryLabel: string;
     difficultyLabel: string;
     roomNameLabel: string;

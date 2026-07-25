@@ -7,19 +7,20 @@ import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { LANGUAGES, type LangCode } from "@/lib/i18n/locales";
 import { CATEGORIES, type CategoryId } from "@/lib/categories";
+import { MAX_GAME_LEVEL, difficultyForLevel } from "@/lib/levels";
 import HomeOptionCard from "@/components/multiplayer/HomeOptionCard";
 import { createBattleRoom, fetchRoomById, getSavedPlayerName, seedRoomQuestions } from "@/lib/liveBattleRoom";
 import { OfflineBanner } from "@/components/ui/OfflineBanner";
 import { useOnlineStatus } from "@/lib/useOnlineStatus";
 
-// A difficulty picker maps to a representative campaign level — the rooms
-// table only stores game_level (unchanged schema), so "Difficulty" here is
-// just a friendlier label over that same existing column.
-const DIFFICULTY_LEVELS: Array<{ id: "Easy" | "Medium" | "Hard"; level: number }> = [
-  { id: "Easy", level: 1 },
-  { id: "Medium", level: 4 },
-  { id: "Hard", level: 8 },
-];
+// Mission 14: the host previously only picked from 3 fixed "Difficulty"
+// buckets (Easy=1, Medium=4, Hard=8) — 7 of the 10 real levels (2, 3, 5, 6,
+// 7, 9, 10) were never reachable through Live Battle at all. Level is the
+// actual filter seedRoomQuestions()/loadQuestionsForLevel() use — difficulty
+// is only ever a derived label (see lib/levels.ts's difficultyForLevel) —
+// so the host now picks a real Level 1-10 directly, with its difficulty
+// shown alongside as information, not as the control.
+const LEVEL_OPTIONS = Array.from({ length: MAX_GAME_LEVEL }, (_, i) => i + 1);
 
 const MAX_PLAYER_OPTIONS = [2, 4, 6, 8, 12];
 
@@ -44,7 +45,7 @@ export default function MultiplayerPage() {
 
   const [playerName, setPlayerName] = useState("");
   const [categoryId, setCategoryId] = useState<CategoryId>("old-testament");
-  const [difficulty, setDifficulty] = useState<"Easy" | "Medium" | "Hard">("Easy");
+  const [level, setLevel] = useState(1);
   const [maxPlayers, setMaxPlayers] = useState(8);
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -92,11 +93,10 @@ export default function MultiplayerPage() {
     setStatus(tm.creatingRoom);
 
     try {
-      const selectedLevel = DIFFICULTY_LEVELS.find((d) => d.id === difficulty)?.level ?? 1;
       const { code, roomId } = await createBattleRoom({
         hostName: cleanName,
         categoryId,
-        level: selectedLevel,
+        level,
         language: lang,
         maxPlayers,
       });
@@ -210,41 +210,39 @@ export default function MultiplayerPage() {
                     ))}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="create-difficulty" className="mb-1 block text-[11px] font-semibold text-[#c6cbd6]">
-                      {tm.difficultyLabel}
-                    </label>
-                    <select
-                      id="create-difficulty"
-                      value={difficulty}
-                      onChange={(event) => setDifficulty(event.target.value as "Easy" | "Medium" | "Hard")}
-                      className={selectClass}
-                    >
-                      {DIFFICULTY_LEVELS.map((d) => (
-                        <option key={d.id} value={d.id} className="bg-navy-900">
-                          {t.quiz.difficulty[d.id]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="create-max-players" className="mb-1 block text-[11px] font-semibold text-[#c6cbd6]">
-                      {tm.maxPlayersLabel}
-                    </label>
-                    <select
-                      id="create-max-players"
-                      value={maxPlayers}
-                      onChange={(event) => setMaxPlayers(Number(event.target.value))}
-                      className={selectClass}
-                    >
-                      {MAX_PLAYER_OPTIONS.map((n) => (
-                        <option key={n} value={n} className="bg-navy-900">
-                          {n}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <label htmlFor="create-level" className="mb-1 block text-[11px] font-semibold text-[#c6cbd6]">
+                    {tm.levelLabel}
+                  </label>
+                  <select
+                    id="create-level"
+                    value={level}
+                    onChange={(event) => setLevel(Number(event.target.value))}
+                    className={selectClass}
+                  >
+                    {LEVEL_OPTIONS.map((n) => (
+                      <option key={n} value={n} className="bg-navy-900">
+                        {tm.levelLabel} {n} — {t.quiz.difficulty[difficultyForLevel(n)]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="create-max-players" className="mb-1 block text-[11px] font-semibold text-[#c6cbd6]">
+                    {tm.maxPlayersLabel}
+                  </label>
+                  <select
+                    id="create-max-players"
+                    value={maxPlayers}
+                    onChange={(event) => setMaxPlayers(Number(event.target.value))}
+                    className={selectClass}
+                  >
+                    {MAX_PLAYER_OPTIONS.map((n) => (
+                      <option key={n} value={n} className="bg-navy-900">
+                        {n}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

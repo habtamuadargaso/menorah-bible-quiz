@@ -285,6 +285,7 @@ export const am: UIStrings = {
     quickMatchTitle: "ፈጣን ግጥሚያ",
     quickMatchDescription: "ወዲያውኑ ከተጫዋቾች ጋር ይገጠማሉ — በቅርቡ ይመጣል።",
     maxPlayersLabel: "ከፍተኛ ተጫዋቾች",
+    levelLabel: "ደረጃ",
     categoryLabel: "ምድብ",
     difficultyLabel: "የከበደት ደረጃ",
     roomNameLabel: "የክፍል ስም",

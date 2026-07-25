@@ -178,7 +178,8 @@ export default function HostLobby({
 
             <div>
               <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-gold-400 2xl:text-sm">{th.gameInformationHeading}</h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                <InfoTile label={tm.levelLabel} value={String(level)} />
                 <InfoTile label={tm.languageLabel} value={languageLabel} />
                 <InfoTile label={tm.categoryLabel} value={categoryLabel} />
                 <InfoTile label={tm.difficultyLabel} value={difficultyLabel} />
