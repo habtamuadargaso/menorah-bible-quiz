@@ -32,6 +32,7 @@ import PlayerQuestion from "@/components/multiplayer/player/PlayerQuestion";
 import PlayerRoundResult from "@/components/multiplayer/player/PlayerRoundResult";
 import PlayerFinalResult from "@/components/multiplayer/player/PlayerFinalResult";
 import HostLeaderboard from "@/components/multiplayer/host/HostLeaderboard";
+import MobileBottomNav from "@/components/mobile/MobileBottomNav";
 
 export default function PlayerRoomPage() {
   const params = useParams<{ code: string }>();
@@ -522,6 +523,7 @@ export default function PlayerRoomPage() {
       <AnimatePresence mode="wait">
         <div key={room.status}>{content}</div>
       </AnimatePresence>
+      {room.status === "waiting" && <MobileBottomNav />}
     </>
   );
 }

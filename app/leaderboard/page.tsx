@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import LeaderboardPage from "@/components/leaderboard/LeaderboardPage";
+import MobileBottomNav from "@/components/mobile/MobileBottomNav";
 
 export default function GlobalLeaderboardRoute() {
   const { t } = useLanguage();
   return (
     <main
-      className="min-h-screen w-full"
+      className="min-h-screen w-full pb-20 md:pb-0"
       style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
     >
       <div className="mx-auto max-w-6xl px-5 pt-5">
@@ -21,6 +22,7 @@ export default function GlobalLeaderboardRoute() {
         </Link>
       </div>
       <LeaderboardPage />
+      <MobileBottomNav />
     </main>
   );
 }

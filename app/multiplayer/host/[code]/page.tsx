@@ -35,6 +35,7 @@ import HostBattleScreen from "@/components/multiplayer/host/HostBattleScreen";
 import HostRoundReveal from "@/components/multiplayer/host/HostRoundReveal";
 import HostLeaderboard from "@/components/multiplayer/host/HostLeaderboard";
 import HostFinalResults from "@/components/multiplayer/host/HostFinalResults";
+import MobileBottomNav from "@/components/mobile/MobileBottomNav";
 
 const ANSWER_COUNT_POLL_MS = 1500;
 
@@ -530,6 +531,7 @@ export default function HostRoomPage() {
       <AnimatePresence mode="wait">
         <div key={room.status}>{content}</div>
       </AnimatePresence>
+      {room.status === "waiting" && <MobileBottomNav />}
     </>
   );
 }

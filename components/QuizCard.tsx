@@ -10,6 +10,7 @@ import { MAX_GAME_LEVEL } from "@/lib/levels";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { playCorrectSound, playFinishSound, playTimeoutSound, playWrongSound, startGameMusic, stopGameMusic } from "@/lib/sound";
 import { hapticError, hapticSuccess } from "@/lib/mobile/haptics";
+import MobileGameHeader from "@/components/mobile/MobileGameHeader";
 
 const MAX_LIVES = 3;
 const QUESTION_LOAD_TIMEOUT_MS = 15000;
@@ -613,9 +614,19 @@ export default function QuizCard({
         </div>
       )}
 
+      <MobileGameHeader
+        onExit={onExit}
+        exitLabel={t.quiz.quit}
+        levelLabel={`${t.common.level} ${level}`}
+        questionIndex={index + 1}
+        questionCount={questions.length}
+        score={score}
+        scoreLabel={t.result.score}
+      />
+
       {/* premium header */}
       <div className="mb-5 rounded-[22px] border border-white/10 bg-white/[0.04] p-4 shadow-premium-lg backdrop-blur-md sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
           <button
             onClick={onExit}
             className="flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold text-[#c6cbd6] outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"

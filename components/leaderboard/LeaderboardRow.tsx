@@ -104,7 +104,7 @@ export const LeaderboardMobileCard = memo(function LeaderboardMobileCard(props: 
       }`}
     >
       <span className={`w-8 flex-shrink-0 text-center text-sm font-bold ${rankTone(row.rank)}`}>#{row.rank}</span>
-      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-purple-400/40 bg-purple-500/15 text-xs font-bold text-purple-200">
+      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-gold-500/40 bg-gold-500/15 text-xs font-bold text-gold-300">
         {row.displayName.charAt(0).toUpperCase()}
       </span>
       <span className="min-w-0 flex-1">

@@ -1,0 +1,125 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { MoreVertical, Settings } from "lucide-react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { loadProgress, levelForXp } from "@/lib/progress";
+import LanguageSelector from "@/components/LanguageSelector";
+import SoundToggle from "@/components/SoundToggle";
+
+// Mission 15 — simplified mobile top header: logo, level pill, a compact
+// "more" sheet holding language + sound (kept off the always-visible row so
+// the bar stays uncluttered at phone widths), settings, and profile access.
+// Desktop keeps components/Header.tsx's full nav untouched.
+export default function MobileTopBar({
+  title,
+  onHome,
+}: {
+  title?: string;
+  onHome?: () => void;
+}) {
+  const { t } = useLanguage();
+  const { user, isGuest } = useAuth();
+  const displayName = user?.displayName ?? t.common.guest;
+  const [level, setLevel] = useState(1);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setLevel(levelForXp(loadProgress().totalXp).level);
+  }, []);
+
+  const logo = (
+    <span className="flex items-center gap-2">
+      <svg viewBox="0 0 24 24" className="h-6 w-6 flex-shrink-0">
+        <path
+          d="M12 2v9M12 11c-2.5 0-4-1.6-4-4M12 11c2.5 0 4-1.6 4-4M12 11c-4 0-7 1.4-7 5v5h14v-5c0-3.6-3-5-7-5Z"
+          stroke="#e8c15f"
+          strokeWidth={1.3}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+        <circle cx="8" cy="6.4" r="1" fill="#e8c15f" />
+        <circle cx="12" cy="4.6" r="1" fill="#e8c15f" />
+        <circle cx="16" cy="6.4" r="1" fill="#e8c15f" />
+      </svg>
+      <span className="truncate font-display text-base font-semibold text-[#f7f0dc]">
+        {title ?? (
+          <>
+            Menorah <span className="text-gold-500">Bible Quiz</span>
+          </>
+        )}
+      </span>
+    </span>
+  );
+
+  return (
+    <div className="relative z-20 flex items-center justify-between gap-2 border-b border-gold-500/15 bg-navy-950/70 px-4 py-3 backdrop-blur-sm md:hidden">
+      {onHome ? (
+        <button
+          onClick={onHome}
+          className="flex min-h-[44px] items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+        >
+          {logo}
+        </button>
+      ) : (
+        <Link
+          href="/"
+          className="flex min-h-[44px] items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+        >
+          {logo}
+        </Link>
+      )}
+
+      <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex items-center gap-1 rounded-full border border-gold-500/25 px-2.5 py-1 text-xs font-semibold text-gold-400">
+          <span>{t.common.level}</span>
+          <span className="text-gold-300">{level}</span>
+        </div>
+
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label={t.settings.title}
+            aria-expanded={menuOpen}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
+            <MoreVertical className="h-4 w-4" aria-hidden />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-11 z-30 flex w-52 flex-col gap-3 rounded-card-sm border border-gold-500/25 bg-navy-900/95 p-4 shadow-premium-lg backdrop-blur-md">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-[#c6cbd6]">{t.settings.soundLabel}</span>
+                <SoundToggle />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-[#c6cbd6]">{t.settings.languageLabel}</span>
+                <LanguageSelector />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <Link
+          href="/settings"
+          aria-label={t.settings.navLabel}
+          title={t.settings.navLabel}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+        >
+          <Settings className="h-4 w-4" aria-hidden />
+        </Link>
+
+        <Link
+          href="/profile"
+          aria-label={t.profile.title}
+          title={isGuest ? t.common.guest : displayName}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-500/15 font-display text-sm font-bold text-gold-400 outline-none transition-colors hover:bg-gold-500/25 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+        >
+          {displayName.charAt(0)}
+        </Link>
+      </div>
+    </div>
+  );
+}

@@ -12,6 +12,7 @@ import HomeOptionCard from "@/components/multiplayer/HomeOptionCard";
 import { createBattleRoom, fetchRoomById, getSavedPlayerName, seedRoomQuestions } from "@/lib/liveBattleRoom";
 import { OfflineBanner } from "@/components/ui/OfflineBanner";
 import { useOnlineStatus } from "@/lib/useOnlineStatus";
+import MobileBottomNav from "@/components/mobile/MobileBottomNav";
 
 // Mission 14: the host previously only picked from 3 fixed "Difficulty"
 // buckets (Easy=1, Medium=4, Hard=8) — 7 of the 10 real levels (2, 3, 5, 6,
@@ -120,7 +121,7 @@ export default function MultiplayerPage() {
 
   return (
     <main
-      className="min-h-screen w-full px-4 py-12 text-[#f3efe2] sm:px-8"
+      className="min-h-screen w-full px-4 py-12 pb-24 text-[#f3efe2] sm:px-8 md:pb-12"
       style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
     >
       <div className="mx-auto max-w-5xl">
@@ -302,6 +303,7 @@ export default function MultiplayerPage() {
           </button>
         </div>
       </div>
+      <MobileBottomNav />
     </main>
   );
 }

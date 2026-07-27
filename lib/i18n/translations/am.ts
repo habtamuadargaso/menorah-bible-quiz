@@ -10,6 +10,8 @@ export const am: UIStrings = {
     home: "መነሻ",
     categories: "ምድቦች",
     leaderboard: "ደረጃ ሰንጠረዥ",
+    learn: "ትምህርት",
+    battle: "ውድድር",
   },
   hero: {
     eyebrow: "ልዩ የመጽሐፍ ቅዱስ ጥያቄ",

@@ -7,6 +7,8 @@ export const en: UIStrings = {
     home: "Home",
     categories: "Categories",
     leaderboard: "Leaderboard",
+    learn: "Learn",
+    battle: "Battle",
   },
   hero: {
     eyebrow: "Premium Bible Trivia",

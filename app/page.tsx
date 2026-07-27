@@ -1,13 +1,14 @@
 "use client";
 
 import {
+  Suspense,
   useEffect,
   useRef,
   useState,
   type RefObject,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import Hero from "@/components/Hero";
 import Header from "@/components/Header";
@@ -30,16 +31,24 @@ import Footer from "@/components/Footer";
 import Confetti from "@/components/Confetti";
 import CampaignMap from "@/components/CampaignMap";
 import LanguageModal from "@/components/LanguageModal";
+import MobileAppShell from "@/components/mobile/MobileAppShell";
+import MobileBottomNav from "@/components/mobile/MobileBottomNav";
+import MobileSection from "@/components/mobile/MobileSection";
+import MobileActionCard from "@/components/mobile/MobileActionCard";
+import MobileStatCard from "@/components/mobile/MobileStatCard";
+import { Play, Calendar, Church, Swords, Users } from "lucide-react";
 
 import {
   loadLeaderboard,
   type ScoreEntry,
 } from "@/lib/leaderboard";
-import type { CategoryId } from "@/lib/categories";
+import { CATEGORIES, type CategoryId } from "@/lib/categories";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import {
   addQuizRewards,
+  loadProgress,
   levelForXp,
+  type Progress,
 } from "@/lib/progress";
 import {
   checkAchievements,
@@ -55,7 +64,7 @@ import {
   unlockNextCampaignLevel,
   type CampaignProgress,
 } from "@/lib/campaign";
-import { recordCompletedQuiz } from "@/lib/profileStats";
+import { recordCompletedQuiz, loadProfileStats, type ProfileStats } from "@/lib/profileStats";
 
 type Stage =
   | "categories"
@@ -65,8 +74,21 @@ type Stage =
   | "profile";
 
 export default function Home() {
-  const { lang } = useLanguage();
+  return (
+    <Suspense fallback={null}>
+      <HomeInner />
+    </Suspense>
+  );
+}
+
+// Mission 15 — split out so useSearchParams() (needed for the /learn
+// category hand-off above) doesn't force the whole "/" route out of static
+// prerendering; only this inner component opts into the suspense boundary.
+function HomeInner() {
+  const { lang, t } = useLanguage();
+  const isAmharic = lang === "am";
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [stage, setStage] =
     useState<Stage>("categories");
@@ -86,16 +108,26 @@ export default function Home() {
   const [campaignProgress, setCampaignProgress] =
     useState<CampaignProgress>({});
   const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [mobileProgress, setMobileProgress] = useState<Progress>({ totalXp: 0, coins: 0, quizzesCompleted: 0 });
+  const [mobileStats, setMobileStats] = useState<ProfileStats | null>(null);
 
   const gameRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<HTMLDivElement>(null);
   const challengesRef = useRef<HTMLDivElement>(null);
   const bibleRef = useRef<HTMLDivElement>(null);
   const churchRef = useRef<HTMLDivElement>(null);
+  // Mobile dashboard reuses ChallengesStrip/ChurchModeSection lower on the
+  // same md:hidden branch, so its "scroll to section" cards need their own
+  // refs rather than the desktop-only ones above (which sit inside a
+  // display:none branch on phone widths).
+  const mobileChallengesRef = useRef<HTMLDivElement>(null);
+  const mobileChurchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setEntries(loadLeaderboard());
     setCampaignProgress(loadCampaignProgress());
+    setMobileProgress(loadProgress());
+    setMobileStats(loadProfileStats());
   }, [stage]);
 
   function scrollTo(ref: RefObject<HTMLDivElement>) {
@@ -144,6 +176,19 @@ export default function Home() {
     setStage("quiz");
     scrollTo(gameRef);
   }
+
+  // Mission 15 — the mobile /learn route can't launch the quiz directly
+  // (categoryId/gameLevel/stage live only here), so it hands off a
+  // ?category= param instead. Consume it once on mount, then strip it from
+  // the URL so it doesn't re-trigger on back/forward navigation.
+  useEffect(() => {
+    const categoryParam = searchParams.get("category");
+    if (categoryParam && CATEGORIES.some((c) => c.id === categoryParam)) {
+      handleSelectCategory(categoryParam as CategoryId);
+      router.replace("/");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   function handleFinish(res: QuizResult) {
     const progressUpdate = addQuizRewards(
@@ -274,6 +319,7 @@ export default function Home() {
         stage={stage}
       />
 
+      <div className="hidden md:block">
       <Hero
         onStart={handleStart}
         onLeaderboard={handleLeaderboard}
@@ -412,6 +458,122 @@ export default function Home() {
         )}
 
       </AnimatePresence>
+      </div>
+
+      <div className="md:hidden">
+        {stage === "categories" && (
+          <MobileAppShell>
+            <MobileSection title={isAmharic ? "ተጫወት" : "Play"}>
+              <MobileActionCard
+                icon={<Play className="h-5 w-5" aria-hidden />}
+                title={isAmharic ? "ብቻዬን ተጫወት" : "Solo Quiz"}
+                subtitle={isAmharic ? "10 ደረጃዎችን ያልፉ" : "Play alone through 10 levels"}
+                href="/learn"
+              />
+              <MobileActionCard
+                icon={<Calendar className="h-5 w-5" aria-hidden />}
+                title={isAmharic ? "የዕለቱ ፈተና" : "Daily Challenge"}
+                subtitle={isAmharic ? "ዕለታዊ ሽልማት ይሰብስቡ" : "Claim today's reward"}
+                onClick={() => scrollTo(mobileChallengesRef)}
+              />
+              <MobileActionCard
+                icon={<Church className="h-5 w-5" aria-hidden />}
+                title={isAmharic ? "የቤተ ክርስቲያን ሁነታ" : "Church Mode"}
+                subtitle={isAmharic ? "ለቡድን ውድድር" : "Host a group competition"}
+                onClick={() => scrollTo(mobileChurchRef)}
+              />
+            </MobileSection>
+
+            <MobileSection title={isAmharic ? "ተወዳደር" : "Compete"}>
+              <MobileActionCard
+                icon={<Swords className="h-5 w-5" aria-hidden />}
+                title={isAmharic ? "የቀጥታ ውድድር" : "Live Battle"}
+                subtitle={isAmharic ? "በክፍል ኮድ ተቀላቀሉ" : "Create or join a room"}
+                onClick={handleBattleSetup}
+                theme="navy-outline"
+              />
+              <MobileActionCard
+                icon={<Users className="h-5 w-5" aria-hidden />}
+                title={isAmharic ? "የጓደኞች ውድድር" : "Friends Battle"}
+                subtitle={isAmharic ? "በአንድ መሳሪያ ይጫወቱ" : "Pass-and-play on one device"}
+                href="/friends-battle"
+                theme="navy-outline"
+              />
+            </MobileSection>
+
+            <MobileSection title={isAmharic ? "እድገትዎ" : "Your Progress"}>
+              <div className="flex gap-2.5">
+                <MobileStatCard icon="⭐" value={levelForXp(mobileProgress.totalXp).level} label={t.common.level} />
+                <MobileStatCard icon="🪙" value={mobileProgress.coins} label={t.profile.totalCoins} />
+                <MobileStatCard icon="🔥" value={mobileStats?.currentDayStreak ?? 0} label={t.profile.currentStreak} />
+              </div>
+            </MobileSection>
+
+            <MobileSection title={t.nav.leaderboard} action={{ label: isAmharic ? "ሁሉንም ይመልከቱ" : "See all", onClick: () => router.push("/leaderboard") }}>
+              <LeaderboardPreview entries={entries} onViewAll={() => router.push("/leaderboard")} />
+            </MobileSection>
+
+            <div ref={mobileChallengesRef}>
+              <ChallengesStrip />
+            </div>
+
+            <div ref={mobileChurchRef}>
+              <ChurchModeSection />
+            </div>
+          </MobileAppShell>
+        )}
+
+        {stage === "quiz" && categoryId && (
+          <>
+            <CampaignMap
+              categoryId={categoryId}
+              activeLevel={gameLevel}
+              progress={campaignProgress}
+              onSelectLevel={handleSelectCampaignLevel}
+            />
+            <QuizCard
+              key={`${lang}-${categoryId}-${gameLevel}-mobile`}
+              categoryId={categoryId}
+              difficulty={difficultyForLevel(gameLevel)}
+              level={gameLevel}
+              onFinish={handleFinish}
+              onExit={() => setStage("categories")}
+            />
+          </>
+        )}
+
+        {stage === "result" && result && (
+          <ResultCard
+            result={result}
+            newBadges={newBadges}
+            onRestart={handleRestart}
+            onNextLevel={handleNextLevel}
+            canNextLevel={hasPassedLevel(result.correct, result.total) && gameLevel < MAX_GAME_LEVEL}
+            onCategories={() => setStage("categories")}
+            onLeaderboard={handleLeaderboard}
+          />
+        )}
+
+        {stage === "leaderboard" && (
+          <>
+            <Leaderboard entries={entries} />
+            <MobileBottomNav />
+          </>
+        )}
+
+        {stage === "profile" && (
+          <>
+            <ProfilePage
+              onCategories={() => {
+                setStage("categories");
+                scrollTo(gameRef);
+              }}
+              onLeaderboard={handleLeaderboard}
+            />
+            <MobileBottomNav />
+          </>
+        )}
+      </div>
 
       <LanguageModal
         open={showLanguageModal}

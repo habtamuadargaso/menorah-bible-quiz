@@ -29,6 +29,8 @@ export interface UIStrings {
     home: string;
     categories: string;
     leaderboard: string;
+    learn: string;
+    battle: string;
   };
   hero: {
     eyebrow: string;
