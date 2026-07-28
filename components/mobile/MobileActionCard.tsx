@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+import { ChevronRight } from "lucide-react";
 import { hapticLight } from "@/lib/mobile/haptics";
 
 type Theme = "gold" | "navy-outline";
@@ -39,12 +41,20 @@ function CardContent({
   accent?: ActionAccent;
 }) {
   const accentClasses = accent ? ACCENT_CLASSES[accent] : null;
+  const reduceMotion = useReducedMotion();
   return (
-    <div
-      className={`flex min-h-[64px] w-full items-center gap-3 rounded-card-sm border px-4 py-3.5 text-left backdrop-blur-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${
+    <motion.div
+      whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+      transition={{ duration: 0.15 }}
+      className={`relative flex min-h-[64px] w-full items-center gap-3 overflow-hidden rounded-card-sm border px-4 py-3.5 text-left backdrop-blur-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${
         accentClasses ? `bg-white/[0.04] shadow-premium ${accentClasses.border}` : THEME_CLASSES[theme]
       }`}
     >
+      {/* Mission 18 — subtle inner highlight, a 1px sheen along the top edge
+          rather than a full glow, so every card reads as premium without
+          every card glowing (section 8's "not every card glows" rule). */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+
       <span
         className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full ${
           accentClasses ? accentClasses.icon : "bg-navy-900/60 text-gold-400"
@@ -56,7 +66,8 @@ function CardContent({
         <span className="block truncate font-display text-[15px] font-semibold text-[#f7f0dc]">{title}</span>
         {subtitle && <span className="mt-0.5 block truncate text-xs text-[#9aa1b0]">{subtitle}</span>}
       </span>
-    </div>
+      <ChevronRight className="h-4 w-4 flex-shrink-0 text-[#6b7280]" aria-hidden />
+    </motion.div>
   );
 }
 

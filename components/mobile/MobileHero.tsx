@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
+import heroArtwork from "@/public/images/menorah-hero.webp";
 
 // Mission 15.5 — premium mobile dashboard hero. Replaces the plain "Play"
 // section header with a greeting + brand moment + at-a-glance progress,
@@ -18,27 +20,14 @@ function greeting(isAmharic: boolean) {
   return "Good Evening";
 }
 
-function MenorahGlyph() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-full w-full">
-      <path
-        d="M12 2v9M12 11c-2.5 0-4-1.6-4-4M12 11c2.5 0 4-1.6 4-4M9 5c-1.6 0-3 .8-3 2.5M15 5c1.6 0 3 .8 3 2.5M12 11c-4 0-7 1.4-7 5v5h14v-5c0-3.6-3-5-7-5Z"
-        stroke="#e8c15f"
-        strokeWidth={0.9}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <circle cx="12" cy="2" r="1" fill="#f5d998" />
-    </svg>
-  );
-}
-
+// Mission 18 — floating gold particles scattered across the hero
+// illustration's corner, not the whole card, so they read as "sparkle
+// coming off the Menorah" rather than a generic starfield.
 const STAR_DOTS = [
-  { top: "14%", left: "12%", delay: 0 },
-  { top: "62%", left: "6%", delay: 1.1 },
-  { top: "22%", left: "38%", delay: 0.5 },
-  { top: "78%", left: "46%", delay: 1.6 },
+  { top: "12%", left: "68%", delay: 0 },
+  { top: "58%", left: "78%", delay: 1.1 },
+  { top: "22%", left: "88%", delay: 0.5 },
+  { top: "70%", left: "60%", delay: 1.6 },
 ];
 
 export default function MobileHero({
@@ -71,15 +60,31 @@ export default function MobileHero({
       transition={{ duration: 0.4 }}
       className="relative mx-4 mt-3 overflow-hidden rounded-card border border-gold-500/30 bg-gradient-to-br from-gold-500/20 via-navy-900/50 to-purple-500/15 px-5 py-5 shadow-premium"
     >
+      {/* Mission 18 — premium hero illustration: the same glowing Menorah
+          over an open Bible used on desktop (public/images/menorah-hero.webp),
+          cropped to its top-center (the Menorah + light rays, not the full
+          book) and confined to the upper-right corner behind a radial fade
+          so it reads as ambient art, not a rectangle sitting on top of the
+          greeting/title/buttons below it. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 text-gold-400 opacity-[0.16]"
+        className="pointer-events-none absolute -right-6 -top-6 h-36 w-36 opacity-[0.55]"
+        style={{
+          maskImage: "radial-gradient(circle at 65% 35%, black 35%, transparent 72%)",
+          WebkitMaskImage: "radial-gradient(circle at 65% 35%, black 35%, transparent 72%)",
+        }}
       >
-        <MenorahGlyph />
+        <Image
+          src={heroArtwork}
+          alt=""
+          fill
+          sizes="144px"
+          className="object-cover object-top"
+        />
       </div>
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-gold-500/25 blur-3xl"
+        className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-gold-500/30 blur-3xl"
         animate={reduceMotion ? undefined : { opacity: [0.5, 0.9, 0.5] }}
         transition={reduceMotion ? undefined : { duration: 5, repeat: Infinity, ease: "easeInOut" }}
       />

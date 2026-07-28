@@ -106,7 +106,7 @@ export default function MobileGameHeader({
       {typeof progressPct === "number" && (
         <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-purple-400 to-gold-400 transition-[width] duration-300 ease-out"
+            className="h-full rounded-full bg-gradient-to-r from-gold-300 to-gold-600 transition-[width] duration-300 ease-out"
             style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
           />
         </div>

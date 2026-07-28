@@ -9,6 +9,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Mission 18 — `navy` already covers this depth system, these are
+        // named aliases onto the same values so components can reach for
+        // `bg-background`/`bg-surface`/`bg-elevated` by role (matching the
+        // approved concept's "background / surface / elevated surface"
+        // language) instead of remembering which navy shade means what.
+        background: "#080d22", // navy-950 — primary app background
+        surface: "#0b1f3a", // navy-900 — a card sitting on the background
+        elevated: "#12294f", // navy-800 — a card raised above another card
         navy: {
           950: "#080d22",
           900: "#0b1f3a",

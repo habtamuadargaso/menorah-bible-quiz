@@ -141,14 +141,24 @@ export default function MobileDailyReward({ isAmharic }: { isAmharic: boolean })
       <div className="mt-4 grid grid-cols-7 gap-1.5">
         {DAILY_REWARDS.map((reward) => {
           const active = ((state.streak || 1) - 1) % DAILY_REWARDS.length === reward.day - 1;
+          const isGrandPrize = reward.day === DAILY_REWARDS.length;
           return (
             <div
               key={reward.day}
-              className={`rounded-lg border py-2 text-center ${
-                active ? "border-amber-400/60 bg-amber-500/15" : "border-white/10 bg-white/[0.03]"
+              className={`relative rounded-lg border py-2 text-center ${
+                isGrandPrize
+                  ? "border-gold-400/70 bg-gradient-to-br from-gold-500/25 to-purple-500/15"
+                  : active
+                  ? "border-amber-400/60 bg-amber-500/15"
+                  : "border-white/10 bg-white/[0.03]"
               }`}
             >
-              <div className="text-[9px] font-bold text-amber-300">{reward.day}</div>
+              {isGrandPrize && (
+                <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 text-[9px]" aria-hidden>
+                  ⭐
+                </span>
+              )}
+              <div className={`text-[9px] font-bold ${isGrandPrize ? "mt-1 text-gold-300" : "text-amber-300"}`}>{reward.day}</div>
             </div>
           );
         })}

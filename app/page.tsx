@@ -42,6 +42,7 @@ import MobileVerseCard from "@/components/mobile/MobileVerseCard";
 import MobileComingSoonSummary from "@/components/mobile/MobileComingSoonSummary";
 import MobileCampaignJourney from "@/components/mobile/MobileCampaignJourney";
 import MobileLevelComplete from "@/components/mobile/MobileLevelComplete";
+import MobileLeaderboardPreview from "@/components/mobile/MobileLeaderboardPreview";
 import { Play, Calendar, Church, Swords, Users } from "lucide-react";
 
 import {
@@ -550,7 +551,11 @@ function HomeInner() {
             </MobileSection>
 
             <MobileSection title={t.nav.leaderboard} action={{ label: isAmharic ? "ሁሉንም ይመልከቱ" : "See all", onClick: () => router.push("/leaderboard") }}>
-              <LeaderboardPreview entries={entries} onViewAll={() => router.push("/leaderboard")} />
+              <MobileLeaderboardPreview
+                entries={entries}
+                onViewAll={() => router.push("/leaderboard")}
+                currentPlayerName={user?.displayName}
+              />
             </MobileSection>
 
             <MobileSection title={isAmharic ? "ዕለታዊ ሽልማት" : "Daily Reward"}>

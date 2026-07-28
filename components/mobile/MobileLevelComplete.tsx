@@ -167,6 +167,16 @@ export default function MobileLevelComplete({
             ))}
           </div>
         )}
+        {passed && (
+          <motion.span
+            aria-hidden
+            className="absolute -top-3 left-1/2 -translate-x-1/2 text-xl"
+            animate={reduceMotion ? undefined : { y: [0, -3, 0] }}
+            transition={reduceMotion ? undefined : { duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+          >
+            👑
+          </motion.span>
+        )}
         <div
           className={`flex h-24 w-24 items-center justify-center rounded-full border bg-navy-900 ${
             passed ? "border-gold-500/50" : "border-purple-400/40"
