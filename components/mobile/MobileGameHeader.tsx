@@ -22,6 +22,7 @@ export default function MobileGameHeader({
   streak,
   roomCode,
   connectionState,
+  progressPct,
 }: {
   onExit?: () => void;
   exitLabel?: string;
@@ -36,6 +37,8 @@ export default function MobileGameHeader({
   streak?: number;
   roomCode?: string;
   connectionState?: "connected" | "reconnecting" | "disconnected";
+  /** 0-100. Optional — only Solo Quiz passes this today; Live/Friends Battle callers are unaffected if they omit it. */
+  progressPct?: number;
 }) {
   const urgent = typeof timeLeft === "number" && timeLeft <= 5;
 
@@ -99,6 +102,15 @@ export default function MobileGameHeader({
           )}
         </div>
       </div>
+
+      {typeof progressPct === "number" && (
+        <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-purple-400 to-gold-400 transition-[width] duration-300 ease-out"
+            style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }

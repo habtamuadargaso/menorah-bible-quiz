@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import MobileBottomNav from "./MobileBottomNav";
+import MobileAmbientGlow from "./MobileAmbientGlow";
 
 // Mission 15 — layout shell for the new mobile home dashboard only. Not a
 // replacement for components/Providers.tsx (LanguageProvider/AuthProvider/
@@ -16,8 +17,9 @@ export default function MobileAppShell({
   hideBottomNav?: boolean;
 }) {
   return (
-    <div className={`flex min-h-[100dvh] w-full flex-col md:hidden ${hideBottomNav ? "" : "pb-20"}`}>
-      <div className="flex-1">{children}</div>
+    <div className={`relative flex min-h-[100dvh] w-full flex-col md:hidden ${hideBottomNav ? "" : "pb-20"}`}>
+      <MobileAmbientGlow />
+      <div className="relative flex-1">{children}</div>
       {!hideBottomNav && <MobileBottomNav />}
     </div>
   );

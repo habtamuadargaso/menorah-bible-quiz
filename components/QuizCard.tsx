@@ -9,7 +9,7 @@ import { getLevelConfig } from "@/lib/game/levelConfig";
 import { MAX_GAME_LEVEL } from "@/lib/levels";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { playCorrectSound, playFinishSound, playTimeoutSound, playWrongSound, startGameMusic, stopGameMusic } from "@/lib/sound";
-import { hapticError, hapticSuccess } from "@/lib/mobile/haptics";
+import { hapticHeavy, hapticMedium, hapticWarning } from "@/lib/mobile/haptics";
 import MobileGameHeader from "@/components/mobile/MobileGameHeader";
 
 const MAX_LIVES = 3;
@@ -82,17 +82,25 @@ const CircularTimer = memo(function CircularTimer({
   timeLeft,
   timerPct,
   timerColor,
+  compact,
+  secLabel,
 }: {
   timeLeft: number;
   timerPct: number;
   timerColor: string;
+  compact?: boolean;
+  secLabel?: string;
 }) {
   const urgent = timeLeft <= 3;
   const warning = timeLeft <= 5;
 
   return (
     <motion.div
-      className="relative flex h-24 w-24 items-center justify-center rounded-full sm:h-28 sm:w-28"
+      className={
+        compact
+          ? "relative flex h-16 w-16 items-center justify-center rounded-full"
+          : "relative flex h-24 w-24 items-center justify-center rounded-full sm:h-28 sm:w-28"
+      }
       animate={
         urgent
           ? { scale: [1, 1.08, 1] }
@@ -114,16 +122,28 @@ const CircularTimer = memo(function CircularTimer({
         style={{ background: "conic-gradient(rgba(139,92,246,0.35) 100%, transparent 0)" }}
       />
       <div
-        className="absolute inset-[3px] rounded-full transition-[background] duration-300"
+        className="absolute rounded-full transition-[background] duration-300"
         style={{
+          inset: compact ? 2 : 3,
           background: `conic-gradient(${timerColor} ${timerPct}%, rgba(255,255,255,0.08) 0)`,
         }}
       />
       <div
-        className="absolute inset-[10px] flex items-center justify-center rounded-full bg-navy-950 text-2xl font-extrabold shadow-[inset_0_0_18px_rgba(0,0,0,0.4)] sm:text-3xl"
+        className={
+          compact
+            ? "absolute inset-[6px] flex flex-col items-center justify-center rounded-full bg-navy-950 shadow-[inset_0_0_14px_rgba(0,0,0,0.4)]"
+            : "absolute inset-[10px] flex items-center justify-center rounded-full bg-navy-950 text-2xl font-extrabold shadow-[inset_0_0_18px_rgba(0,0,0,0.4)] sm:text-3xl"
+        }
         style={{ color: timerColor }}
       >
-        {timeLeft}
+        {compact ? (
+          <>
+            <span className="text-lg font-extrabold leading-none">{timeLeft}</span>
+            {secLabel && <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide opacity-80">{secLabel}</span>}
+          </>
+        ) : (
+          timeLeft
+        )}
       </div>
     </motion.div>
   );
@@ -140,6 +160,7 @@ const AnswerOption = memo(function AnswerOption({
   optionLetter,
   choiceIndex,
   onSelect,
+  compact,
 }: {
   label: string;
   state: AnswerState;
@@ -147,6 +168,7 @@ const AnswerOption = memo(function AnswerOption({
   optionLetter: string;
   choiceIndex: number;
   onSelect: (choiceIndex: number) => void;
+  compact?: boolean;
 }) {
   const stateClasses: Record<AnswerState, string> = {
     idle: "border-white/15 bg-white/[0.04] text-[#f3efe2] hover:border-gold-500/50 hover:bg-white/[0.07] hover:shadow-[0_0_28px_rgba(232,193,95,0.22)]",
@@ -171,7 +193,9 @@ const AnswerOption = memo(function AnswerOption({
       whileTap={disabled ? undefined : { scale: 0.97, transition: { duration: 0.22, ease: "easeOut" } }}
       animate={shake ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
       transition={shake ? { duration: 0.4, ease: "easeInOut" } : { duration: 0.22, ease: "easeOut" }}
-      className={`relative flex min-h-[64px] items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-left text-[15px] font-medium outline-none transition-[background-color,border-color,box-shadow] duration-200 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${stateClasses[state]}`}
+      className={`relative flex items-center justify-between gap-3 rounded-2xl border text-left font-medium outline-none transition-[background-color,border-color,box-shadow] duration-200 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${
+        compact ? "min-h-[52px] px-4 py-3 text-sm" : "min-h-[64px] px-5 py-4 text-[15px]"
+      } ${stateClasses[state]}`}
     >
       {/* one-shot result ripple, plays once when this option resolves to correct/wrong */}
       <AnimatePresence>
@@ -261,18 +285,52 @@ function ConfettiBurst({ burstKey }: { burstKey: number }) {
   );
 }
 
+// Mission 17 — mobile-only skeleton shown while questions are loading, in
+// the exact shape of the compact mobile layout below (header bar, small
+// timer circle, question card, 4 answer bars) so the screen doesn't blank
+// or jump when real content arrives. Desktop keeps its plain "Loading
+// questions..." text (variant === "desktop" never renders this).
+function MobileQuizSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="mb-4 h-[86px] rounded-card-sm border border-white/10 bg-white/[0.04]" />
+      <div className="my-4 flex justify-center">
+        <div className="h-16 w-16 rounded-full border border-white/10 bg-white/[0.04]" />
+      </div>
+      <div className="rounded-card-sm border border-white/10 bg-white/[0.04] p-4">
+        <div className="mx-auto mb-4 h-5 w-16 rounded-full bg-white/[0.06]" />
+        <div className="mx-auto mb-2 h-5 w-5/6 rounded bg-white/[0.06]" />
+        <div className="mx-auto mb-6 h-5 w-2/3 rounded bg-white/[0.06]" />
+        <div className="flex flex-col gap-2.5">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-[52px] rounded-2xl bg-white/[0.05]" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function QuizCard({
   categoryId,
   difficulty,
   level,
   onFinish,
   onExit,
+  variant = "desktop",
 }: {
   categoryId: CategoryId;
   difficulty: Difficulty;
   level: number;
   onFinish: (result: QuizResult) => void;
   onExit: () => void;
+  // Mission 15.6 — app/page.tsx already mounts a dedicated QuizCard instance
+  // per breakpoint (its own "hidden md:block" / "md:hidden" wrapper divs), so
+  // this picks which single layout THIS instance renders rather than
+  // re-hiding both layouts internally with more CSS (which would just
+  // double every DOM node — two answer grids, two confetti bursts — for
+  // no visual difference, since only one was ever going to be visible).
+  variant?: "desktop" | "mobile";
 }) {
   const { t, lang } = useLanguage();
   const categoryText = t.categories[categoryId];
@@ -311,6 +369,11 @@ export default function QuizCard({
   // game state above; nothing here writes back into it, so none of the
   // actual scoring, lives, or timer logic is touched.
   const [rewardToast, setRewardToast] = useState<{ key: number; points: number; coins: number } | null>(null);
+  // Mission 16 — same points/coins as rewardToast above, but doesn't
+  // auto-clear after 1.3s: this backs the mobile "✓ Correct +points +coins"
+  // feedback line, which needs to stay readable for as long as the
+  // explanation panel is open, not just flash briefly.
+  const [lastAnswerReward, setLastAnswerReward] = useState<{ points: number; coins: number } | null>(null);
   const [confettiKey, setConfettiKey] = useState<number | null>(null);
   const [livesShakeKey, setLivesShakeKey] = useState(0);
   const prevScoreRef = useRef(score);
@@ -326,6 +389,7 @@ export default function QuizCard({
 
     const key = Date.now();
     setRewardToast({ key, points: scoreDelta, coins: correctDelta * 5 });
+    setLastAnswerReward({ points: scoreDelta, coins: correctDelta * 5 });
     if (!reduceMotion) setConfettiKey(key);
     const toastTimer = window.setTimeout(() => setRewardToast(null), 1300);
     const confettiTimer = window.setTimeout(() => setConfettiKey(null), 1000);
@@ -458,7 +522,7 @@ export default function QuizCard({
       setSelected(choiceIndex);
       if (isCorrect) {
         playCorrectSound();
-        hapticSuccess();
+        hapticMedium();
         const answeredUnderFiveSeconds = timePerQuestion - timeLeftRef.current < 5;
         const newStreak = streak + 1;
         setStreak(newStreak);
@@ -469,7 +533,7 @@ export default function QuizCard({
       } else {
         if (choiceIndex === -1) playTimeoutSound();
         else playWrongSound();
-        hapticError();
+        hapticWarning();
         setStreak(0);
         setLives((l) => Math.max(0, l - 1));
       }
@@ -488,6 +552,7 @@ export default function QuizCard({
 
   function finish() {
     playFinishSound();
+    hapticHeavy();
     stopGameMusic();
     const total = questions.length;
     const perfect = total > 0 && correctCount === total;
@@ -523,12 +588,20 @@ export default function QuizCard({
       setSelected(null);
       setLocked(false);
       setTimeLeft(timePerQuestion);
+      setLastAnswerReward(null);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [isLast, timePerQuestion]
   );
 
   if (loadingQuestions) {
+    if (variant === "mobile") {
+      return (
+        <section className="mx-auto max-w-2xl px-5 pb-24 pt-4">
+          <MobileQuizSkeleton />
+        </section>
+      );
+    }
     return (
       <section className="mx-auto max-w-xl px-5 py-24 text-center text-[#a7aebd]">
         Loading questions...
@@ -614,40 +687,23 @@ export default function QuizCard({
         </div>
       )}
 
-      <MobileGameHeader
-        onExit={onExit}
-        exitLabel={t.quiz.quit}
-        levelLabel={`${t.common.level} ${level}`}
-        questionIndex={index + 1}
-        questionCount={questions.length}
-        score={score}
-        scoreLabel={t.result.score}
-      />
+      {/* ============ Mission 15.6 — compact mobile layout ============ */}
+      {variant === "mobile" && (
+        <>
+        <MobileGameHeader
+          onExit={onExit}
+          exitLabel={t.quiz.quit}
+          levelLabel={`${t.common.level} ${level}`}
+          questionIndex={index + 1}
+          questionCount={questions.length}
+          score={score}
+          scoreLabel={t.result.score}
+          livesRemaining={lives}
+          maxLives={MAX_LIVES}
+          streak={streak}
+          progressPct={progressPct}
+        />
 
-      {/* premium header */}
-      <div className="mb-5 rounded-[22px] border border-white/10 bg-white/[0.04] p-4 shadow-premium-lg backdrop-blur-md sm:p-6">
-        <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
-          <button
-            onClick={onExit}
-            className="flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold text-[#c6cbd6] outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
-          >
-            <span aria-hidden>←</span>
-            {t.quiz.quit}
-          </button>
-
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <HeaderStat tone="purple" icon={<span aria-hidden>⭐</span>} label={`${t.common.level} ${level}`} />
-            <HeaderStat
-              tone="gold"
-              icon={<span aria-hidden>✦</span>}
-              label={`${t.quiz.questionLabel} ${index + 1}/${questions.length}`}
-            />
-            <HeaderStat tone="gold" icon={<span aria-hidden>⚡</span>} label={`${t.result.score} ${score}`} />
-            <HeaderStat tone="purple" icon={<span aria-hidden>🪙</span>} label={`${correctCount * 5}`} />
-          </div>
-        </div>
-
-        {/* floating "+XP / +coins" toast, plays once per correct answer */}
         <div className="relative">
           <AnimatePresence>
             {rewardToast && (
@@ -657,158 +713,330 @@ export default function QuizCard({
                 animate={{ opacity: 1, y: -6, scale: 1 }}
                 exit={{ opacity: 0, y: -18 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
-                className="pointer-events-none absolute left-1/2 top-1 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-gold-400/40 bg-navy-950/90 px-4 py-1.5 text-sm font-bold shadow-gold"
+                className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-gold-400/40 bg-navy-950/90 px-3 py-1 text-xs font-bold shadow-gold"
               >
-                <span className="text-gold-300">⚡ +{rewardToast.points} {t.result.score}</span>
+                <span className="text-gold-300">⚡ +{rewardToast.points}</span>
                 <span className="text-purple-200">🪙 +{rewardToast.coins}</span>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-y-2 text-xs">
-          <span className="font-semibold uppercase tracking-wide text-[#9aa1b0]">
-            {tier} · {categoryText?.title} · {t.quiz.difficulty[difficulty]}
-          </span>
-          <div className="flex items-center gap-4">
+        <div className="my-4 flex justify-center">
+          <CircularTimer
+            compact
+            timeLeft={timeLeft}
+            timerPct={timerPct}
+            timerColor={timerColor}
+            secLabel={lang === "am" ? "ሰከንድ" : "sec"}
+          />
+        </div>
+
+        <div className="relative">
+          <AnimatePresence mode="wait">
             <motion.div
-              key={livesShakeKey}
-              animate={
-                reduceMotion || livesShakeKey === 0
-                  ? undefined
-                  : { x: [0, -4, 4, -3, 3, 0] }
-              }
-              transition={{ duration: 0.4 }}
-              className="flex items-center gap-1"
-              aria-label={`${lives} of ${MAX_LIVES} ${t.common.lives.toLowerCase()} remaining`}
+              key={current.id}
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="relative overflow-hidden rounded-card-sm border border-gold-500/20 bg-glass-gold p-4 shadow-premium-lg backdrop-blur-md"
             >
-              {Array.from({ length: MAX_LIVES }).map((_, i) => (
-                <Heart key={i} filled={i < lives} />
-              ))}
-            </motion.div>
-            <AnimatePresence>
-              {streak >= 2 && (
-                <motion.span
-                  key={streak}
-                  initial={{ opacity: 0, scale: 0.7, y: -4 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.7 }}
-                  transition={{ duration: 0.25, ease: "backOut" }}
-                  className="flex items-center gap-1 rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-1 font-bold text-gold-400 shadow-[0_0_16px_rgba(232,193,95,0.35)]"
-                >
-                  <motion.span
-                    aria-hidden
-                    animate={reduceMotion ? undefined : { scale: [1, 1.15, 1] }}
-                    transition={reduceMotion ? undefined : { duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    🔥
-                  </motion.span>
-                  {streak} {t.quiz.streak}
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
-          <motion.div
-            className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-purple-400 to-gold-400"
-            animate={{ width: `${progressPct}%` }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {!reduceMotion && (
-              <motion.div
+              {/* subtle low-opacity menorah glyph — decorative only, never affects text layout */}
+              <svg
                 aria-hidden
-                className="absolute inset-y-0 w-8 bg-white/40 blur-sm"
-                animate={{ x: ["-100%", "260%"] }}
-                transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.4, ease: "easeInOut" }}
-              />
-            )}
-          </motion.div>
-        </div>
-      </div>
+                viewBox="0 0 24 24"
+                className="pointer-events-none absolute -bottom-3 -right-3 h-20 w-20 text-gold-400 opacity-[0.06]"
+              >
+                <path
+                  d="M12 2v9M12 11c-2.5 0-4-1.6-4-4M12 11c2.5 0 4-1.6 4-4M9 5c-1.6 0-3 .8-3 2.5M15 5c1.6 0 3 .8 3 2.5M12 11c-4 0-7 1.4-7 5v5h14v-5c0-3.6-3-5-7-5Z"
+                  stroke="currentColor"
+                  strokeWidth={0.8}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </svg>
 
-      <div className="mb-6 flex justify-center">
-        <CircularTimer timeLeft={timeLeft} timerPct={timerPct} timerColor={timerColor} />
-      </div>
+              <div className="relative mb-2.5 flex justify-center">
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#8d94a3]">
+                  {t.quiz.difficulty[current.difficulty]}
+                </span>
+              </div>
+              <div className="relative mb-2.5 text-center font-display text-xl font-bold leading-snug tracking-tight text-[#fbf6e8]">
+                {current.question}
+              </div>
 
-      <div className="relative">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={current.id}
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 }}
-            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="relative overflow-hidden rounded-card border border-gold-500/20 bg-glass-gold p-6 shadow-premium-lg backdrop-blur-md sm:p-9"
-          >
-            <div className="mb-3 flex justify-center">
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#8d94a3]">
-                {t.quiz.difficulty[current.difficulty]}
-              </span>
-            </div>
-            <div className="mb-3 text-center font-display text-2xl font-bold leading-snug tracking-tight text-[#fbf6e8] sm:text-[28px] md:text-3xl">
-              {current.question}
-            </div>
+              <div className="relative mb-4 flex items-center justify-center gap-1.5 text-xs font-bold text-gold-500">
+                <span aria-hidden>📖</span>
+                {current.reference}
+              </div>
 
-            <div className="mb-6 flex items-center justify-center gap-2 text-sm font-bold text-gold-500">
-              <span aria-hidden>📖</span>
-              {current.reference}
-            </div>
+              <div className="relative grid grid-cols-1 gap-2.5">
+                {current.choices.map((choice, i) => {
+                  const isCorrectChoice = i === current.correctIndex;
+                  const isSelected = selected === i;
+                  let state: AnswerState = "idle";
+                  if (locked) {
+                    if (isCorrectChoice) state = "correct";
+                    else if (isSelected) state = "wrong";
+                    else state = "muted";
+                  }
+                  return (
+                    <AnswerOption
+                      key={i}
+                      compact
+                      label={choice}
+                      state={state}
+                      disabled={locked}
+                      optionLetter={optionLetters[i] ?? String(i + 1)}
+                      choiceIndex={i}
+                      onSelect={handleAnswer}
+                    />
+                  );
+                })}
+              </div>
 
-            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-              {current.choices.map((choice, i) => {
-                const isCorrectChoice = i === current.correctIndex;
-                const isSelected = selected === i;
-                let state: AnswerState = "idle";
-                if (locked) {
-                  if (isCorrectChoice) state = "correct";
-                  else if (isSelected) state = "wrong";
-                  else state = "muted";
-                }
-                return (
-                  <AnswerOption
-                    key={i}
-                    label={choice}
-                    state={state}
-                    disabled={locked}
-                    optionLetter={optionLetters[i] ?? String(i + 1)}
-                    choiceIndex={i}
-                    onSelect={handleAnswer}
-                  />
-                );
-              })}
-            </div>
-
-            <AnimatePresence>
-              {locked && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                  className="mt-6 overflow-hidden"
-                >
-                  <div className="rounded-2xl border border-gold-500/25 bg-navy-900/60 p-5 shadow-premium">
-                    <p className="text-sm leading-relaxed text-[#c6cbd6]">{current.explanation}</p>
-                  </div>
-                  <motion.button
-                    onClick={handleNext}
-                    whileHover={{ y: -2, scale: 1.015 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="mt-5 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 py-3.5 text-[15px] font-bold text-navy-900 shadow-gold outline-none transition-shadow duration-300 hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+              <AnimatePresence>
+                {locked && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="relative mt-4 overflow-hidden"
                   >
-                    {isLast ? t.quiz.seeResults : t.quiz.nextQuestion}
-                  </motion.button>
+                    <div className="mb-2 flex items-center gap-2">
+                      {selected === current.correctIndex ? (
+                        <span className="flex items-center gap-1.5 text-sm font-bold text-success-300">
+                          <span aria-hidden>✓</span>
+                          {lang === "am" ? "ትክክል" : "Correct"}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-sm font-bold text-coral-300">
+                          <span aria-hidden>✗</span>
+                          {lang === "am" ? "ስህተት" : "Incorrect"}
+                        </span>
+                      )}
+                      {selected === current.correctIndex && lastAnswerReward && (
+                        <span className="ml-auto flex items-center gap-2 text-xs font-bold text-gold-300">
+                          <span>⚡ +{lastAnswerReward.points}</span>
+                          <span>🪙 +{lastAnswerReward.coins}</span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="rounded-xl border border-gold-500/25 bg-navy-900/60 p-4 shadow-premium">
+                      <p className="text-xs leading-relaxed text-[#c6cbd6]">{current.explanation}</p>
+                    </div>
+                    <motion.button
+                      onClick={handleNext}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="mt-4 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 py-3 text-sm font-bold text-navy-900 shadow-gold outline-none transition-shadow duration-300 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+                    >
+                      {isLast ? t.quiz.seeResults : t.quiz.nextQuestion}
+                    </motion.button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </AnimatePresence>
+
+          {confettiKey !== null && <ConfettiBurst burstKey={confettiKey} />}
+        </div>
+        </>
+      )}
+
+      {/* ============ Desktop layout — unchanged from before Mission 15.6 ============ */}
+      {variant === "desktop" && (
+        <>
+        {/* premium header */}
+        <div className="mb-5 rounded-[22px] border border-white/10 bg-white/[0.04] p-4 shadow-premium-lg backdrop-blur-md sm:p-6">
+          <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
+            <button
+              onClick={onExit}
+              className="flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-semibold text-[#c6cbd6] outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            >
+              <span aria-hidden>←</span>
+              {t.quiz.quit}
+            </button>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <HeaderStat tone="purple" icon={<span aria-hidden>⭐</span>} label={`${t.common.level} ${level}`} />
+              <HeaderStat
+                tone="gold"
+                icon={<span aria-hidden>✦</span>}
+                label={`${t.quiz.questionLabel} ${index + 1}/${questions.length}`}
+              />
+              <HeaderStat tone="gold" icon={<span aria-hidden>⚡</span>} label={`${t.result.score} ${score}`} />
+              <HeaderStat tone="purple" icon={<span aria-hidden>🪙</span>} label={`${correctCount * 5}`} />
+            </div>
+          </div>
+
+          {/* floating "+XP / +coins" toast, plays once per correct answer */}
+          <div className="relative">
+            <AnimatePresence>
+              {rewardToast && (
+                <motion.div
+                  key={rewardToast.key}
+                  initial={{ opacity: 0, y: 6, scale: 0.9 }}
+                  animate={{ opacity: 1, y: -6, scale: 1 }}
+                  exit={{ opacity: 0, y: -18 }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  className="pointer-events-none absolute left-1/2 top-1 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-gold-400/40 bg-navy-950/90 px-4 py-1.5 text-sm font-bold shadow-gold"
+                >
+                  <span className="text-gold-300">⚡ +{rewardToast.points} {t.result.score}</span>
+                  <span className="text-purple-200">🪙 +{rewardToast.coins}</span>
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
-        </AnimatePresence>
+          </div>
 
-        {confettiKey !== null && <ConfettiBurst burstKey={confettiKey} />}
-      </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-y-2 text-xs">
+            <span className="font-semibold uppercase tracking-wide text-[#9aa1b0]">
+              {tier} · {categoryText?.title} · {t.quiz.difficulty[difficulty]}
+            </span>
+            <div className="flex items-center gap-4">
+              <motion.div
+                key={livesShakeKey}
+                animate={
+                  reduceMotion || livesShakeKey === 0
+                    ? undefined
+                    : { x: [0, -4, 4, -3, 3, 0] }
+                }
+                transition={{ duration: 0.4 }}
+                className="flex items-center gap-1"
+                aria-label={`${lives} of ${MAX_LIVES} ${t.common.lives.toLowerCase()} remaining`}
+              >
+                {Array.from({ length: MAX_LIVES }).map((_, i) => (
+                  <Heart key={i} filled={i < lives} />
+                ))}
+              </motion.div>
+              <AnimatePresence>
+                {streak >= 2 && (
+                  <motion.span
+                    key={streak}
+                    initial={{ opacity: 0, scale: 0.7, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.7 }}
+                    transition={{ duration: 0.25, ease: "backOut" }}
+                    className="flex items-center gap-1 rounded-full border border-gold-500/30 bg-gold-500/10 px-2.5 py-1 font-bold text-gold-400 shadow-[0_0_16px_rgba(232,193,95,0.35)]"
+                  >
+                    <motion.span
+                      aria-hidden
+                      animate={reduceMotion ? undefined : { scale: [1, 1.15, 1] }}
+                      transition={reduceMotion ? undefined : { duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      🔥
+                    </motion.span>
+                    {streak} {t.quiz.streak}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
+            <motion.div
+              className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-purple-400 to-gold-400"
+              animate={{ width: `${progressPct}%` }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {!reduceMotion && (
+                <motion.div
+                  aria-hidden
+                  className="absolute inset-y-0 w-8 bg-white/40 blur-sm"
+                  animate={{ x: ["-100%", "260%"] }}
+                  transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.4, ease: "easeInOut" }}
+                />
+              )}
+            </motion.div>
+          </div>
+        </div>
+
+        <div className="mb-6 flex justify-center">
+          <CircularTimer timeLeft={timeLeft} timerPct={timerPct} timerColor={timerColor} />
+        </div>
+
+        <div className="relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={current.id}
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="relative overflow-hidden rounded-card border border-gold-500/20 bg-glass-gold p-6 shadow-premium-lg backdrop-blur-md sm:p-9"
+            >
+              <div className="mb-3 flex justify-center">
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#8d94a3]">
+                  {t.quiz.difficulty[current.difficulty]}
+                </span>
+              </div>
+              <div className="mb-3 text-center font-display text-2xl font-bold leading-snug tracking-tight text-[#fbf6e8] sm:text-[28px] md:text-3xl">
+                {current.question}
+              </div>
+
+              <div className="mb-6 flex items-center justify-center gap-2 text-sm font-bold text-gold-500">
+                <span aria-hidden>📖</span>
+                {current.reference}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                {current.choices.map((choice, i) => {
+                  const isCorrectChoice = i === current.correctIndex;
+                  const isSelected = selected === i;
+                  let state: AnswerState = "idle";
+                  if (locked) {
+                    if (isCorrectChoice) state = "correct";
+                    else if (isSelected) state = "wrong";
+                    else state = "muted";
+                  }
+                  return (
+                    <AnswerOption
+                      key={i}
+                      label={choice}
+                      state={state}
+                      disabled={locked}
+                      optionLetter={optionLetters[i] ?? String(i + 1)}
+                      choiceIndex={i}
+                      onSelect={handleAnswer}
+                    />
+                  );
+                })}
+              </div>
+
+              <AnimatePresence>
+                {locked && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="mt-6 overflow-hidden"
+                  >
+                    <div className="rounded-2xl border border-gold-500/25 bg-navy-900/60 p-5 shadow-premium">
+                      <p className="text-sm leading-relaxed text-[#c6cbd6]">{current.explanation}</p>
+                    </div>
+                    <motion.button
+                      onClick={handleNext}
+                      whileHover={{ y: -2, scale: 1.015 }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="mt-5 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 py-3.5 text-[15px] font-bold text-navy-900 shadow-gold outline-none transition-shadow duration-300 hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+                    >
+                      {isLast ? t.quiz.seeResults : t.quiz.nextQuestion}
+                    </motion.button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </AnimatePresence>
+
+          {confettiKey !== null && <ConfettiBurst burstKey={confettiKey} />}
+        </div>
+        </>
+      )}
     </motion.section>
   );
 }

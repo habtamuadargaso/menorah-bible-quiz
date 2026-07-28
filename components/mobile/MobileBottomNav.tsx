@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, BookOpen, Swords, Trophy, User } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { hapticLight } from "@/lib/mobile/haptics";
 
 type MobileNavKey = "home" | "learn" | "battle" | "leaderboard" | "profile";
 
@@ -50,6 +51,7 @@ export default function MobileBottomNav() {
           <Link
             key={key}
             href={href}
+            onClick={hapticLight}
             aria-current={isActive ? "page" : undefined}
             className={`flex min-h-[44px] min-w-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${
               isActive ? "text-gold-400" : "text-[#8d94a3]"

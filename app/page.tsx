@@ -35,7 +35,13 @@ import MobileAppShell from "@/components/mobile/MobileAppShell";
 import MobileBottomNav from "@/components/mobile/MobileBottomNav";
 import MobileSection from "@/components/mobile/MobileSection";
 import MobileActionCard from "@/components/mobile/MobileActionCard";
-import MobileStatCard from "@/components/mobile/MobileStatCard";
+import MobileHero from "@/components/mobile/MobileHero";
+import MobileProgressCards from "@/components/mobile/MobileProgressCards";
+import MobileDailyReward from "@/components/mobile/MobileDailyReward";
+import MobileVerseCard from "@/components/mobile/MobileVerseCard";
+import MobileComingSoonSummary from "@/components/mobile/MobileComingSoonSummary";
+import MobileCampaignJourney from "@/components/mobile/MobileCampaignJourney";
+import MobileLevelComplete from "@/components/mobile/MobileLevelComplete";
 import { Play, Calendar, Church, Swords, Users } from "lucide-react";
 
 import {
@@ -44,6 +50,7 @@ import {
 } from "@/lib/leaderboard";
 import { CATEGORIES, type CategoryId } from "@/lib/categories";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import {
   addQuizRewards,
   loadProgress,
@@ -87,6 +94,7 @@ export default function Home() {
 function HomeInner() {
   const { lang, t } = useLanguage();
   const isAmharic = lang === "am";
+  const { user, isGuest } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -108,6 +116,11 @@ function HomeInner() {
   const [campaignProgress, setCampaignProgress] =
     useState<CampaignProgress>({});
   const [showLanguageModal, setShowLanguageModal] = useState(false);
+  // Mission 16 — mobile-only: whether the phone should show the campaign
+  // journey list or the active gameplay screen for the current `stage ===
+  // "quiz"` visit. Desktop always shows both CampaignMap + QuizCard
+  // together (unchanged), so this flag has no effect there.
+  const [mobileGameActive, setMobileGameActive] = useState(false);
   const [mobileProgress, setMobileProgress] = useState<Progress>({ totalXp: 0, coins: 0, quizzesCompleted: 0 });
   const [mobileStats, setMobileStats] = useState<ProfileStats | null>(null);
 
@@ -116,10 +129,11 @@ function HomeInner() {
   const challengesRef = useRef<HTMLDivElement>(null);
   const bibleRef = useRef<HTMLDivElement>(null);
   const churchRef = useRef<HTMLDivElement>(null);
-  // Mobile dashboard reuses ChallengesStrip/ChurchModeSection lower on the
-  // same md:hidden branch, so its "scroll to section" cards need their own
-  // refs rather than the desktop-only ones above (which sit inside a
-  // display:none branch on phone widths).
+  // Mission 15.5 — mobile's "Daily Challenge"/"Church Mode" action cards
+  // still scroll to these refs, but the target content below them is now
+  // the compact MobileDailyReward/MobileComingSoonSummary cards rather than
+  // the full desktop ChallengesStrip/ChurchModeSection, so they need their
+  // own refs distinct from the desktop-only ones above.
   const mobileChallengesRef = useRef<HTMLDivElement>(null);
   const mobileChurchRef = useRef<HTMLDivElement>(null);
 
@@ -174,6 +188,7 @@ function HomeInner() {
     setCategoryId(id);
     setGameLevel(1);
     setStage("quiz");
+    setMobileGameActive(false);
     scrollTo(gameRef);
   }
 
@@ -249,6 +264,7 @@ function HomeInner() {
   function handleRestart() {
     if (categoryId) {
       setStage("quiz");
+      setMobileGameActive(true);
       scrollTo(gameRef);
     }
   }
@@ -266,12 +282,14 @@ function HomeInner() {
       Math.min(MAX_GAME_LEVEL, level + 1)
     );
     setStage("quiz");
+    setMobileGameActive(true);
     scrollTo(gameRef);
   }
 
   function handleSelectCampaignLevel(level: number) {
     setGameLevel(level);
     setStage("quiz");
+    setMobileGameActive(true);
     scrollTo(gameRef);
   }
 
@@ -463,24 +481,40 @@ function HomeInner() {
       <div className="md:hidden">
         {stage === "categories" && (
           <MobileAppShell>
+            <MobileHero
+              displayName={user?.displayName ?? t.common.guest}
+              isGuest={isGuest}
+              isAmharic={isAmharic}
+              level={levelForXp(mobileProgress.totalXp).level}
+              progressPct={levelForXp(mobileProgress.totalXp).progressPct}
+              coins={mobileProgress.coins}
+              streak={mobileStats?.currentDayStreak ?? 0}
+              onContinue={() => router.push("/learn")}
+            />
+
+            <MobileVerseCard />
+
             <MobileSection title={isAmharic ? "ተጫወት" : "Play"}>
               <MobileActionCard
                 icon={<Play className="h-5 w-5" aria-hidden />}
                 title={isAmharic ? "ብቻዬን ተጫወት" : "Solo Quiz"}
                 subtitle={isAmharic ? "10 ደረጃዎችን ያልፉ" : "Play alone through 10 levels"}
                 href="/learn"
+                accent="blue"
               />
               <MobileActionCard
                 icon={<Calendar className="h-5 w-5" aria-hidden />}
                 title={isAmharic ? "የዕለቱ ፈተና" : "Daily Challenge"}
                 subtitle={isAmharic ? "ዕለታዊ ሽልማት ይሰብስቡ" : "Claim today's reward"}
                 onClick={() => scrollTo(mobileChallengesRef)}
+                accent="amber"
               />
               <MobileActionCard
                 icon={<Church className="h-5 w-5" aria-hidden />}
                 title={isAmharic ? "የቤተ ክርስቲያን ሁነታ" : "Church Mode"}
                 subtitle={isAmharic ? "ለቡድን ውድድር" : "Host a group competition"}
                 onClick={() => scrollTo(mobileChurchRef)}
+                accent="purple"
               />
             </MobileSection>
 
@@ -491,6 +525,7 @@ function HomeInner() {
                 subtitle={isAmharic ? "በክፍል ኮድ ተቀላቀሉ" : "Create or join a room"}
                 onClick={handleBattleSetup}
                 theme="navy-outline"
+                accent="violet"
               />
               <MobileActionCard
                 icon={<Users className="h-5 w-5" aria-hidden />}
@@ -498,58 +533,108 @@ function HomeInner() {
                 subtitle={isAmharic ? "በአንድ መሳሪያ ይጫወቱ" : "Pass-and-play on one device"}
                 href="/friends-battle"
                 theme="navy-outline"
+                accent="teal"
               />
             </MobileSection>
 
             <MobileSection title={isAmharic ? "እድገትዎ" : "Your Progress"}>
-              <div className="flex gap-2.5">
-                <MobileStatCard icon="⭐" value={levelForXp(mobileProgress.totalXp).level} label={t.common.level} />
-                <MobileStatCard icon="🪙" value={mobileProgress.coins} label={t.profile.totalCoins} />
-                <MobileStatCard icon="🔥" value={mobileStats?.currentDayStreak ?? 0} label={t.profile.currentStreak} />
-              </div>
+              <MobileProgressCards
+                level={levelForXp(mobileProgress.totalXp).level}
+                progressPct={levelForXp(mobileProgress.totalXp).progressPct}
+                coins={mobileProgress.coins}
+                streak={mobileStats?.currentDayStreak ?? 0}
+                levelLabel={t.common.level}
+                coinsLabel={t.profile.totalCoins}
+                streakLabel={t.profile.currentStreak}
+              />
             </MobileSection>
 
             <MobileSection title={t.nav.leaderboard} action={{ label: isAmharic ? "ሁሉንም ይመልከቱ" : "See all", onClick: () => router.push("/leaderboard") }}>
               <LeaderboardPreview entries={entries} onViewAll={() => router.push("/leaderboard")} />
             </MobileSection>
 
-            <div ref={mobileChallengesRef}>
-              <ChallengesStrip />
-            </div>
+            <MobileSection title={isAmharic ? "ዕለታዊ ሽልማት" : "Daily Reward"}>
+              <div ref={mobileChallengesRef} className="flex flex-col gap-2.5">
+                <MobileDailyReward isAmharic={isAmharic} />
+                <MobileComingSoonSummary
+                  heading={t.challenges.heading}
+                  items={[t.challenges.daily.title, t.challenges.weekly.title]}
+                  isAmharic={isAmharic}
+                />
+              </div>
+            </MobileSection>
 
-            <div ref={mobileChurchRef}>
-              <ChurchModeSection />
-            </div>
+            <MobileSection title={t.church.heading}>
+              <div ref={mobileChurchRef}>
+                <MobileComingSoonSummary
+                  heading={isAmharic ? "ተጨማሪ ይመጣል" : "More on the way"}
+                  items={[
+                    t.church.competition.title,
+                    t.church.youthChallenge.title,
+                    t.church.sundaySchool.title,
+                    t.church.teamVsTeam.title,
+                    t.church.dashboard.title,
+                  ]}
+                  isAmharic={isAmharic}
+                />
+              </div>
+            </MobileSection>
           </MobileAppShell>
         )}
 
         {stage === "quiz" && categoryId && (
-          <>
-            <CampaignMap
-              categoryId={categoryId}
-              activeLevel={gameLevel}
-              progress={campaignProgress}
-              onSelectLevel={handleSelectCampaignLevel}
-            />
-            <QuizCard
-              key={`${lang}-${categoryId}-${gameLevel}-mobile`}
-              categoryId={categoryId}
-              difficulty={difficultyForLevel(gameLevel)}
-              level={gameLevel}
-              onFinish={handleFinish}
-              onExit={() => setStage("categories")}
-            />
-          </>
+          <AnimatePresence mode="wait">
+            {!mobileGameActive ? (
+              <motion.div
+                key="campaign"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <MobileCampaignJourney
+                  categoryId={categoryId}
+                  activeLevel={gameLevel}
+                  progress={campaignProgress}
+                  onSelectLevel={handleSelectCampaignLevel}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="gameplay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <QuizCard
+                  key={`${lang}-${categoryId}-${gameLevel}-mobile`}
+                  categoryId={categoryId}
+                  difficulty={difficultyForLevel(gameLevel)}
+                  level={gameLevel}
+                  onFinish={handleFinish}
+                  onExit={() => {
+                    setStage("categories");
+                    setMobileGameActive(false);
+                  }}
+                  variant="mobile"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         )}
 
         {stage === "result" && result && (
-          <ResultCard
+          <MobileLevelComplete
             result={result}
             newBadges={newBadges}
             onRestart={handleRestart}
             onNextLevel={handleNextLevel}
             canNextLevel={hasPassedLevel(result.correct, result.total) && gameLevel < MAX_GAME_LEVEL}
-            onCategories={() => setStage("categories")}
+            onCategories={() => {
+              setStage("categories");
+              setMobileGameActive(false);
+            }}
             onLeaderboard={handleLeaderboard}
           />
         )}

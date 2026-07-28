@@ -201,6 +201,34 @@ export default function SettingsPage() {
               />
             </div>
           </section>
+
+          <section id="coming-soon" className={sectionClass}>
+            <h2 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-gold-400">{t.common.comingSoon}</h2>
+            <div className="flex flex-col gap-3">
+              {[
+                t.challenges.daily,
+                t.challenges.weekly,
+                t.bible.readingPlan,
+                t.bible.favorites,
+                t.bible.prayerJournal,
+                t.church.competition,
+                t.church.youthChallenge,
+                t.church.sundaySchool,
+                t.church.teamVsTeam,
+                t.church.dashboard,
+              ].map((item, i) => (
+                <div key={i} className="flex items-start justify-between gap-4 border-b border-white/5 pb-3 last:border-0 last:pb-0">
+                  <div>
+                    <div className="text-sm font-semibold text-[#f3efe2]">{item.title}</div>
+                    <div className="mt-0.5 text-xs text-[#8d94a3]">{item.subtitle}</div>
+                  </div>
+                  <span className="mt-0.5 flex-shrink-0 rounded-full border border-gold-500/25 bg-navy-950/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gold-400">
+                    {t.common.comingSoon}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
 
         <div className="mt-8 text-center">

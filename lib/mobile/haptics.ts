@@ -16,12 +16,6 @@ function isNative(): boolean {
   return Capacitor.isNativePlatform();
 }
 
-/** Light tap — selection changes, toggles, tab switches. */
-export function hapticSelection(): void {
-  if (!isNative()) return;
-  Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
-}
-
 /** A correct answer, a win, a level-up — anything worth celebrating. */
 export function hapticSuccess(): void {
   if (!isNative()) return;
@@ -32,4 +26,34 @@ export function hapticSuccess(): void {
 export function hapticError(): void {
   if (!isNative()) return;
   Haptics.notification({ type: NotificationType.Error }).catch(() => {});
+}
+
+// Mission 17 — Light/Medium/Heavy/Warning taxonomy for general UI touch
+// feedback (buttons, cards, nav, reward claims, level-complete), kept
+// distinct from hapticSuccess/hapticError above (which back Friends
+// Battle's reveal screen and stay untouched). Same no-op-on-web,
+// swallow-errors guarantee as every other function in this file.
+
+/** Lightest impact — a plain button/card tap, a nav switch. */
+export function hapticLight(): void {
+  if (!isNative()) return;
+  Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+}
+
+/** A correct answer. */
+export function hapticMedium(): void {
+  if (!isNative()) return;
+  Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+}
+
+/** Level complete / a big celebratory moment. */
+export function hapticHeavy(): void {
+  if (!isNative()) return;
+  Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
+}
+
+/** A wrong answer. */
+export function hapticWarning(): void {
+  if (!isNative()) return;
+  Haptics.notification({ type: NotificationType.Warning }).catch(() => {});
 }

@@ -14,8 +14,8 @@ export default function MobileSection({
   children: ReactNode;
 }) {
   return (
-    <section className="px-4 py-3">
-      <div className="mb-2.5 flex items-center justify-between gap-3">
+    <section className="px-4 py-2">
+      <div className="mb-2 flex items-center justify-between gap-3">
         <h2 className="font-display text-sm font-bold uppercase tracking-[0.15em] text-gold-400">{title}</h2>
         {action && (
           <button
