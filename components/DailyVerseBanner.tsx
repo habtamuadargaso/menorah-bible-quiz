@@ -14,6 +14,23 @@ const STAR_DOTS = [
   { top: "60%", left: "92%", delay: 2 },
 ];
 
+// Hardcoded (rather than computed with Math.cos/Math.sin at render time) because
+// server and client can round transcendental functions to different last bits,
+// which React reports as a hydration mismatch once serialized to a JSX attribute
+// string. Values are `200 + cos(i*PI/5)*220` / `sin(i*PI/5)*220`, rounded to 2dp.
+const LIGHT_RAYS = [
+  { x2: 420, y2: 0 },
+  { x2: 377.98, y2: 129.31 },
+  { x2: 267.98, y2: 209.23 },
+  { x2: 132.02, y2: 209.23 },
+  { x2: 22.02, y2: 129.31 },
+  { x2: -20, y2: 0 },
+  { x2: 22.02, y2: -129.31 },
+  { x2: 132.02, y2: -209.23 },
+  { x2: 267.98, y2: -209.23 },
+  { x2: 377.98, y2: -129.31 },
+];
+
 export default function DailyVerseBanner({ onExplore }: { onExplore?: () => void }) {
   const { lang } = useLanguage();
   const verse = useMemo(() => getDailyVerse(), []);
@@ -49,16 +66,8 @@ export default function DailyVerseBanner({ onExplore }: { onExplore?: () => void
 
         {/* radiating light rays */}
         <svg viewBox="0 0 400 400" className="absolute left-1/2 top-0 h-[400px] w-[400px] -translate-x-1/2 opacity-[0.08]">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <line
-              key={i}
-              x1="200"
-              y1="0"
-              x2={200 + Math.cos((i * Math.PI) / 5) * 220}
-              y2={Math.sin((i * Math.PI) / 5) * 220}
-              stroke="#e8c15f"
-              strokeWidth="1"
-            />
+          {LIGHT_RAYS.map((ray, i) => (
+            <line key={i} x1="200" y1="0" x2={ray.x2} y2={ray.y2} stroke="#e8c15f" strokeWidth="1" />
           ))}
         </svg>
 
