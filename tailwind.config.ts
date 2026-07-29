@@ -68,6 +68,19 @@ const config: Config = {
           400: "#c17f45",
           500: "#a5652f",
         },
+        // Mission 18.5 — the remaining named tokens the approved reference
+        // calls for by role, aliased onto values already declared above
+        // (or Tailwind's own default blue scale) rather than introducing a
+        // second, competing palette. `gold-light`/`gold-dark` give the
+        // existing gold.300/700 a role-based name; `blue-solo`/`purple-church`/
+        // `teal-friends` name the three action-card accents that don't
+        // already have a semantic alias (violet/streak/success/coral/
+        // silver/bronze all do).
+        "gold-light": "#f5d998", // gold-300
+        "gold-dark": "#b8912a", // gold-700
+        "blue-solo": "#60a5fa", // Tailwind blue-400 — Solo Quiz's accent
+        "purple-church": "#c084fc", // Tailwind fuchsia/purple-400 — Church Mode's accent (distinct from the violet/XP `purple` token)
+        "teal-friends": "#2dd4bf", // teal-400 — Friends Battle's accent
         teal: {
           300: "#8fe8dc",
           400: "#2dd4bf",

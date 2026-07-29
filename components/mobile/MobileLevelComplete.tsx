@@ -168,14 +168,22 @@ export default function MobileLevelComplete({
           </div>
         )}
         {passed && (
-          <motion.span
-            aria-hidden
-            className="absolute -top-3 left-1/2 -translate-x-1/2 text-xl"
-            animate={reduceMotion ? undefined : { y: [0, -3, 0] }}
-            transition={reduceMotion ? undefined : { duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            👑
-          </motion.span>
+          <>
+            <motion.span
+              aria-hidden
+              className="absolute -top-3 left-1/2 -translate-x-1/2 text-xl"
+              animate={reduceMotion ? undefined : { y: [0, -3, 0] }}
+              transition={reduceMotion ? undefined : { duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              👑
+            </motion.span>
+            <span aria-hidden className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 text-lg">
+              🌿
+            </span>
+            <span aria-hidden className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 text-lg [transform:scaleX(-1)]">
+              🌿
+            </span>
+          </>
         )}
         <div
           className={`flex h-24 w-24 items-center justify-center rounded-full border bg-navy-900 ${

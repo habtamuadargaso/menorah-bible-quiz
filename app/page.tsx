@@ -488,6 +488,8 @@ function HomeInner() {
               isAmharic={isAmharic}
               level={levelForXp(mobileProgress.totalXp).level}
               progressPct={levelForXp(mobileProgress.totalXp).progressPct}
+              xpIntoLevel={levelForXp(mobileProgress.totalXp).xpIntoLevel}
+              xpForNextLevel={levelForXp(mobileProgress.totalXp).xpForNextLevel}
               coins={mobileProgress.coins}
               streak={mobileStats?.currentDayStreak ?? 0}
               onContinue={() => router.push("/learn")}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Gift } from "lucide-react";
 import {
   canClaimDailyReward,
   claimDailyReward,
@@ -10,6 +11,16 @@ import {
   type DailyRewardState,
 } from "@/lib/dailyReward";
 import { hapticLight } from "@/lib/mobile/haptics";
+
+// Mission 18.5 — a handful of small, always-on sparkle dots around the
+// chest icon (distinct from ConfettiBurst below, which only plays once on
+// claim) so the card reads as "treasure" even before the player taps Claim.
+const AMBIENT_SPARKLES = [
+  { top: "8%", left: "22%", delay: 0 },
+  { top: "68%", left: "18%", delay: 0.9 },
+  { top: "20%", left: "78%", delay: 0.5 },
+  { top: "70%", left: "80%", delay: 1.4 },
+];
 
 // Mission 15.5 — premium mobile-only presentation of the same
 // lib/dailyReward.ts claim flow already used by components/DailyReward.tsx
@@ -85,6 +96,30 @@ export default function MobileDailyReward({ isAmharic }: { isAmharic: boolean })
   return (
     <div className="relative overflow-visible rounded-card-sm border border-amber-400/25 bg-glass-streak p-5 shadow-premium">
       {burst && <ConfettiBurst />}
+
+      {/* Mission 18.5 — a glowing chest/gift badge + centered heading above
+          the existing streak/claim row (kept exactly as-is below), so the
+          card reads as "treasure" the way the approved reference does. */}
+      <div className="relative mb-4 flex flex-col items-center text-center">
+        <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-400/30 via-gold-500/15 to-transparent">
+          <div aria-hidden className="pointer-events-none absolute inset-0 rounded-full bg-amber-500/20 blur-xl" />
+          <Gift className="relative h-7 w-7 text-amber-300" strokeWidth={1.8} aria-hidden />
+          {!reduceMotion &&
+            AMBIENT_SPARKLES.map((s, i) => (
+              <motion.span
+                key={i}
+                aria-hidden
+                className="pointer-events-none absolute h-1 w-1 rounded-full bg-gold-200"
+                style={{ top: s.top, left: s.left }}
+                animate={{ opacity: [0.15, 0.9, 0.15] }}
+                transition={{ duration: 2.6, delay: s.delay, repeat: Infinity, ease: "easeInOut" }}
+              />
+            ))}
+        </div>
+        <div className="mt-2 font-display text-base font-bold uppercase tracking-wide text-gold-300">
+          {isAmharic ? "ዕለታዊ ሽልማት" : "Daily Reward"}
+        </div>
+      </div>
 
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
