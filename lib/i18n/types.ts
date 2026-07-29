@@ -564,4 +564,75 @@ export interface UIStrings {
     secondsShort: string;
     returnToMultiplayer: string;
   };
+  onboarding: {
+    progressLabel: string; // "{n} / 7" — {n} is replaced by the caller
+    skip: string;
+    back: string;
+    continueButton: string;
+    welcome: {
+      eyebrow: string;
+      subtitle: string;
+      tagline: string;
+      skipForNow: string;
+    };
+    language: {
+      heading: string;
+      headingAccent: string;
+      subheading: string;
+    };
+    experience: {
+      heading: string;
+      headingAccent: string;
+      subheading: string;
+      soloCampaign: { title: string; description: string };
+      dailyChallenge: { title: string; description: string };
+      liveBattle: { title: string; description: string };
+      churchMode: { title: string; description: string };
+      friendsBattle: { title: string; description: string };
+    };
+    goal: {
+      heading: string;
+      subheading: string;
+      study: string;
+      church: string;
+      compete: string;
+      devotion: string;
+      family: string;
+      knowledge: string;
+    };
+    reminder: {
+      heading: string;
+      subheading: string;
+      notificationTitle: string;
+      notificationBody: string;
+      enable: string;
+      notNow: string;
+      settingsNote: string;
+      enabledConfirmation: string;
+    };
+    profile: {
+      heading: string;
+      headingAccent: string;
+      subheading: string;
+      nameLabel: string;
+      namePlaceholder: string;
+      countryLabel: string;
+      countryPlaceholder: string;
+      churchLabel: string;
+      churchPlaceholder: string;
+    };
+    ready: {
+      headline: string;
+      subtitle: string;
+      verseQuote: string;
+      verseReference: string;
+      startButton: string;
+      blessing: string;
+    };
+    replay: {
+      heading: string;
+      description: string;
+      button: string;
+    };
+  };
 }

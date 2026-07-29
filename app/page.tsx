@@ -43,6 +43,8 @@ import MobileComingSoonSummary from "@/components/mobile/MobileComingSoonSummary
 import MobileCampaignJourney from "@/components/mobile/MobileCampaignJourney";
 import MobileLevelComplete from "@/components/mobile/MobileLevelComplete";
 import MobileLeaderboardPreview from "@/components/mobile/MobileLeaderboardPreview";
+import MobileOnboarding from "@/components/mobile/onboarding/MobileOnboarding";
+import { hasCompletedOnboarding } from "@/lib/mobile/onboarding";
 import { Play, Calendar, Church, Swords, Users } from "lucide-react";
 
 import {
@@ -73,6 +75,7 @@ import {
   type CampaignProgress,
 } from "@/lib/campaign";
 import { recordCompletedQuiz, loadProfileStats, type ProfileStats } from "@/lib/profileStats";
+import { hapticHeavy } from "@/lib/mobile/haptics";
 
 type Stage =
   | "categories"
@@ -137,6 +140,17 @@ function HomeInner() {
   // own refs distinct from the desktop-only ones above.
   const mobileChallengesRef = useRef<HTMLDivElement>(null);
   const mobileChurchRef = useRef<HTMLDivElement>(null);
+
+  // Mission 21 — mobile-only first-launch onboarding gate. Starts as
+  // `null` ("not checked yet") so the very first client render never
+  // shows the wrong thing before localStorage has actually been read —
+  // same "checked only after mount" pattern LanguageContext already uses
+  // for its own saved-language read, which avoids a hydration mismatch.
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setShowOnboarding(!hasCompletedOnboarding());
+  }, []);
 
   useEffect(() => {
     setEntries(loadLeaderboard());
@@ -235,6 +249,12 @@ function HomeInner() {
 
     setNewBadges(unlocked);
     setResult(res);
+
+    // Mission 20 — heavy haptic reserved for a genuinely major moment (a
+    // brand-new achievement badge), separate from QuizCard's own medium
+    // haptic on every level finish. Purely decorative — reads the same
+    // `unlocked` array already computed above, writes nothing.
+    if (unlocked.length > 0) hapticHeavy();
 
     if (hasPassedLevel(res.correct, res.total)) {
       setCampaignProgress(
@@ -480,7 +500,39 @@ function HomeInner() {
       </div>
 
       <div className="md:hidden">
+      {/* Mission 21 — first-launch onboarding takes over the mobile screen
+          entirely (its own fixed full-bleed overlay) until the user
+          finishes or skips it; the normal Home/Result/Leaderboard/Profile/
+          quiz stages below are only rendered once showOnboarding is known
+          to be false, so onboarding and Home never render on top of each
+          other. showOnboarding stays `null` ("not checked yet") for one
+          tick after mount, during which neither renders — see the
+          useEffect near the top of this component for why. */}
+      {showOnboarding && (
+        <MobileOnboarding
+          onComplete={() => setShowOnboarding(false)}
+          initialDisplayName={!isGuest ? user?.displayName : undefined}
+        />
+      )}
+
+      {showOnboarding === false && (
+      <>
+      {/* Mission 20 — a shared fade transition (250ms, matching the "quiz"
+          stage's own AnimatePresence below) between the four non-gameplay
+          mobile stages (Home/Result/Leaderboard/Profile). "quiz" keeps its
+          own dedicated AnimatePresence untouched — it already has its own
+          campaign-list <-> gameplay transition and must never be pooled
+          with these under one mode="wait", since gameplay's mount/unmount
+          timing (haptics, timers starting) is unrelated to this fade. */}
+      <AnimatePresence mode="wait">
         {stage === "categories" && (
+          <motion.div
+            key="mobile-categories"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
           <MobileAppShell>
             <MobileHero
               displayName={user?.displayName ?? t.common.guest}
@@ -587,7 +639,64 @@ function HomeInner() {
               </div>
             </MobileSection>
           </MobileAppShell>
+          </motion.div>
         )}
+
+        {stage === "result" && result && (
+          <motion.div
+            key="mobile-result"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <MobileLevelComplete
+              result={result}
+              newBadges={newBadges}
+              onRestart={handleRestart}
+              onNextLevel={handleNextLevel}
+              canNextLevel={hasPassedLevel(result.correct, result.total) && gameLevel < MAX_GAME_LEVEL}
+              onCategories={() => {
+                setStage("categories");
+                setMobileGameActive(false);
+              }}
+              onLeaderboard={handleLeaderboard}
+            />
+          </motion.div>
+        )}
+
+        {stage === "leaderboard" && (
+          <motion.div
+            key="mobile-leaderboard"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <Leaderboard entries={entries} />
+            <MobileBottomNav />
+          </motion.div>
+        )}
+
+        {stage === "profile" && (
+          <motion.div
+            key="mobile-profile"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <ProfilePage
+              onCategories={() => {
+                setStage("categories");
+                scrollTo(gameRef);
+              }}
+              onLeaderboard={handleLeaderboard}
+            />
+            <MobileBottomNav />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
         {stage === "quiz" && categoryId && (
           <AnimatePresence mode="wait">
@@ -630,41 +739,8 @@ function HomeInner() {
             )}
           </AnimatePresence>
         )}
-
-        {stage === "result" && result && (
-          <MobileLevelComplete
-            result={result}
-            newBadges={newBadges}
-            onRestart={handleRestart}
-            onNextLevel={handleNextLevel}
-            canNextLevel={hasPassedLevel(result.correct, result.total) && gameLevel < MAX_GAME_LEVEL}
-            onCategories={() => {
-              setStage("categories");
-              setMobileGameActive(false);
-            }}
-            onLeaderboard={handleLeaderboard}
-          />
-        )}
-
-        {stage === "leaderboard" && (
-          <>
-            <Leaderboard entries={entries} />
-            <MobileBottomNav />
-          </>
-        )}
-
-        {stage === "profile" && (
-          <>
-            <ProfilePage
-              onCategories={() => {
-                setStage("categories");
-                scrollTo(gameRef);
-              }}
-              onLeaderboard={handleLeaderboard}
-            />
-            <MobileBottomNav />
-          </>
-        )}
+      </>
+      )}
       </div>
 
       <LanguageModal

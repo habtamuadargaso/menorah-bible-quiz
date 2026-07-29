@@ -34,19 +34,25 @@ export function hapticError(): void {
 // Battle's reveal screen and stay untouched). Same no-op-on-web,
 // swallow-errors guarantee as every other function in this file.
 
-/** Lightest impact — a plain button/card tap, a nav switch. */
+// Mission 20 — retuned mapping: Light now covers every everyday tap
+// (button/card, a correct answer, claiming a reward), Medium is reserved
+// for finishing a level, and Heavy is saved for a genuinely bigger moment
+// (a new achievement/badge), so the heaviest feedback stays rare instead
+// of firing on every quiz.
+
+/** Lightest impact — a plain button/card tap, a correct answer, a reward claim. */
 export function hapticLight(): void {
   if (!isNative()) return;
   Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
 }
 
-/** A correct answer. */
+/** A level finishing (pass or fail) — a firmer tap than routine feedback. */
 export function hapticMedium(): void {
   if (!isNative()) return;
   Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
 }
 
-/** Level complete / a big celebratory moment. */
+/** A major achievement — e.g. a brand-new badge just unlocked. */
 export function hapticHeavy(): void {
   if (!isNative()) return;
   Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});

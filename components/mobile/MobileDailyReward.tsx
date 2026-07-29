@@ -99,12 +99,26 @@ export default function MobileDailyReward({ isAmharic }: { isAmharic: boolean })
 
       {/* Mission 18.5 — a glowing chest/gift badge + centered heading above
           the existing streak/claim row (kept exactly as-is below), so the
-          card reads as "treasure" the way the approved reference does. */}
+          card reads as "treasure" the way the approved reference does.
+          Mission 20 — the icon itself now bounces and the glow pulses only
+          while a reward is actually available, and stop the moment it's
+          claimed (both are gated on `ready`, which flips false in
+          `handleClaim` above). */}
       <div className="relative mb-4 flex flex-col items-center text-center">
-        <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-400/30 via-gold-500/15 to-transparent">
-          <div aria-hidden className="pointer-events-none absolute inset-0 rounded-full bg-amber-500/20 blur-xl" />
+        <motion.div
+          className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-400/30 via-gold-500/15 to-transparent"
+          animate={ready && !reduceMotion ? { y: [0, -3, 0] } : undefined}
+          transition={ready && !reduceMotion ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : undefined}
+        >
+          <motion.div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-full bg-amber-500/20 blur-xl"
+            animate={ready && !reduceMotion ? { opacity: [0.5, 1, 0.5] } : undefined}
+            transition={ready && !reduceMotion ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" } : undefined}
+          />
           <Gift className="relative h-7 w-7 text-amber-300" strokeWidth={1.8} aria-hidden />
-          {!reduceMotion &&
+          {ready &&
+            !reduceMotion &&
             AMBIENT_SPARKLES.map((s, i) => (
               <motion.span
                 key={i}
@@ -115,7 +129,7 @@ export default function MobileDailyReward({ isAmharic }: { isAmharic: boolean })
                 transition={{ duration: 2.6, delay: s.delay, repeat: Infinity, ease: "easeInOut" }}
               />
             ))}
-        </div>
+        </motion.div>
         <div className="mt-2 font-display text-base font-bold uppercase tracking-wide text-gold-300">
           {isAmharic ? "ዕለታዊ ሽልማት" : "Daily Reward"}
         </div>

@@ -44,8 +44,10 @@ function CardContent({
   const reduceMotion = useReducedMotion();
   return (
     <motion.div
-      whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-      transition={{ duration: 0.15 }}
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+      whileInView={{ opacity: 1, y: 0, transition: { duration: 0.3 } }}
+      viewport={{ once: true, margin: "-10px" }}
+      whileTap={reduceMotion ? undefined : { scale: 0.97, transition: { duration: 0.15 } }}
       className={`relative flex min-h-[64px] w-full items-center gap-3 overflow-hidden rounded-card-sm border px-4 py-3.5 text-left backdrop-blur-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${
         accentClasses ? `bg-white/[0.04] shadow-premium ${accentClasses.border}` : THEME_CLASSES[theme]
       }`}

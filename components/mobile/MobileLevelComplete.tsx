@@ -10,6 +10,7 @@ import { MAX_GAME_LEVEL } from "@/lib/levels";
 import { hasPassedLevel, PASSING_CORRECT_ANSWERS } from "@/lib/campaign";
 import { ACHIEVEMENTS, loadUnlockedAchievements, type AchievementId } from "@/lib/achievements";
 import MobileAmbientGlow from "./MobileAmbientGlow";
+import AnimatedNumber from "./AnimatedNumber";
 
 // Mission 16 — mobile-only "Bible Journey" celebration screen. Reuses the
 // exact same QuizResult data and the exact same lib/leaderboard.ts,
@@ -32,11 +33,19 @@ const STAT_TONE_CLASSES = {
 function StatPill({
   icon,
   value,
+  count,
+  prefix = "",
+  suffix = "",
   label,
   tone = "neutral",
 }: {
   icon: string;
-  value: string;
+  /** Plain display string (e.g. "6/10") — used when `count` isn't given. */
+  value?: string;
+  /** Mission 20 — a raw number to count up from 0 on mount, celebration-style. */
+  count?: number;
+  prefix?: string;
+  suffix?: string;
   label: string;
   tone?: keyof typeof STAT_TONE_CLASSES;
 }) {
@@ -45,7 +54,17 @@ function StatPill({
       <span className="text-base" aria-hidden>
         {icon}
       </span>
-      <span className={`font-display text-lg font-bold ${STAT_TONE_CLASSES[tone]}`}>{value}</span>
+      <span className={`font-display text-lg font-bold ${STAT_TONE_CLASSES[tone]}`}>
+        {typeof count === "number" ? (
+          <>
+            {prefix}
+            <AnimatedNumber value={count} duration={0.9} startFromZero />
+            {suffix}
+          </>
+        ) : (
+          value
+        )}
+      </span>
       <span className="text-[10px] uppercase tracking-wide text-[#9aa1b0]">{label}</span>
     </div>
   );
@@ -220,10 +239,10 @@ export default function MobileLevelComplete({
         transition={{ delay: 0.25, duration: 0.35 }}
         className="mt-6 flex gap-2"
       >
-        <StatPill icon="✅" value={`${result.correct}/${result.total}`} label={t.result.correct} tone="success" />
-        <StatPill icon="🎯" value={`${pct}%`} label={t.result.accuracy} tone="success" />
-        <StatPill icon="⚡" value={`+${result.xpEarned}`} label={t.result.stats.xpEarned} tone="violet" />
-        <StatPill icon="🪙" value={`+${result.coinsEarned}`} label={t.result.stats.coinsEarned} tone="gold" />
+        <StatPill icon="✅" count={result.correct} suffix={`/${result.total}`} label={t.result.correct} tone="success" />
+        <StatPill icon="🎯" count={pct} suffix="%" label={t.result.accuracy} tone="success" />
+        <StatPill icon="⚡" count={result.xpEarned} prefix="+" label={t.result.stats.xpEarned} tone="violet" />
+        <StatPill icon="🪙" count={result.coinsEarned} prefix="+" label={t.result.stats.coinsEarned} tone="gold" />
       </motion.div>
 
       {/* ---------------- unlock banner ---------------- */}

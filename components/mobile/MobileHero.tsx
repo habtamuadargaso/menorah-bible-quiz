@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import heroArtwork from "@/public/images/menorah-hero-premium.webp";
+import AnimatedNumber from "./AnimatedNumber";
+import ValuePulse from "./ValuePulse";
 
 // Mission 15.5 — premium mobile dashboard hero. Replaces the plain "Play"
 // section header with a greeting + brand moment + at-a-glance progress,
@@ -147,11 +149,13 @@ export default function MobileHero({
           nothing here is ever covered by the art above. */}
       <div className="relative mt-4 flex items-center gap-3">
         <div className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border-2 border-gold-400/60 bg-navy-950/60 font-display text-lg font-bold text-gold-300 shadow-gold">
-          {level}
+          <ValuePulse value={level}>{level}</ValuePulse>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between text-xs font-semibold text-[#c6cbd6]">
-            <span>{xpIntoLevel.toLocaleString()} / {xpForNextLevel.toLocaleString()} XP</span>
+            <span>
+              <AnimatedNumber value={xpIntoLevel} /> / {xpForNextLevel.toLocaleString()} XP
+            </span>
             <span className="text-gold-400">{progressPct}%</span>
           </div>
           <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-white/10">
@@ -168,15 +172,19 @@ export default function MobileHero({
       <div className="relative mt-3 grid grid-cols-3 gap-2">
         <div className="flex items-center justify-center gap-1.5 rounded-full border border-gold-500/25 bg-navy-950/40 px-2 py-2 text-xs font-bold text-gold-300">
           <span aria-hidden>🪙</span>
-          {coins}
+          <ValuePulse value={coins}>
+            <AnimatedNumber value={coins} />
+          </ValuePulse>
         </div>
         <div className="flex items-center justify-center gap-1.5 rounded-full border border-purple-400/25 bg-navy-950/40 px-2 py-2 text-xs font-bold text-purple-200">
           <span aria-hidden>⭐</span>
-          {isAmharic ? "ደረጃ" : "Lvl"} {level}
+          {isAmharic ? "ደረጃ" : "Lvl"} <ValuePulse value={level}>{level}</ValuePulse>
         </div>
         <div className="flex items-center justify-center gap-1.5 rounded-full border border-streak-500/30 bg-navy-950/40 px-2 py-2 text-xs font-bold text-streak-300">
           <span aria-hidden>🔥</span>
-          {streak}
+          <ValuePulse value={streak}>
+            <AnimatedNumber value={streak} />
+          </ValuePulse>
         </div>
       </div>
 

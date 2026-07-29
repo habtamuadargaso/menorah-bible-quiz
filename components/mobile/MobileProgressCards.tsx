@@ -2,6 +2,8 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { Coins, Flame } from "lucide-react";
+import AnimatedNumber from "./AnimatedNumber";
+import ValuePulse from "./ValuePulse";
 
 // Mission 15.5 — richer replacement for the old plain "Your Progress"
 // MobileStatCard row. Same three numbers as before (player level + XP
@@ -38,7 +40,7 @@ function XpRing({ progressPct, level }: { progressPct: number; level: number }) 
         </defs>
       </svg>
       <div className="absolute inset-0 flex items-center justify-center font-display text-base font-bold text-[#fbf6e8]">
-        {level}
+        <ValuePulse value={level}>{level}</ValuePulse>
       </div>
     </div>
   );
@@ -90,7 +92,11 @@ export default function MobileProgressCards({
         <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-gold-500/15">
           <Coins className="h-6 w-6 text-gold-400" strokeWidth={1.8} aria-hidden />
         </span>
-        <span className="font-display text-lg font-bold text-[#fbf6e8]">{coins}</span>
+        <span className="font-display text-lg font-bold text-[#fbf6e8]">
+          <ValuePulse value={coins}>
+            <AnimatedNumber value={coins} />
+          </ValuePulse>
+        </span>
         <span className="text-[11px] font-semibold uppercase tracking-wide text-[#9aa1b0]">{coinsLabel}</span>
       </motion.div>
 
@@ -113,7 +119,11 @@ export default function MobileProgressCards({
             aria-hidden
           />
         </span>
-        <span className="font-display text-lg font-bold text-[#fbf6e8]">{streak}</span>
+        <span className="font-display text-lg font-bold text-[#fbf6e8]">
+          <ValuePulse value={streak}>
+            <AnimatedNumber value={streak} />
+          </ValuePulse>
+        </span>
         <span className="text-[11px] font-semibold uppercase tracking-wide text-[#9aa1b0]">{streakLabel}</span>
       </motion.div>
     </div>

@@ -21,6 +21,7 @@ import {
   setHighContrastEnabled,
   setReducedMotionOverride,
 } from "@/lib/preferences";
+import { resetOnboarding } from "@/lib/mobile/onboarding";
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
@@ -199,6 +200,28 @@ export default function SettingsPage() {
                 }}
                 label={ts.highContrastLabel}
               />
+            </div>
+          </section>
+
+          {/* Mission 21 — mobile-only replay entry point for the first-launch
+              onboarding tour (Settings → About → View Tutorial Again).
+              md:hidden because onboarding itself is mobile-only; showing
+              this on desktop would add a visible element to a page desktop
+              also uses, which the "desktop remains unchanged" rule forbids. */}
+          <section className={`${sectionClass} md:hidden`}>
+            <h2 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-gold-400">{t.onboarding.replay.heading}</h2>
+            <div className={labelClass}>
+              <p className="text-sm text-[#c6cbd6]">{t.onboarding.replay.description}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  resetOnboarding();
+                  router.push("/");
+                }}
+                className="min-h-[44px] flex-shrink-0 rounded-full border border-gold-500/30 px-4 text-sm font-semibold text-gold-300 outline-none transition-colors hover:bg-gold-500/10 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+              >
+                {t.onboarding.replay.button}
+              </button>
             </div>
           </section>
 
