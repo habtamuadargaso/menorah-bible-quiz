@@ -1,0 +1,22 @@
+# Mission 23 — copy this file to android/key.properties (gitignored) and
+# fill in real values once you've generated your release keystore.
+#
+# Generate the keystore (run once, from the repo root):
+#   keytool -genkeypair -v -storetype PKCS12 \
+#     -keystore android/release.keystore \
+#     -alias menorah-release \
+#     -keyalg RSA -keysize 2048 -validity 10000
+#
+# keytool will prompt for a store password, a key password, and your
+# name/org details (used only in the certificate, not shown to users).
+# Store the keystore file and both passwords in a password manager or
+# secrets vault — losing this keystore permanently breaks the ability to
+# publish updates to this app under its existing Play Store listing.
+# There is no recovery path; Google cannot reissue it for you.
+#
+# storeFile is resolved relative to the android/ directory (project root
+# for this Gradle module) — an absolute path also works.
+storeFile=release.keystore
+storePassword=REPLACE_WITH_YOUR_KEYSTORE_PASSWORD
+keyAlias=menorah-release
+keyPassword=REPLACE_WITH_YOUR_KEY_PASSWORD

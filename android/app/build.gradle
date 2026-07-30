@@ -1,5 +1,20 @@
 apply plugin: 'com.android.application'
 
+import org.gradle.api.GradleException
+
+// Mission 23 — release signing, loaded from key.properties (gitignored;
+// never commit the real keystore or its passwords). See
+// android/key.properties.example for the expected format and
+// MOBILE_SETUP.md for how to generate a real release keystore. Deliberately
+// NOT falling back to debug signing when key.properties is absent — an
+// unsigned/mis-signed release build should be an obvious, visible gap.
+def keystorePropertiesFile = rootProject.file("key.properties")
+def keystoreProperties = new Properties()
+def hasReleaseSigning = keystorePropertiesFile.exists()
+if (hasReleaseSigning) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.menorah.biblequiz"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -8,7 +23,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,12 +31,43 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
         }
     }
+}
+
+// Mission 23 follow-up — fail the build outright for any release-flavored
+// task (bundleRelease, assembleRelease, etc.) when key.properties is
+// missing, rather than letting it quietly produce an unsigned .aab that
+// only jarsigner -verify (or a Play Console rejection) would catch. Placed
+// after the android {} block so AGP's own DSL evaluation (compileSdk, etc.)
+// always completes first — this check only affects whether the task graph
+// is allowed to run, not the project's configuration validity.
+def isReleaseTask = gradle.startParameter.taskNames.any {
+    it.toLowerCase().contains("release")
+}
+
+if (isReleaseTask && !hasReleaseSigning) {
+    throw new GradleException(
+        "Release signing credentials are missing. " +
+        "Create android/key.properties from key.properties.example."
+    )
 }
 
 repositories {
