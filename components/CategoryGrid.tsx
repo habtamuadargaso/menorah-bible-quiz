@@ -8,6 +8,23 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import CategoryIcon from "./CategoryIcon";
 import SectionBackdrop from "./SectionBackdrop";
 
+// Hardcoded (rather than computed with Math.cos/Math.sin at render time) because
+// server and client can round transcendental functions to different last bits,
+// which React reports as a hydration mismatch once serialized to a JSX attribute
+// string. Values are `200 + cos(i*PI/5)*90` / `55 + sin(i*PI/5)*90`, rounded to 2dp.
+const STAR_RAYS = [
+  { x2: 290, y2: 55 },
+  { x2: 272.81, y2: 107.9 },
+  { x2: 227.81, y2: 140.6 },
+  { x2: 172.19, y2: 140.6 },
+  { x2: 127.19, y2: 107.9 },
+  { x2: 110, y2: 55 },
+  { x2: 127.19, y2: 2.1 },
+  { x2: 172.19, y2: -30.6 },
+  { x2: 227.81, y2: -30.6 },
+  { x2: 272.81, y2: 2.1 },
+];
+
 // Elegant, Bible-themed line-art motifs — one per category — so each
 // adventure card reads as a distinct place, not just a recolored icon.
 function CategoryMotif({ id, className }: { id: CategoryId; className?: string }) {
@@ -47,20 +64,9 @@ function CategoryMotif({ id, className }: { id: CategoryId; className?: string }
       // the guiding star of Bethlehem with a soft trail, and an olive branch below
       return (
         <svg viewBox="0 0 400 140" preserveAspectRatio="none" className={className}>
-          {Array.from({ length: 10 }).map((_, i) => {
-            const a = (i * Math.PI) / 5;
-            return (
-              <line
-                key={i}
-                x1={200}
-                y1={55}
-                x2={200 + Math.cos(a) * 90}
-                y2={55 + Math.sin(a) * 90}
-                {...common}
-                strokeWidth={1}
-              />
-            );
-          })}
+          {STAR_RAYS.map((ray, i) => (
+            <line key={i} x1={200} y1={55} x2={ray.x2} y2={ray.y2} {...common} strokeWidth={1} />
+          ))}
           <circle cx="200" cy="55" r="12" {...common} strokeWidth={1.3} />
           <path d="M215 65q30 20 60 45" {...common} strokeWidth={1} opacity={0.7} />
           <path d="M140 125q40-10 60 0M150 118q8-8 16 0M174 118q8-8 16 0" {...common} strokeWidth={0.9} />
