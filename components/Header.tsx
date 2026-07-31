@@ -8,7 +8,6 @@ import { loadProgress, levelForXp } from "@/lib/progress";
 import LanguageSelector from "./LanguageSelector";
 import SoundToggle from "./SoundToggle";
 import MobileTopBar from "./mobile/MobileTopBar";
-import BrandLockup from "./BrandLockup";
 
 export default function Header({
   onHome,
@@ -46,7 +45,8 @@ export default function Header({
           onClick={onHome}
           className="flex items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
-          <BrandLockup />
+          {/* Mission 27 — standardized on public/branding/ (single source of truth) */}
+          <img src="/branding/logo-horizontal-compact.svg" alt="Menorah Bible Quiz" className="h-9 w-auto" />
         </button>
 
       <div className="flex items-center gap-3 sm:gap-5">

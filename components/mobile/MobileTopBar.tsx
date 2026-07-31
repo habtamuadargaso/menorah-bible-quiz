@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { loadProgress, levelForXp } from "@/lib/progress";
 import LanguageSelector from "@/components/LanguageSelector";
 import SoundToggle from "@/components/SoundToggle";
-import BrandLockup from "@/components/BrandLockup";
 
 // Mission 15 — simplified mobile top header: logo, level pill, a compact
 // "more" sheet holding language + sound (kept off the always-visible row so
@@ -31,10 +30,18 @@ export default function MobileTopBar({
     setLevel(levelForXp(loadProgress().totalXp).level);
   }, []);
 
-  // Mission 25A brand system — see public/branding/. A custom `title`
-  // (e.g. a specific game screen's name) still gets the symbol mark next
-  // to it; with no override, the full compact wordmark lockup is shown.
-  const logo = <BrandLockup compact title={title} />;
+  // Mission 27 — standardized on public/branding/ (single source of
+  // truth). A custom `title` (e.g. a specific game screen's name) gets
+  // the symbol mark next to it; with no override, the compact horizontal
+  // lockup is shown (no tagline — this bar is too tight for one).
+  const logo = title ? (
+    <span className="flex items-center gap-2">
+      <img src="/branding/logo-symbol.svg" alt="" className="h-6 w-6 flex-shrink-0" />
+      <span className="truncate font-display text-base font-semibold text-[#f7f0dc]">{title}</span>
+    </span>
+  ) : (
+    <img src="/branding/logo-horizontal-compact.svg" alt="Menorah Bible Quiz" className="h-7 w-auto" />
+  );
 
   return (
     <div className="relative z-20 flex min-h-[60px] items-center justify-between gap-2 border-b border-gold-500/20 bg-navy-950/90 px-3 py-2 backdrop-blur-md md:hidden">

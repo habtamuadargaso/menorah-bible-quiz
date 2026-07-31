@@ -19,7 +19,7 @@ See `.env.example` for the full annotated list. Set these in Vercel's Project Se
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | All |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes | All |
-| `NEXT_PUBLIC_SITE_URL` | Recommended in Production | Production (defaults to `http://localhost:3000` otherwise — fine for dev, wrong for OG/social metadata in prod) |
+| `NEXT_PUBLIC_SITE_URL` | Recommended in Production | Production, set to `https://www.menorahbiblequiz.com` — used by `app/layout.tsx` (`metadataBase`/OG image resolution), `app/robots.ts`, and `app/sitemap.ts`. Defaults to `http://localhost:3000` otherwise — fine for dev, wrong for OG/social metadata, robots.txt, and sitemap.xml in prod if left unset (Mission 27) |
 | `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`) | Yes, for admin dashboard + AI Factory | All environments that need those features |
 | `GEMINI_API_KEY` / `GEMINI_MODEL` | Only if using the AI Question Factory | Wherever that feature is used |
 | `QUESTION_ADMIN_SECRET` | Local-dev fallback only | Avoid setting in Production once real admin accounts exist — see [ADMIN.md](ADMIN.md) |
