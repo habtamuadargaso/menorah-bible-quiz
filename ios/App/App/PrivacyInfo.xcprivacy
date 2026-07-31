@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Mission 24 — App target's own privacy manifest.
+
+  NSPrivacyAccessedAPITypes is empty because this app's own native code —
+  AppDelegate.swift plus the 5 vendored Capacitor plugins actually linked
+  into this build (@capacitor/app, haptics, keyboard, splash-screen,
+  status-bar; source inspected directly under
+  node_modules/@capacitor/*/ios/Sources) — was verified to call none of
+  Apple's required-reason API categories (no UserDefaults, no file
+  timestamp APIs, no system-boot-time APIs, no disk-space APIs, no active
+  keyboard APIs). Do not add entries here without verifying the actual
+  API call first — an unused declared reason is as wrong as a missing one.
+
+  NOT verified here: Capacitor's own core WebView bridge runtime, which
+  this project resolves from the remote "capacitor-swift-pm" Swift Package
+  (ios/App/CapApp-SPM/Package.resolved) rather than from a locally
+  vendored copy — its source wasn't available to inspect in this session.
+  If Xcode's build (or App Store Connect's ingestion) flags a missing
+  required-reason declaration once that package is actually compiled,
+  add it then, backed by Ionic/Capacitor's own published privacy-manifest
+  guidance for that specific API — don't guess it in ahead of time here.
+
+  NSPrivacyCollectedDataTypes reflects data collected by the app as a
+  whole (native shell + the web app it loads), per Mission 24's Privacy
+  Policy/App Store Privacy audit: an anonymous per-session user ID, a
+  player-chosen display name, and gameplay content (scores/answers) —
+  all used only for app functionality (Live Battle), never for tracking,
+  never linked to a real-world identity. See Mission 24's App Store
+  Privacy report for the full reasoning per field.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeGameplayContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>

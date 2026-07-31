@@ -16,7 +16,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#080d22",
+  // Mission 25A brand system — official "Deep Navy" (#0A1E3D), replacing
+  // the prior ad hoc #080d22.
+  themeColor: "#0A1E3D",
 };
 
 export const metadata: Metadata = {
@@ -25,16 +27,27 @@ export const metadata: Metadata = {
   description: "A multilingual Bible learning game for individuals, families, churches, and live competitions.",
   applicationName: "Menorah Bible Quiz",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon.svg", apple: "/icons/icon-192.png" },
+  // Mission 25A brand system — see public/branding/.
+  icons: {
+    icon: [
+      { url: "/branding/favicon.ico", sizes: "any" },
+      { url: "/branding/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/branding/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/branding/logo-symbol.svg", type: "image/svg+xml" },
+    ],
+    apple: "/branding/apple-touch-icon.png",
+  },
   openGraph: {
     title: "Menorah Bible Quiz",
     description: "Learn the Word. Test your faith. Grow in wisdom.",
     type: "website",
+    images: [{ url: "/branding/og-image.png", width: 1200, height: 630, alt: "Menorah Bible Quiz" }],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Menorah Bible Quiz",
     description: "Learn the Word. Test your faith. Grow in wisdom.",
+    images: ["/branding/og-image.png"],
   },
 };
 

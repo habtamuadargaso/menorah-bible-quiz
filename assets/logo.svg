@@ -1,5 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="110" fill="#071122"/>
-  <path d="M256 84v250M156 128v80c0 50 40 90 100 90s100-40 100-90v-80M112 170v42c0 58 48 104 144 104s144-46 144-104v-42M256 334v64M184 398h144" fill="none" stroke="#e8c15f" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="112" cy="160" r="14" fill="#fff4b8"/><circle cx="156" cy="118" r="14" fill="#fff4b8"/><circle cx="256" cy="74" r="14" fill="#fff4b8"/><circle cx="356" cy="118" r="14" fill="#fff4b8"/><circle cx="400" cy="160" r="14" fill="#fff4b8"/>
+  <g transform="translate(40 40) scale(1.8)">
+  
+  <g>
+    <!-- book -->
+    <path d="M 120 180 C 70.80000000000001 182 38 186 38 194 L 38 210 C 38 218 70.80000000000001 222 120 224 Z" fill="#F7F0DC"/>
+    <path d="M 120 180 C 169.2 182 202 186 202 194 L 202 210 C 202 218 169.2 222 120 224 Z" fill="#F7F0DC"/>
+    <path d="M 108 196 L 52.760000000000005 195" stroke="#D9CBA0" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
+    <path d="M 108 204 L 52.760000000000005 204" stroke="#D9CBA0" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
+    <path d="M 108 212 L 52.760000000000005 213" stroke="#D9CBA0" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
+    <path d="M 132 196 L 187.24 195" stroke="#D9CBA0" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
+    <path d="M 132 204 L 187.24 204" stroke="#D9CBA0" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
+    <path d="M 132 212 L 187.24 213" stroke="#D9CBA0" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
+    <line x1="120" y1="178" x2="120" y2="224" stroke="#D4AF37" stroke-width="2.5"/>
+    <!-- base -->
+    <path d="M 113 170 L 127 170 L 135 180 L 105 180 Z" fill="#D4AF37"/>
+    <!-- branches -->
+    <path d="M 120 170 L 120 29.225" fill="none" stroke="#D4AF37" stroke-width="10" stroke-linecap="round"/>
+    <path d="M 120 148 C 144 148 144 78.113 144 45.225" fill="none" stroke="#D4AF37" stroke-width="10" stroke-linecap="round"/>
+    <path d="M 120 158 C 168 158 168 93.553 168 63.225" fill="none" stroke="#D4AF37" stroke-width="10" stroke-linecap="round"/>
+    <path d="M 120 168 C 192 168 192 110.353 192 83.225" fill="none" stroke="#D4AF37" stroke-width="10" stroke-linecap="round"/>
+    <path d="M 120 148 C 96 148 96 78.113 96 45.225" fill="none" stroke="#D4AF37" stroke-width="10" stroke-linecap="round"/>
+    <path d="M 120 158 C 72 158 72 93.553 72 63.225" fill="none" stroke="#D4AF37" stroke-width="10" stroke-linecap="round"/>
+    <path d="M 120 168 C 48 168 48 110.353 48 83.225" fill="none" stroke="#D4AF37" stroke-width="10" stroke-linecap="round"/>
+    <!-- flames -->
+    <path d="M 120 14.5 C 127.13 22.575 126.2 29.225 120 30.175 C 113.8 29.225 112.87 22.575 120 14.5 Z" fill="#FFD97A"/>
+    <path d="M 144 30.5 C 151.13 38.575 150.2 45.225 144 46.175 C 137.8 45.225 136.87 38.575 144 30.5 Z" fill="#FFD97A"/>
+    <path d="M 168 48.5 C 175.13 56.575 174.2 63.225 168 64.175 C 161.8 63.225 160.87 56.575 168 48.5 Z" fill="#FFD97A"/>
+    <path d="M 192 68.5 C 199.13 76.575 198.2 83.225 192 84.175 C 185.8 83.225 184.87 76.575 192 68.5 Z" fill="#FFD97A"/>
+    <path d="M 96 30.5 C 103.13 38.575 102.2 45.225 96 46.175 C 89.8 45.225 88.87 38.575 96 30.5 Z" fill="#FFD97A"/>
+    <path d="M 72 48.5 C 79.13 56.575 78.2 63.225 72 64.175 C 65.8 63.225 64.87 56.575 72 48.5 Z" fill="#FFD97A"/>
+    <path d="M 48 68.5 C 55.13 76.575 54.2 83.225 48 84.175 C 41.8 83.225 40.87 76.575 48 68.5 Z" fill="#FFD97A"/>
+  </g>
+</g>
 </svg>

@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "mobile:assets": "capacitor-assets generate --iconBackgroundColor '#080d22' --iconBackgroundColorDark '#080d22' --splashBackgroundColor '#080d22' --splashBackgroundColorDark '#080d22'",
+    "mobile:assets": "capacitor-assets generate --iconBackgroundColor '#0A1E3D' --iconBackgroundColorDark '#0A1E3D' --splashBackgroundColor '#080d22' --splashBackgroundColorDark '#080d22'",
     "mobile:sync": "next build && cap sync",
     "mobile:android": "npm run mobile:sync && cap open android",
     "mobile:ios": "npm run mobile:sync && cap open ios"

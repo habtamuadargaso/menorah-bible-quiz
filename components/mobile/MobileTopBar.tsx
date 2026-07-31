@@ -30,29 +30,16 @@ export default function MobileTopBar({
     setLevel(levelForXp(loadProgress().totalXp).level);
   }, []);
 
-  const logo = (
+  // Mission 25A brand system — see public/branding/. A custom `title`
+  // (e.g. a specific game screen's name) still gets the symbol mark next
+  // to it; with no override, the full compact wordmark lockup is shown.
+  const logo = title ? (
     <span className="flex items-center gap-2">
-      <svg viewBox="0 0 24 24" className="h-6 w-6 flex-shrink-0">
-        <path
-          d="M12 2v9M12 11c-2.5 0-4-1.6-4-4M12 11c2.5 0 4-1.6 4-4M12 11c-4 0-7 1.4-7 5v5h14v-5c0-3.6-3-5-7-5Z"
-          stroke="#e8c15f"
-          strokeWidth={1.3}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-        <circle cx="8" cy="6.4" r="1" fill="#e8c15f" />
-        <circle cx="12" cy="4.6" r="1" fill="#e8c15f" />
-        <circle cx="16" cy="6.4" r="1" fill="#e8c15f" />
-      </svg>
-      <span className="truncate font-display text-base font-semibold text-[#f7f0dc]">
-        {title ?? (
-          <>
-            Menorah <span className="text-gold-500">Bible Quiz</span>
-          </>
-        )}
-      </span>
+      <img src="/branding/logo-symbol.svg" alt="" className="h-6 w-6 flex-shrink-0" />
+      <span className="truncate font-display text-base font-semibold text-[#f7f0dc]">{title}</span>
     </span>
+  ) : (
+    <img src="/branding/logo-horizontal-compact.svg" alt="Menorah Bible Quiz" className="h-7 w-auto" />
   );
 
   return (

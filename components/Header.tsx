@@ -43,24 +43,10 @@ export default function Header({
       <div className="relative z-10 hidden flex-wrap items-center justify-between gap-3 border-b border-gold-500/15 bg-navy-950/60 px-5 py-4 backdrop-blur-sm sm:px-8 md:flex">
         <button
           onClick={onHome}
-          className="flex items-center gap-2.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="flex items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
-          <svg viewBox="0 0 24 24" className="h-7 w-7 flex-shrink-0">
-            <path
-              d="M12 2v9M12 11c-2.5 0-4-1.6-4-4M12 11c2.5 0 4-1.6 4-4M12 11c-4 0-7 1.4-7 5v5h14v-5c0-3.6-3-5-7-5Z"
-              stroke="#e8c15f"
-              strokeWidth={1.3}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-            />
-            <circle cx="8" cy="6.4" r="1" fill="#e8c15f" />
-            <circle cx="12" cy="4.6" r="1" fill="#e8c15f" />
-            <circle cx="16" cy="6.4" r="1" fill="#e8c15f" />
-          </svg>
-          <span className="font-display text-lg font-semibold tracking-wide text-[#f7f0dc]">
-            Menorah <span className="text-gold-500">Bible Quiz</span>
-          </span>
+          {/* Mission 25A brand system — see public/branding/ */}
+          <img src="/branding/logo-horizontal-compact.svg" alt="Menorah Bible Quiz" className="h-8 w-auto" />
         </button>
 
       <div className="flex items-center gap-3 sm:gap-5">
