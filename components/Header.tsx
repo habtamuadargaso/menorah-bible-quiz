@@ -8,6 +8,7 @@ import { loadProgress, levelForXp } from "@/lib/progress";
 import LanguageSelector from "./LanguageSelector";
 import SoundToggle from "./SoundToggle";
 import MobileTopBar from "./mobile/MobileTopBar";
+import BrandLockup from "./BrandLockup";
 
 export default function Header({
   onHome,
@@ -40,13 +41,12 @@ export default function Header({
   return (
     <>
       <MobileTopBar onHome={onHome} />
-      <div className="relative z-10 hidden flex-wrap items-center justify-between gap-3 border-b border-gold-500/15 bg-navy-950/60 px-5 py-4 backdrop-blur-sm sm:px-8 md:flex">
+      <div className="relative z-10 hidden min-h-[68px] flex-wrap items-center justify-between gap-3 border-b border-gold-500/20 bg-navy-950/85 px-5 py-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.2)] backdrop-blur-md sm:px-8 md:flex">
         <button
           onClick={onHome}
           className="flex items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
-          {/* Mission 25A brand system — see public/branding/ */}
-          <img src="/branding/logo-horizontal-compact.svg" alt="Menorah Bible Quiz" className="h-8 w-auto" />
+          <BrandLockup />
         </button>
 
       <div className="flex items-center gap-3 sm:gap-5">

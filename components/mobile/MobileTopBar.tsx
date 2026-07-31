@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { loadProgress, levelForXp } from "@/lib/progress";
 import LanguageSelector from "@/components/LanguageSelector";
 import SoundToggle from "@/components/SoundToggle";
+import BrandLockup from "@/components/BrandLockup";
 
 // Mission 15 — simplified mobile top header: logo, level pill, a compact
 // "more" sheet holding language + sound (kept off the always-visible row so
@@ -33,17 +34,10 @@ export default function MobileTopBar({
   // Mission 25A brand system — see public/branding/. A custom `title`
   // (e.g. a specific game screen's name) still gets the symbol mark next
   // to it; with no override, the full compact wordmark lockup is shown.
-  const logo = title ? (
-    <span className="flex items-center gap-2">
-      <img src="/branding/logo-symbol.svg" alt="" className="h-6 w-6 flex-shrink-0" />
-      <span className="truncate font-display text-base font-semibold text-[#f7f0dc]">{title}</span>
-    </span>
-  ) : (
-    <img src="/branding/logo-horizontal-compact.svg" alt="Menorah Bible Quiz" className="h-7 w-auto" />
-  );
+  const logo = <BrandLockup compact title={title} />;
 
   return (
-    <div className="relative z-20 flex items-center justify-between gap-2 border-b border-gold-500/15 bg-navy-950/70 px-4 py-3 backdrop-blur-sm md:hidden">
+    <div className="relative z-20 flex min-h-[60px] items-center justify-between gap-2 border-b border-gold-500/20 bg-navy-950/90 px-3 py-2 backdrop-blur-md md:hidden">
       {onHome ? (
         <button
           onClick={onHome}
@@ -60,9 +54,9 @@ export default function MobileTopBar({
         </Link>
       )}
 
-      <div className="flex flex-shrink-0 items-center gap-2">
-        <div className="flex items-center gap-1 rounded-full border border-gold-500/25 px-2.5 py-1 text-xs font-semibold text-gold-400">
-          <span>{t.common.level}</span>
+      <div className="flex flex-shrink-0 items-center gap-1">
+        <div className="flex items-center gap-1 rounded-full border border-gold-500/30 bg-gold-500/[0.06] px-2 py-1 text-[11px] font-semibold text-gold-400">
+          <span className="hidden min-[370px]:inline">{t.common.level}</span>
           <span className="text-gold-300">{level}</span>
         </div>
 
@@ -71,7 +65,7 @@ export default function MobileTopBar({
             onClick={() => setMenuOpen((v) => !v)}
             aria-label={t.settings.title}
             aria-expanded={menuOpen}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             <MoreVertical className="h-4 w-4" aria-hidden />
           </button>
@@ -93,7 +87,7 @@ export default function MobileTopBar({
           href="/settings"
           aria-label={t.settings.navLabel}
           title={t.settings.navLabel}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           <Settings className="h-4 w-4" aria-hidden />
         </Link>
@@ -102,7 +96,7 @@ export default function MobileTopBar({
           href="/profile"
           aria-label={t.profile.title}
           title={isGuest ? t.common.guest : displayName}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-500/15 font-display text-sm font-bold text-gold-400 outline-none transition-colors hover:bg-gold-500/25 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-500/15 font-display text-sm font-bold text-gold-400 outline-none transition-colors hover:bg-gold-500/25 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           {displayName.charAt(0)}
         </Link>

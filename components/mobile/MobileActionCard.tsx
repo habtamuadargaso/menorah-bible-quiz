@@ -45,10 +45,11 @@ function CardContent({
   return (
     <motion.div
       initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-      whileInView={{ opacity: 1, y: 0, transition: { duration: 0.3 } }}
+      whileInView={{ opacity: 1, y: 0, transition: { duration: 0.24 } }}
       viewport={{ once: true, margin: "-10px" }}
-      whileTap={reduceMotion ? undefined : { scale: 0.97, transition: { duration: 0.15 } }}
-      className={`relative flex min-h-[64px] w-full items-center gap-3 overflow-hidden rounded-card-sm border px-4 py-3.5 text-left backdrop-blur-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${
+      whileHover={reduceMotion ? undefined : { y: -2, transition: { duration: 0.16 } }}
+      whileTap={reduceMotion ? undefined : { scale: 0.975, transition: { duration: 0.1 } }}
+      className={`relative flex min-h-[72px] w-full items-center gap-3.5 overflow-hidden rounded-[24px] border px-4 py-3.5 text-left backdrop-blur-md outline-none transition-[border-color,background-color,box-shadow] duration-200 hover:bg-white/[0.065] hover:shadow-[0_14px_32px_rgba(0,0,0,0.28)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${
         accentClasses ? `bg-white/[0.04] shadow-premium ${accentClasses.border}` : THEME_CLASSES[theme]
       }`}
     >
@@ -58,17 +59,17 @@ function CardContent({
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
 
       <span
-        className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full ${
+        className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border border-white/5 ${
           accentClasses ? accentClasses.icon : "bg-navy-900/60 text-gold-400"
         }`}
       >
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-display text-[15px] font-semibold text-[#f7f0dc]">{title}</span>
-        {subtitle && <span className="mt-0.5 block truncate text-xs text-[#9aa1b0]">{subtitle}</span>}
+        <span className="block truncate font-display text-base font-semibold text-[#f7f0dc]">{title}</span>
+        {subtitle && <span className="mt-1 block truncate text-xs text-[#9aa1b0]">{subtitle}</span>}
       </span>
-      <ChevronRight className="h-4 w-4 flex-shrink-0 text-[#6b7280]" aria-hidden />
+      <ChevronRight className="h-5 w-5 flex-shrink-0 text-[#7f8796]" aria-hidden />
     </motion.div>
   );
 }

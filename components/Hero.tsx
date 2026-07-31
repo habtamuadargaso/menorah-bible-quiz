@@ -12,7 +12,7 @@ export default function Hero({ onStart, onLeaderboard }: { onStart: () => void; 
   return (
     <section id="hero" className="relative overflow-hidden pb-20 text-center">
       {/* the artwork: a large glowing Menorah standing on an illuminated open Bible */}
-      <div className="relative h-[340px] w-full overflow-hidden sm:h-[440px] md:h-[540px]">
+      <div className="relative h-[360px] w-full overflow-hidden sm:h-[460px] md:h-[560px]">
         <motion.div
           className="absolute inset-0"
           animate={reduceMotion ? undefined : { scale: [1, 1.045, 1] }}
@@ -74,7 +74,7 @@ export default function Hero({ onStart, onLeaderboard }: { onStart: () => void; 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15 }}
-          className="relative mx-auto mt-4 max-w-2xl font-display text-4xl font-bold leading-tight tracking-tight text-[#fbf6e8] sm:text-5xl md:text-6xl"
+          className="relative mx-auto mt-5 max-w-3xl font-display text-5xl font-bold leading-[1.02] tracking-tight text-[#fbf6e8] sm:text-6xl md:text-7xl"
         >
           Menorah{" "}
           <span className="text-gold-500 drop-shadow-[0_0_28px_rgba(232,193,95,0.45)]">
@@ -86,7 +86,7 @@ export default function Hero({ onStart, onLeaderboard }: { onStart: () => void; 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.22 }}
-          className="mx-auto mt-3 max-w-md text-base font-medium text-gold-300/90"
+          className="mx-auto mt-4 max-w-lg text-lg font-medium text-gold-300/90"
         >
           {t.tagline}
         </motion.p>
@@ -104,13 +104,13 @@ export default function Hero({ onStart, onLeaderboard }: { onStart: () => void; 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.34 }}
-          className="mt-9 flex flex-wrap items-center justify-center gap-4"
+          className="mt-8 flex flex-wrap items-center justify-center gap-4"
         >
           <motion.button
             onClick={onStart}
             whileHover={{ y: -2, scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-9 py-3.5 text-[15px] font-bold text-navy-900 shadow-gold outline-none transition-shadow duration-300 hover:shadow-[0_0_50px_rgba(232,193,95,0.7)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="relative overflow-hidden rounded-full bg-gradient-to-b from-[#f6d77d] via-gold-400 to-gold-600 px-9 py-3.5 text-[15px] font-bold text-navy-900 shadow-[0_10px_26px_rgba(201,154,46,0.3),inset_0_1px_0_rgba(255,255,255,0.55)] outline-none transition-shadow duration-200 hover:shadow-[0_13px_30px_rgba(201,154,46,0.4)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             {t.hero.startButton}
           </motion.button>

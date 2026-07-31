@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
+import { BookOpen } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { getDailyVerse, getVerseText } from "@/lib/bible/verses";
 
@@ -93,40 +94,30 @@ export default function DailyVerseBanner({ onExplore }: { onExplore?: () => void
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="relative overflow-hidden rounded-card-lg border border-purple-400/25 bg-glass-purple p-8 text-center shadow-premium-lg backdrop-blur-md sm:p-12"
+          className="relative overflow-hidden rounded-[32px] border border-gold-500/25 bg-gradient-to-br from-white/[0.055] via-navy-900/75 to-navy-950/80 p-8 text-center shadow-premium-lg backdrop-blur-md sm:p-12"
         >
-          {/* slow shine sweep */}
-          <motion.div
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-            style={{ mixBlendMode: "screen" }}
-            animate={{ x: ["-120%", "320%"] }}
-            transition={{
-              duration: 2.4,
-              repeat: Infinity,
-              repeatDelay: 4.5,
-              ease: "easeInOut",
-            }}
-          />
-
           <div className="relative">
-            <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-gold-500/30 bg-gold-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.22em] text-gold-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-gold-500 animate-pulse" />
+            <div className="mx-auto inline-flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.22em] text-gold-400">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gold-500/25 bg-gold-500/10">
+                <BookOpen className="h-4 w-4" strokeWidth={1.8} aria-hidden />
+              </span>
               {isAmharic ? "የዕለቱ ጥቅስ" : "Verse of the Day"}
             </div>
 
-            <p className="mx-auto mt-6 max-w-2xl font-display text-2xl italic leading-relaxed text-[#f7f0dc] sm:text-3xl">
+            <div className="mx-auto mt-5 h-px max-w-md bg-gradient-to-r from-transparent via-gold-500/40 to-transparent" />
+
+            <p className="mx-auto mt-7 max-w-2xl font-display text-2xl italic leading-relaxed text-[#f7f0dc] sm:text-3xl">
               <span className="text-gold-400">&ldquo;</span>
               {text}
               <span className="text-gold-400">&rdquo;</span>
             </p>
 
             <div className="mt-7 flex items-center justify-center gap-3">
-              <span className="h-px w-8 bg-gradient-to-r from-transparent to-purple-300/60" />
-              <span className="text-sm font-semibold uppercase tracking-[0.14em] text-purple-300">
+              <span className="h-px w-10 bg-gradient-to-r from-transparent to-gold-400/60" />
+              <span className="text-sm font-bold uppercase tracking-[0.16em] text-gold-400">
                 {verse.reference}
               </span>
-              <span className="h-px w-8 bg-gradient-to-l from-transparent to-purple-300/60" />
+              <span className="h-px w-10 bg-gradient-to-l from-transparent to-gold-400/60" />
             </div>
 
             {onExplore && (

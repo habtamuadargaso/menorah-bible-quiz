@@ -63,15 +63,13 @@ export default function MobileHero({
     <motion.section
       initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="relative mx-4 mt-3 overflow-hidden rounded-card border border-gold-500/30 bg-gradient-to-br from-gold-500/20 via-navy-900/60 to-purple-500/15 px-5 pb-5 pt-5 shadow-premium"
+      transition={{ duration: 0.28 }}
+      className="relative mx-3 mt-3 overflow-hidden rounded-[30px] border border-gold-500/35 bg-gradient-to-br from-gold-500/[0.16] via-navy-900/80 to-purple-500/10 px-5 pb-5 pt-6 shadow-[0_22px_55px_rgba(0,0,0,0.38)]"
     >
       {/* ambient depth behind the illustration — kept soft so the vector art above stays the brightest thing in the card */}
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-gold-500/25 blur-3xl"
-        animate={reduceMotion ? undefined : { opacity: [0.5, 0.9, 0.5] }}
-        transition={reduceMotion ? undefined : { duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-gold-500/20 blur-3xl"
       />
       <div aria-hidden className="pointer-events-none absolute -left-10 bottom-0 h-24 w-24 rounded-full bg-purple-500/20 blur-3xl" />
 
@@ -88,7 +86,7 @@ export default function MobileHero({
           hard edge. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-3 -top-3 h-[190px] w-[172px] overflow-hidden rounded-2xl sm:h-[210px] sm:w-[190px]"
+        className="pointer-events-none absolute -right-5 -top-2 h-[210px] w-[190px] overflow-hidden rounded-2xl sm:h-[225px] sm:w-[205px]"
         style={{
           maskImage: "linear-gradient(to right, transparent 0%, black 12%)",
           WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 12%)",
@@ -98,7 +96,7 @@ export default function MobileHero({
           src={heroArtwork}
           alt=""
           fill
-          sizes="(max-width: 640px) 172px, 190px"
+          sizes="(max-width: 640px) 190px, 205px"
           className="object-cover"
           style={{ objectPosition: "right center" }}
           priority
@@ -132,14 +130,14 @@ export default function MobileHero({
           />
         ))}
 
-      <div className="relative max-w-[60%] sm:max-w-[56%]">
+      <div className="relative max-w-[58%] sm:max-w-[56%]">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold-400">
           {greeting(isAmharic)}, {name}
         </p>
-        <h1 className="mt-1 font-display text-2xl font-bold leading-tight text-[#fbf6e8]">
+        <h1 className="mt-2 font-display text-[28px] font-bold leading-[1.02] tracking-tight text-[#fbf6e8] sm:text-3xl">
           Menorah <span className="text-gold-500">Bible Quiz</span>
         </h1>
-        <p className="mt-1 text-[13px] italic text-[#c6cbd6]">
+        <p className="mt-2 text-[13px] leading-5 text-[#c6cbd6]">
           {isAmharic ? "በእግዚአብሔር ቃል በየቀኑ አድጉ።" : "Grow in God's Word every day."}
         </p>
       </div>
@@ -147,8 +145,8 @@ export default function MobileHero({
       {/* Mission 18.5 — circular level indicator + XP fraction + progress
           bar sit below the illustration's footprint, full width, so
           nothing here is ever covered by the art above. */}
-      <div className="relative mt-4 flex items-center gap-3">
-        <div className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border-2 border-gold-400/60 bg-navy-950/60 font-display text-lg font-bold text-gold-300 shadow-gold">
+      <div className="relative mt-7 flex items-center gap-3.5">
+        <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full border-[3px] border-gold-400/70 bg-navy-950/75 font-display text-xl font-bold text-gold-300 shadow-[0_8px_24px_rgba(232,193,95,0.2)]">
           <ValuePulse value={level}>{level}</ValuePulse>
         </div>
         <div className="min-w-0 flex-1">
@@ -158,7 +156,7 @@ export default function MobileHero({
             </span>
             <span className="text-gold-400">{progressPct}%</span>
           </div>
-          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-white/10">
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
             <motion.div
               className="h-full rounded-full bg-gradient-to-r from-gold-300 via-gold-400 to-gold-600"
               initial={{ width: 0 }}
@@ -169,7 +167,7 @@ export default function MobileHero({
         </div>
       </div>
 
-      <div className="relative mt-3 grid grid-cols-3 gap-2">
+      <div className="relative mt-4 grid grid-cols-3 gap-2">
         <div className="flex items-center justify-center gap-1.5 rounded-full border border-gold-500/25 bg-navy-950/40 px-2 py-2 text-xs font-bold text-gold-300">
           <span aria-hidden>🪙</span>
           <ValuePulse value={coins}>
@@ -192,13 +190,7 @@ export default function MobileHero({
         <motion.button
           onClick={onContinue}
           whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-          animate={
-            reduceMotion
-              ? undefined
-              : { boxShadow: ["0 0 0px rgba(232,193,95,0.35)", "0 0 26px rgba(232,193,95,0.6)", "0 0 0px rgba(232,193,95,0.35)"] }
-          }
-          transition={reduceMotion ? undefined : { duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-          className="relative mt-4 w-full overflow-hidden rounded-full bg-gradient-to-br from-gold-300 via-gold-400 to-gold-600 py-3 text-sm font-bold text-navy-900 outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="relative mt-4 w-full overflow-hidden rounded-full bg-gradient-to-b from-[#f6d77d] via-gold-400 to-gold-600 py-3.5 text-sm font-bold text-navy-900 shadow-[0_10px_24px_rgba(201,154,46,0.28),inset_0_1px_0_rgba(255,255,255,0.55)] outline-none transition-shadow hover:shadow-[0_12px_28px_rgba(201,154,46,0.36)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent" />
           <span className="relative">
