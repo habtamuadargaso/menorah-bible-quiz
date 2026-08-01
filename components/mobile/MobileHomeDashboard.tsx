@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, BookOpen, ChevronRight, Flame, Play, Swords, Users } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarDays, ChevronRight, Church, Flame, Play, Swords, Users } from "lucide-react";
 import heroArtwork from "@/public/images/menorah-hero-premium.webp";
 import { getDailyVerse, getVerseText } from "@/lib/bible/verses";
 import type { ProfileStats } from "@/lib/profileStats";
@@ -20,7 +20,9 @@ type Props = {
   progressPct: number;
   streak: number;
   stats: ProfileStats | null;
+  onDailyChallenge: () => void;
   onLiveBattle: () => void;
+  onChurchMode: () => void;
 };
 
 const cardSurface = "rounded-[22px] border border-white/10 bg-white/[0.045] shadow-[0_16px_40px_rgba(0,0,0,0.24)]";
@@ -35,7 +37,9 @@ export default function MobileHomeDashboard({
   progressPct,
   streak,
   stats,
+  onDailyChallenge,
   onLiveBattle,
+  onChurchMode,
 }: Props) {
   const { lang, t } = useLanguage();
   const reduceMotion = useReducedMotion();
@@ -58,6 +62,22 @@ export default function MobileHomeDashboard({
       icon: Play,
       accent: "border-blue-400/25 bg-blue-500/10 text-blue-300",
       href: "/learn",
+    },
+    {
+      title: isAmharic ? "የዕለቱ ፈተና" : "Daily Challenge",
+      subtitle: isAmharic ? "የዕለቱን ፈተና ይጫወቱ" : "Take today’s challenge",
+      status: isAmharic ? "ዕለታዊ" : "Daily",
+      icon: CalendarDays,
+      accent: "border-amber-400/25 bg-amber-500/10 text-amber-300",
+      onClick: onDailyChallenge,
+    },
+    {
+      title: isAmharic ? "የቤተ ክርስቲያን ሁነታ" : "Church Mode",
+      subtitle: isAmharic ? "የቡድን ውድድር ያስተናግዱ" : "Host a group competition",
+      status: isAmharic ? "ቡድን" : "Group",
+      icon: Church,
+      accent: "border-fuchsia-400/25 bg-fuchsia-500/10 text-fuchsia-300",
+      onClick: onChurchMode,
     },
     {
       title: isAmharic ? "የቀጥታ ውድድር" : "Live Battle",
@@ -131,14 +151,18 @@ export default function MobileHomeDashboard({
       </motion.section>
 
       <motion.section {...entrance(0.09)}>
-        <h2 className="mb-2.5 px-1 font-display text-sm font-bold uppercase tracking-[0.16em] text-gold-400">{isAmharic ? "የጨዋታ ሁነታዎች" : "Play Modes"}</h2>
-        <div className="grid grid-cols-3 gap-2">
-          {modes.map(({ icon: Icon, ...mode }) => {
-            const content = <><span className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${mode.accent}`}><Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden /></span><span className="mt-3 block font-display text-[13px] font-bold leading-4 text-[#f7f0dc]">{mode.title}</span><span className="mt-1 block min-h-8 text-[10px] leading-4 text-[#8f97a7]">{mode.subtitle}</span><span className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.045] px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-[#b9c0cd]">{mode.status}</span></>;
-            const classes = `${cardSurface} block min-h-[174px] p-3 text-left outline-none transition-[transform,border-color] hover:-translate-y-0.5 hover:border-gold-500/25 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-gold-300`;
-            return mode.href ? <Link key={mode.title} href={mode.href} onClick={hapticLight} className={classes}>{content}</Link> : <button key={mode.title} onClick={() => { hapticLight(); mode.onClick?.(); }} className={classes}>{content}</button>;
-          })}
-        </div>
+        {[{ label: isAmharic ? "ተጫወት" : "Play", items: modes.slice(0, 3) }, { label: isAmharic ? "ተወዳደር" : "Compete", items: modes.slice(3) }].map((group, groupIndex) => (
+          <div key={group.label} className={groupIndex === 0 ? "" : "mt-8"}>
+            <h2 className="mb-4 px-1 font-display text-sm font-bold uppercase tracking-[0.16em] text-gold-400">{group.label}</h2>
+            <div className="space-y-4">
+              {group.items.map(({ icon: Icon, ...mode }) => {
+                const content = <><span className={`flex h-16 w-16 flex-none items-center justify-center rounded-[22px] border ${mode.accent}`}><Icon className="h-8 w-8" strokeWidth={1.7} aria-hidden /></span><span className="min-w-0 flex-1"><span className="block truncate font-display text-2xl font-bold leading-tight text-[#f7f0dc]">{mode.title}</span><span className="mt-1.5 block truncate text-base leading-6 text-[#9ca4b4]">{mode.subtitle}</span></span><ChevronRight className="h-6 w-6 flex-none text-[#747d8e]" strokeWidth={1.8} aria-hidden /></>;
+                const classes = `${cardSurface} flex min-h-[124px] w-full items-center gap-4 px-5 py-4 text-left outline-none transition-[transform,border-color,background-color] hover:-translate-y-0.5 hover:border-gold-500/25 hover:bg-white/[0.06] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-gold-300`;
+                return mode.href ? <Link key={mode.title} href={mode.href} onClick={hapticLight} className={classes}>{content}</Link> : <button key={mode.title} onClick={() => { hapticLight(); mode.onClick?.(); }} className={classes}>{content}</button>;
+              })}
+            </div>
+          </div>
+        ))}
       </motion.section>
 
       <motion.section {...entrance(0.11)}>

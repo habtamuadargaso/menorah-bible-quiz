@@ -528,7 +528,9 @@ function HomeInner() {
               totalXp={mobileProgress.totalXp}
               streak={mobileStats?.currentDayStreak ?? 0}
               stats={mobileStats}
+              onDailyChallenge={handleDailyChallenge}
               onLiveBattle={handleBattleSetup}
+              onChurchMode={handleChurch}
             />
           </MobileAppShell>
           </motion.div>
