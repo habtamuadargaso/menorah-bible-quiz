@@ -119,12 +119,14 @@ function HomeInner() {
   const [mobileGameActive, setMobileGameActive] = useState(false);
   const [mobileProgress, setMobileProgress] = useState<Progress>({ totalXp: 0, coins: 0, quizzesCompleted: 0 });
   const [mobileStats, setMobileStats] = useState<ProfileStats | null>(null);
+  const [mobileFeature, setMobileFeature] = useState<"daily" | "church" | null>(null);
 
   const gameRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<HTMLDivElement>(null);
   const challengesRef = useRef<HTMLDivElement>(null);
   const bibleRef = useRef<HTMLDivElement>(null);
   const churchRef = useRef<HTMLDivElement>(null);
+  const mobileFeatureRef = useRef<HTMLDivElement>(null);
   // Mission 21 — mobile-only first-launch onboarding gate. Starts as
   // `null` ("not checked yet") so the very first client render never
   // shows the wrong thing before localStorage has actually been read —
@@ -173,6 +175,11 @@ function HomeInner() {
 
   function handleDailyChallenge() {
     setStage("categories");
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setMobileFeature("daily");
+      scrollTo(mobileFeatureRef);
+      return;
+    }
     scrollTo(challengesRef);
   }
 
@@ -315,6 +322,11 @@ function HomeInner() {
 
   function handleChurch() {
     setStage("categories");
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setMobileFeature("church");
+      scrollTo(mobileFeatureRef);
+      return;
+    }
     scrollTo(churchRef);
   }
 
@@ -532,6 +544,11 @@ function HomeInner() {
               onLiveBattle={handleBattleSetup}
               onChurchMode={handleChurch}
             />
+            {mobileFeature && (
+              <div ref={mobileFeatureRef} data-mobile-feature={mobileFeature}>
+                {mobileFeature === "daily" ? <ChallengesStrip /> : <ChurchModeSection />}
+              </div>
+            )}
           </MobileAppShell>
           </motion.div>
         )}
