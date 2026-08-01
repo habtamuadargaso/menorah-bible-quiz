@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion, type Transition, type Target } from "framer-motion";
 import type { QuizResult } from "./QuizCard";
 import { saveScore } from "@/lib/leaderboard";
@@ -8,7 +8,9 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { loadProgress, levelForXp } from "@/lib/progress";
 import { MAX_GAME_LEVEL } from "@/lib/levels";
 import { hasPassedLevel, PASSING_CORRECT_ANSWERS } from "@/lib/campaign";
-import { ACHIEVEMENTS, loadUnlockedAchievements, type AchievementId } from "@/lib/achievements";
+import { ACHIEVEMENTS, type AchievementId } from "@/lib/achievements";
+import PremiumScoreRing from "@/components/results/PremiumScoreRing";
+import ResultsXpSummary from "@/components/results/ResultsXpSummary";
 
 // ---- Small presentational pieces --------------------------------------
 
@@ -107,33 +109,6 @@ const AchievementBadge = memo(function AchievementBadge({
   );
 });
 
-// Ambient ring of sparkles that bursts once behind the trophy on mount.
-// Never rendered when the user prefers reduced motion (see call site).
-const TROPHY_SPARKLES = Array.from({ length: 10 }).map((_, i) => {
-  const angle = (i / 10) * Math.PI * 2;
-  return {
-    x: Math.cos(angle) * 90,
-    y: Math.sin(angle) * 90,
-    delay: (i % 5) * 0.05,
-  };
-});
-
-function TrophySparkles() {
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center">
-      {TROPHY_SPARKLES.map((s, i) => (
-        <motion.span
-          key={i}
-          className="absolute h-1.5 w-1.5 rounded-full bg-gold-300"
-          initial={{ x: 0, y: 0, opacity: 0, scale: 0.4 }}
-          animate={{ x: s.x, y: s.y, opacity: [0, 1, 0], scale: [0.4, 1, 0.6] }}
-          transition={{ duration: 1.1, delay: s.delay, ease: "easeOut" }}
-        />
-      ))}
-    </div>
-  );
-}
-
 // ---- Main component -----------------------------------------------------
 
 export default function ResultCard({
@@ -158,12 +133,8 @@ export default function ResultCard({
   const categoryText = t.categories[result.categoryId];
   const pct = result.total ? Math.round((result.correct / result.total) * 100) : 0;
   const wrongCount = Math.max(0, result.total - result.correct);
-  const timeBonus = result.fastAnswers * 50; // matches the +50 fast-answer bonus applied to `score` in QuizCard
-  const perfectXpBonus = 50; // matches finish()'s `(perfect ? 50 : 0)` in QuizCard — already folded into result.xpEarned
-  // NOTE: perfectXpBonus (and the analogous +25 coin bonus) are already
-  // included inside result.xpEarned / result.coinsEarned. The tile below
-  // only breaks that total down for context — it must never be added on
-  // top of "XP Earned" / "Coins Earned" when totalling rewards on screen.
+  const baseXp = result.correct * 20;
+  const bonusXp = Math.max(0, result.xpEarned - baseXp);
 
   // Fade/slide entrance helper — under reduced motion this collapses to a
   // short opacity-only fade with no transform movement at all.
@@ -202,7 +173,6 @@ export default function ResultCard({
           ? { label: t.result.tier.believer, verse: t.result.verse.believer }
           : { label: t.result.tier.keepStudying, verse: t.result.verse.keepStudying };
 
-  const [displayScore, setDisplayScore] = useState(reduceMotion ? result.score : 0);
   const [name, setName] = useState("");
   const [saved, setSaved] = useState(false);
   const [progress, setProgress] = useState(loadProgress());
@@ -211,34 +181,6 @@ export default function ResultCard({
   useEffect(() => {
     setProgress(loadProgress());
   }, [result]);
-
-  useEffect(() => {
-    if (reduceMotion) {
-      // Respect the user's preference: jump straight to the final value
-      // instead of animating the count-up.
-      setDisplayScore(result.score);
-      return;
-    }
-    setDisplayScore(0);
-    const duration = 900;
-    const start = performance.now();
-    let raf: number;
-    const step = (now: number) => {
-      const p = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setDisplayScore(Math.round(result.score * eased));
-      if (p < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [result.score, reduceMotion]);
-
-  const unlockedAchievements = useMemo(() => {
-    const stored = new Set(loadUnlockedAchievements());
-    newBadges.forEach((id) => stored.add(id));
-    return stored;
-  }, [newBadges]);
-  const newBadgeSet = useMemo(() => new Set(newBadges), [newBadges]);
 
   function handleSave() {
     saveScore({
@@ -317,33 +259,13 @@ export default function ResultCard({
       </div>
 
       {/* ---------------- Section 1: celebration hero ---------------- */}
-      <motion.div
-        {...entrance(0, { y: -14, scale: 0.9 })}
-        className="relative mx-auto flex h-[168px] w-[168px] items-center justify-center rounded-full"
-        style={{
-          background: "radial-gradient(circle, rgba(232,193,95,0.35), rgba(232,193,95,0.02))",
-          boxShadow: "0 0 46px rgba(232,193,95,0.4)",
-        }}
-      >
-        {!reduceMotion && <TrophySparkles />}
-        <motion.div
-          animate={reduceMotion ? undefined : { scale: [1, 1.05, 1] }}
-          transition={reduceMotion ? undefined : { duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          className="flex h-[136px] w-[136px] flex-col items-center justify-center rounded-full border border-gold-500/50 bg-navy-900"
-        >
-          <span className="text-5xl drop-shadow-[0_0_18px_rgba(232,193,95,0.6)]" aria-hidden>
-            🏆
-          </span>
-        </motion.div>
+      <motion.div {...entrance(0, { y: 14, scale: 0.96 })}>
+        <PremiumScoreRing score={result.score} correct={result.correct} total={result.total} headline={headline} pointsLabel={t.result.points} />
       </motion.div>
-
-      <motion.h1 {...entrance(0.2, { y: 14 })} className="mt-5 font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl">
-        {headline}
-      </motion.h1>
-      <motion.div {...entrance(0.28, { y: 10 })} className="mt-1.5 font-display text-lg font-semibold text-gold-500">
+      <motion.div {...entrance(0.2, { y: 10 })} className="mt-4 font-display text-xl font-semibold text-gold-400">
         {tier.label}
       </motion.div>
-      <motion.div {...entrance(0.34)} className="mt-1 text-sm text-[#a7aebd]">
+      <motion.div {...entrance(0.25)} className="mt-1 text-sm text-[#a7aebd]">
         {t.campaign.quizLevel} {result.level}/{MAX_GAME_LEVEL} · {categoryText?.title} · {t.quiz.difficulty[result.difficulty]}
       </motion.div>
 
@@ -356,35 +278,20 @@ export default function ResultCard({
         </motion.div>
       )}
 
+      <motion.div {...entrance(0.28, { y: 14 })} className="mt-6">
+        <ResultsXpSummary baseXp={baseXp} bonusXp={bonusXp} totalXp={result.xpEarned} labels={{ earned: t.result.stats.xpEarned, bonus: "Bonus XP", total: t.profile.totalXp }} />
+      </motion.div>
+
       {/* ---------------- Section 2: statistics card ---------------- */}
       <motion.div
         {...entrance(0.32, { y: 18 })}
-        className="mt-8 rounded-card border border-gold-500/20 bg-glass-gold p-5 shadow-premium-lg backdrop-blur-md sm:p-7"
+        className="mt-5 rounded-[24px] border border-gold-500/20 bg-glass-gold p-5 shadow-premium-lg backdrop-blur-md sm:p-7"
       >
-        <div className="flex items-center justify-center gap-2">
-          <span className="font-display text-4xl font-bold text-gold-400">{displayScore}</span>
-          <span className="text-xs uppercase tracking-wide text-[#9aa1b0]">{t.result.points}</span>
-        </div>
-
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatTile icon="✅" label={t.result.correct} value={`${result.correct}/${result.total}`} tone="emerald" delay={0.36} />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatTile icon="✅" label={t.result.correct} value={`${result.correct}`} tone="emerald" delay={0.36} />
           <StatTile icon="🎯" label={t.result.accuracy} value={`${pct}%`} tone="gold" delay={0.4} />
           <StatTile icon="❌" label={t.result.stats.wrongAnswers} value={`${wrongCount}`} tone="red" delay={0.44} />
-          <StatTile icon="⏱️" label={t.result.stats.timeBonus} value={`+${timeBonus}`} tone="purple" delay={0.48} />
-          <StatTile icon="⚡" label={t.result.stats.xpEarned} value={`+${result.xpEarned}`} tone="gold" delay={0.52} />
-          <StatTile icon="🪙" label={t.result.stats.coinsEarned} value={`+${result.coinsEarned}`} tone="purple" delay={0.56} />
-          {perfect ? (
-            <StatTile
-              icon="🌟"
-              label={t.result.stats.perfectBonusIncluded}
-              value={`+${perfectXpBonus} XP`}
-              tone="gold"
-              delay={0.6}
-            />
-          ) : (
-            <StatTile icon="🔥" label={t.quiz.streak} value={`${result.bestStreak}`} tone="neutral" delay={0.6} />
-          )}
-          <StatTile icon="❤️" label={t.common.lives} value={`${result.livesRemaining}`} tone="neutral" delay={0.64} />
+          <StatTile icon="❤️" label={t.common.lives} value={`${result.livesRemaining}`} tone="neutral" delay={0.48} />
         </div>
       </motion.div>
 
@@ -438,13 +345,13 @@ export default function ResultCard({
       </motion.div>
 
       {/* ---------------- Section 4: achievements ---------------- */}
-      <motion.div
+      {newBadges.length > 0 && <motion.div
         {...entrance(0.56, { y: 18 })}
         className="mt-5 rounded-[22px] border border-gold-500/20 bg-white/[0.04] p-5 shadow-premium"
       >
         <div className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-gold-400">{t.achievements.heading}</div>
         <div className="flex flex-wrap justify-center gap-x-3 gap-y-4">
-          {ACHIEVEMENTS.map((def, i) => {
+          {ACHIEVEMENTS.filter((def) => newBadges.includes(def.id)).map((def, i) => {
             const text = t.achievements.list[def.id];
             return (
               <AchievementBadge
@@ -452,15 +359,15 @@ export default function ResultCard({
                 icon={def.icon}
                 title={text.title}
                 description={text.description}
-                earned={unlockedAchievements.has(def.id)}
-                isNew={newBadgeSet.has(def.id)}
+                earned
+                isNew
                 newLabel={t.achievements.newTag}
                 delay={0.6 + i * 0.05}
               />
             );
           })}
         </div>
-      </motion.div>
+      </motion.div>}
 
       {/* ---------------- Section 5: Bible encouragement ---------------- */}
       <motion.div {...entrance(0.75, { y: 12 })} className="mt-8 px-4">

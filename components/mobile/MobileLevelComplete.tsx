@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { QuizResult } from "@/components/QuizCard";
 import { saveScore } from "@/lib/leaderboard";
@@ -8,9 +8,11 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { loadProgress, levelForXp } from "@/lib/progress";
 import { MAX_GAME_LEVEL } from "@/lib/levels";
 import { hasPassedLevel, PASSING_CORRECT_ANSWERS } from "@/lib/campaign";
-import { ACHIEVEMENTS, loadUnlockedAchievements, type AchievementId } from "@/lib/achievements";
+import { ACHIEVEMENTS, type AchievementId } from "@/lib/achievements";
 import MobileAmbientGlow from "./MobileAmbientGlow";
 import AnimatedNumber from "./AnimatedNumber";
+import PremiumScoreRing from "@/components/results/PremiumScoreRing";
+import ResultsXpSummary from "@/components/results/ResultsXpSummary";
 
 // Mission 16 — mobile-only "Bible Journey" celebration screen. Reuses the
 // exact same QuizResult data and the exact same lib/leaderboard.ts,
@@ -70,11 +72,6 @@ function StatPill({
   );
 }
 
-const STAR_BURST = Array.from({ length: 8 }).map((_, i) => {
-  const angle = (i / 8) * Math.PI * 2;
-  return { x: Math.cos(angle) * 70, y: Math.sin(angle) * 70, delay: (i % 4) * 0.06 };
-});
-
 export default function MobileLevelComplete({
   result,
   newBadges,
@@ -98,6 +95,9 @@ export default function MobileLevelComplete({
   const categoryText = t.categories[result.categoryId];
   const pct = result.total ? Math.round((result.correct / result.total) * 100) : 0;
   const passed = hasPassedLevel(result.correct, result.total);
+  const wrongCount = Math.max(0, result.total - result.correct);
+  const baseXp = result.correct * 20;
+  const bonusXp = Math.max(0, result.xpEarned - baseXp);
 
   const [name, setName] = useState("");
   const [saved, setSaved] = useState(false);
@@ -108,13 +108,8 @@ export default function MobileLevelComplete({
     setProgress(loadProgress());
   }, [result]);
 
-  const unlockedAchievements = useMemo(() => {
-    const stored = new Set(loadUnlockedAchievements());
-    newBadges.forEach((id) => stored.add(id));
-    return stored;
-  }, [newBadges]);
-  const newBadgeSet = useMemo(() => new Set(newBadges), [newBadges]);
   const player = levelForXp(progress.totalXp);
+  const encouragement = pct >= 90 ? t.result.tier.master : pct >= 70 ? t.result.tier.scholar : pct >= 50 ? t.result.tier.believer : t.result.tier.keepStudying;
 
   function nextLevelTier(level: number) {
     return level <= 3 ? t.campaign.foundation : level <= 7 ? t.campaign.growingDisciple : t.campaign.scriptureMaster;
@@ -159,91 +154,28 @@ export default function MobileLevelComplete({
   return (
     <section className="relative mx-auto max-w-md overflow-hidden px-4 pb-10 pt-6 text-center">
       <MobileAmbientGlow />
-      {/* ---------------- hero ---------------- */}
-      <motion.div
-        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: reduceMotion ? 0.2 : 0.4, ease: "backOut" }}
-        className="relative mx-auto flex h-28 w-28 items-center justify-center rounded-full"
-        style={{
-          background: passed
-            ? "radial-gradient(circle, rgba(232,193,95,0.35), rgba(232,193,95,0.02))"
-            : "radial-gradient(circle, rgba(139,92,246,0.22), rgba(139,92,246,0.02))",
-        }}
-      >
-        {passed && !reduceMotion && (
-          <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            {STAR_BURST.map((s, i) => (
-              <motion.span
-                key={i}
-                className="absolute text-sm"
-                initial={{ x: 0, y: 0, opacity: 0, scale: 0.4 }}
-                animate={{ x: s.x, y: s.y, opacity: [0, 1, 0], scale: [0.4, 1, 0.6] }}
-                transition={{ duration: 1, delay: s.delay, ease: "easeOut" }}
-              >
-                ✨
-              </motion.span>
-            ))}
-          </div>
-        )}
-        {passed && (
-          <>
-            <motion.span
-              aria-hidden
-              className="absolute -top-3 left-1/2 -translate-x-1/2 text-xl"
-              animate={reduceMotion ? undefined : { y: [0, -3, 0] }}
-              transition={reduceMotion ? undefined : { duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-            >
-              👑
-            </motion.span>
-            <span aria-hidden className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 text-lg">
-              🌿
-            </span>
-            <span aria-hidden className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 text-lg [transform:scaleX(-1)]">
-              🌿
-            </span>
-          </>
-        )}
-        <div
-          className={`flex h-24 w-24 items-center justify-center rounded-full border bg-navy-900 ${
-            passed ? "border-gold-500/50" : "border-purple-400/40"
-          }`}
-        >
-          <span className="text-4xl" aria-hidden>
-            {passed ? "✅" : "📖"}
-          </span>
-        </div>
+      <motion.div initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: reduceMotion ? 0.2 : 0.45, ease: "easeOut" }}>
+        <PremiumScoreRing score={result.score} correct={result.correct} total={result.total} headline={result.perfect ? t.result.headline.perfect : passed ? t.result.headline.levelComplete : t.result.headline.keepStudying} pointsLabel={t.result.points} />
       </motion.div>
-
-      <motion.h1
-        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15, duration: 0.35 }}
-        className="mt-4 font-display text-2xl font-bold text-[#fbf6e8]"
-      >
-        {passed ? t.result.headline.levelComplete : t.result.headline.keepStudying}
-      </motion.h1>
       <motion.div
         initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.35 }}
-        className="mt-1 text-xs text-[#a7aebd]"
+        className="mt-3 font-display text-lg font-bold text-gold-300"
       >
-        {t.campaign.quizLevel} {result.level}/{MAX_GAME_LEVEL} · {categoryText?.title}
+        {encouragement}
       </motion.div>
 
-      {/* ---------------- stats ---------------- */}
-      <motion.div
-        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25, duration: 0.35 }}
-        className="mt-6 flex gap-2"
-      >
-        <StatPill icon="✅" count={result.correct} suffix={`/${result.total}`} label={t.result.correct} tone="success" />
-        <StatPill icon="🎯" count={pct} suffix="%" label={t.result.accuracy} tone="success" />
-        <StatPill icon="⚡" count={result.xpEarned} prefix="+" label={t.result.stats.xpEarned} tone="violet" />
-        <StatPill icon="🪙" count={result.coinsEarned} prefix="+" label={t.result.stats.coinsEarned} tone="gold" />
+      <motion.div initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.35 }} className="mt-5">
+        <ResultsXpSummary baseXp={baseXp} bonusXp={bonusXp} totalXp={result.xpEarned} labels={{ earned: t.result.stats.xpEarned, bonus: isAmharic ? "ጉርሻ XP" : "Bonus XP", total: t.profile.totalXp }} />
       </motion.div>
+
+      <motion.section aria-label={t.result.accuracy} initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28, duration: 0.35 }} className="mt-4 grid grid-cols-2 gap-2">
+        <StatPill icon="🎯" count={pct} suffix="%" label={t.result.accuracy} tone="success" />
+        <StatPill icon="✅" count={result.correct} label={t.result.correct} tone="success" />
+        <StatPill icon="✕" count={wrongCount} label={t.result.stats.wrongAnswers} />
+        <StatPill icon="♥" count={result.livesRemaining} label={t.common.lives} tone="gold" />
+      </motion.section>
 
       {/* ---------------- unlock banner ---------------- */}
       <motion.div
@@ -301,6 +233,15 @@ export default function MobileLevelComplete({
             ↻ {passed ? t.result.restartButton : t.campaign.practiceAgain}
           </motion.button>
         )}
+        {canNextLevel && (
+          <motion.button
+            onClick={onRestart}
+            whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+            className="min-h-[48px] w-full rounded-full border border-gold-500/50 py-3 text-sm font-semibold text-gold-300 outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
+            ↻ {t.result.restartButton}
+          </motion.button>
+        )}
         <motion.button
           onClick={onCategories}
           whileTap={reduceMotion ? undefined : { scale: 0.97 }}
@@ -320,7 +261,7 @@ export default function MobileLevelComplete({
             </div>
           </div>
         </div>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label={t.result.playerProgress} aria-valuenow={player.progressPct} aria-valuemin={0} aria-valuemax={100}>
           <motion.div
             initial={reduceMotion ? { width: `${player.progressPct}%` } : { width: 0 }}
             animate={{ width: `${player.progressPct}%` }}
@@ -328,36 +269,28 @@ export default function MobileLevelComplete({
             className="h-full rounded-full bg-gradient-to-r from-purple-400 to-gold-400"
           />
         </div>
+        <div className="mt-2 flex justify-between text-[10px] text-[#9aa1b0]" id="mobile-xp-progress-label">
+          <span>{t.result.nextPlayerLevel}</span>
+          <span>{player.xpIntoLevel} / {player.xpForNextLevel} XP</span>
+        </div>
       </div>
 
       {/* ---------------- achievements ---------------- */}
-      <div className="mt-4 rounded-[20px] border border-gold-500/20 bg-white/[0.04] p-4">
+      {newBadges.length > 0 && <div className="mt-4 rounded-[24px] border border-gold-500/30 bg-gold-500/[0.06] p-4 shadow-premium">
         <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-gold-400">{t.achievements.heading}</div>
         <div className="flex flex-wrap justify-center gap-x-2 gap-y-3">
-          {ACHIEVEMENTS.map((def) => {
+          {ACHIEVEMENTS.filter((def) => newBadges.includes(def.id)).map((def) => {
             const text = t.achievements.list[def.id];
-            const earned = unlockedAchievements.has(def.id);
-            const isNew = newBadgeSet.has(def.id);
             return (
               <div key={def.id} className="relative flex w-[68px] flex-col items-center gap-1 text-center" title={text.description}>
-                {isNew && (
-                  <span className="absolute -top-1.5 z-10 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-1.5 py-0.5 text-[8px] font-extrabold uppercase text-navy-900">
-                    {t.achievements.newTag}
-                  </span>
-                )}
-                <div
-                  className={`flex h-11 w-11 items-center justify-center rounded-full border text-base ${
-                    earned ? "border-gold-500/60 bg-gold-500/15 text-gold-300" : "border-white/10 bg-white/[0.03] text-[#525971] grayscale"
-                  }`}
-                >
-                  {def.icon}
-                </div>
-                <div className={`text-[9px] font-semibold leading-snug ${earned ? "text-[#f3efe2]" : "text-[#666d80]"}`}>{text.title}</div>
+                <span className="absolute -top-1.5 z-10 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-1.5 py-0.5 text-[8px] font-extrabold uppercase text-navy-900">{t.achievements.newTag}</span>
+                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-gold-500/60 bg-gold-500/15 text-base text-gold-300 shadow-gold">{def.icon}</div>
+                <div className="text-[9px] font-semibold leading-snug text-[#f3efe2]">{text.title}</div>
               </div>
             );
           })}
         </div>
-      </div>
+      </div>}
 
       {/* ---------------- save / share / leaderboard ---------------- */}
       <div className="mt-4 flex flex-col items-center gap-3">
@@ -385,14 +318,14 @@ export default function MobileLevelComplete({
         <div className="flex w-full items-center gap-2.5">
           <button
             onClick={onLeaderboard}
-            className="flex-1 rounded-full border border-white/20 py-2.5 text-xs font-semibold text-[#c6cbd6] outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="min-h-[44px] flex-1 rounded-full border border-white/20 py-2.5 text-xs font-semibold text-[#c6cbd6] outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             {t.result.leaderboardButton}
           </button>
           <button
             onClick={handleShare}
             aria-label={t.result.shareLabel}
-            className="flex-1 rounded-full border border-white/20 py-2.5 text-xs font-semibold text-[#c6cbd6] outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="min-h-[44px] flex-1 rounded-full border border-white/20 py-2.5 text-xs font-semibold text-[#c6cbd6] outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             <AnimatePresence mode="wait" initial={false}>
               <motion.span
