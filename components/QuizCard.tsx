@@ -293,12 +293,51 @@ function ConfettiBurst({ burstKey }: { burstKey: number }) {
   );
 }
 
+function CountUpXp({ value, reduceMotion }: { value: number; reduceMotion: boolean }) {
+  const [displayValue, setDisplayValue] = useState(reduceMotion ? value : 0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      setDisplayValue(value);
+      return;
+    }
+    const startedAt = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / 500);
+      setDisplayValue(Math.round(value * (1 - Math.pow(1 - progress, 3))));
+      if (progress < 1) frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [reduceMotion, value]);
+
+  return <>{displayValue}</>;
+}
+
+function XpFlyUp({ xp, reduceMotion }: { xp: number; reduceMotion: boolean }) {
+  if (reduceMotion) return null;
+  return (
+    <motion.div
+      aria-hidden
+      className="pointer-events-none absolute left-1/2 top-1/2 z-40 -translate-x-1/2 rounded-full border border-gold-300/50 bg-navy-950/95 px-3 py-1.5 text-xs font-extrabold text-gold-300 shadow-gold"
+      initial={{ opacity: 0, y: 60, scale: 0.8 }}
+      animate={{ opacity: [0, 1, 1, 0], y: [60, 25, -150, -220], scale: [0.8, 1, 0.9, 0.75] }}
+      transition={{ duration: 1.05, times: [0, 0.16, 0.76, 1], ease: "easeOut", delay: 0.28 }}
+    >
+      +{xp} XP
+    </motion.div>
+  );
+}
+
 function ScriptureFeedback({
   correct,
   reference,
   explanation,
   correctAnswer,
   points,
+  streak,
+  reduceMotion,
   compact,
   onNext,
   nextLabel,
@@ -309,13 +348,20 @@ function ScriptureFeedback({
   explanation: string;
   correctAnswer: string;
   points?: number;
+  streak: number;
+  reduceMotion: boolean;
   compact?: boolean;
   onNext: () => void;
   nextLabel: string;
   lang: string;
 }) {
   return (
-    <div className={compact ? "mt-4" : "mt-6"} aria-live="polite">
+    <div className={compact ? "mt-4" : "mt-6"}>
+      <p className="sr-only" role="status">
+        {correct
+          ? `${lang === "am" ? "ትክክለኛ መልስ" : "Correct answer"}${typeof points === "number" ? `, ${points} XP` : ""}`
+          : `${lang === "am" ? "የተሳሳተ መልስ" : "Incorrect answer"}. ${lang === "am" ? "ትክክለኛው መልስ" : "Correct answer"}: ${correctAnswer}`}
+      </p>
       <div
         className={`rounded-2xl border p-4 text-center ${
           correct
@@ -327,13 +373,14 @@ function ScriptureFeedback({
           {correct ? <Check className="h-5 w-5" aria-hidden /> : <X className="h-5 w-5" aria-hidden />}
         </span>
         <p className={`mt-2 font-display text-lg font-bold ${correct ? "text-gold-300" : "text-[#f4d7d3]"}`}>
-          {correct ? (lang === "am" ? "በጣም ጥሩ!" : "Great job!") : (lang === "am" ? "ትንሽ ቀርቶታል።" : "Not quite.")}
+          {correct ? (lang === "am" ? "በጣም ጥሩ!" : "Great answer!") : (lang === "am" ? "ትንሽ ቀርቶታል።" : "Not quite.")}
         </p>
         {correct && typeof points === "number" ? (
-          <p className="mt-1 flex items-center justify-center gap-1 text-sm font-extrabold text-gold-400"><Sparkles className="h-4 w-4" aria-hidden />+{points} XP</p>
+          <p className="mt-1 flex items-center justify-center gap-1 text-sm font-extrabold text-gold-400"><Sparkles className="h-4 w-4" aria-hidden />+<CountUpXp value={points} reduceMotion={reduceMotion} /> XP</p>
         ) : (
           <p className="mt-1 text-sm text-[#c9ced8]">{lang === "am" ? "ትክክለኛው መልስ፦" : "Correct answer:"} <span className="font-bold text-[#fbf6e8]">{correctAnswer}</span></p>
         )}
+        {correct && streak >= 2 && <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-emerald-300">🔥 {streak} {lang === "am" ? "በተከታታይ!" : "in a row!"}</p>}
       </div>
 
       <div className="mt-3 rounded-2xl border border-gold-500/25 bg-[#09152c]/90 p-4 shadow-[0_14px_34px_rgba(0,0,0,0.25)]">
@@ -428,6 +475,7 @@ export default function QuizCard({
   const [retryToken, setRetryToken] = useState(0);
   const [timeLeft, setTimeLeft] = useState(timePerQuestion);
   const autoNextRef = useRef<number | null>(null);
+  const answerLockedRef = useRef(false);
   // Mirrors `timeLeft` so handleAnswer can read the latest value without
   // needing timeLeft in its own dependency array — that keeps its identity
   // (and therefore the memoized answer buttons) stable across every
@@ -443,36 +491,26 @@ export default function QuizCard({
   // a heart-loss shake). Every value below is only READ from the real
   // game state above; nothing here writes back into it, so none of the
   // actual scoring, lives, or timer logic is touched.
-  const [rewardToast, setRewardToast] = useState<{ key: number; points: number; coins: number } | null>(null);
-  // Mission 16 — same points/coins as rewardToast above, but doesn't
-  // auto-clear after 1.3s: this backs the mobile "✓ Correct +points +coins"
-  // feedback line, which needs to stay readable for as long as the
-  // explanation panel is open, not just flash briefly.
-  const [lastAnswerReward, setLastAnswerReward] = useState<{ points: number; coins: number } | null>(null);
+  const [lastAnswerReward, setLastAnswerReward] = useState<{ key: number; xp: number; coins: number } | null>(null);
   const [confettiKey, setConfettiKey] = useState<number | null>(null);
   const [livesShakeKey, setLivesShakeKey] = useState(0);
-  const prevScoreRef = useRef(score);
   const prevCorrectRef = useRef(correctCount);
+  const prevFastAnswersRef = useRef(fastAnswers);
   const prevLivesRef = useRef(lives);
 
   useEffect(() => {
-    const scoreDelta = score - prevScoreRef.current;
     const correctDelta = correctCount - prevCorrectRef.current;
-    prevScoreRef.current = score;
+    const fastAnswerDelta = fastAnswers - prevFastAnswersRef.current;
     prevCorrectRef.current = correctCount;
-    if (scoreDelta <= 0) return;
+    prevFastAnswersRef.current = fastAnswers;
+    if (correctDelta <= 0) return;
 
     const key = Date.now();
-    setRewardToast({ key, points: scoreDelta, coins: correctDelta * 5 });
-    setLastAnswerReward({ points: scoreDelta, coins: correctDelta * 5 });
+    setLastAnswerReward({ key, xp: correctDelta * 20 + Math.max(0, fastAnswerDelta) * 10, coins: correctDelta * 5 });
     if (!reduceMotion) setConfettiKey(key);
-    const toastTimer = window.setTimeout(() => setRewardToast(null), 1300);
     const confettiTimer = window.setTimeout(() => setConfettiKey(null), 1000);
-    return () => {
-      window.clearTimeout(toastTimer);
-      window.clearTimeout(confettiTimer);
-    };
-  }, [score, correctCount, reduceMotion]);
+    return () => window.clearTimeout(confettiTimer);
+  }, [correctCount, fastAnswers, reduceMotion]);
 
   useEffect(() => {
     if (lives < prevLivesRef.current) {
@@ -497,6 +535,7 @@ export default function QuizCard({
       setIndex(0);
       setSelected(null);
       setLocked(false);
+      answerLockedRef.current = false;
       setScore(0);
       setCorrectCount(0);
       setStreak(0);
@@ -591,7 +630,8 @@ export default function QuizCard({
 
   const handleAnswer = useCallback(
     function handleAnswer(choiceIndex: number, autoAdvance = false) {
-      if (locked || !current) return;
+      if (answerLockedRef.current || locked || !current) return;
+      answerLockedRef.current = true;
       const isCorrect = choiceIndex === current.correctIndex;
       setLocked(true);
       setSelected(choiceIndex);
@@ -662,6 +702,7 @@ export default function QuizCard({
       setIndex((i) => i + 1);
       setSelected(null);
       setLocked(false);
+      answerLockedRef.current = false;
       setTimeLeft(timePerQuestion);
       setLastAnswerReward(null);
     },
@@ -715,6 +756,8 @@ export default function QuizCard({
   const progressPct = Math.round(((index + 1) / questions.length) * 100);
   const timerPct = Math.round((timeLeft / timePerQuestion) * 100);
   const timerColor = timeLeft <= 3 ? "#ef6461" : timeLeft <= 5 ? "#f59e42" : "#e8c15f";
+  const earnedXp = correctCount * 20 + fastAnswers * 10;
+  const feedbackReady = locked && (selected !== current.correctIndex || lastAnswerReward !== null);
   const optionLetters = ["A", "B", "C", "D"];
   const tier = level <= 3 ? t.campaign.foundation : level <= 7 ? t.campaign.growingDisciple : t.campaign.scriptureMaster;
 
@@ -772,7 +815,7 @@ export default function QuizCard({
           questionIndex={index + 1}
           questionCount={questions.length}
           questionLabel={t.quiz.questionLabel}
-          xp={score}
+          xp={earnedXp}
           coins={correctCount * 5}
           livesRemaining={lives}
           maxLives={MAX_LIVES}
@@ -780,24 +823,6 @@ export default function QuizCard({
           progressPct={progressPct}
           timer={<CircularTimer compact timeLeft={timeLeft} timerPct={timerPct} timerColor={timerColor} />}
         />
-
-        <div className="relative">
-          <AnimatePresence>
-            {rewardToast && (
-              <motion.div
-                key={rewardToast.key}
-                initial={{ opacity: 0, y: 6, scale: 0.9 }}
-                animate={{ opacity: 1, y: -6, scale: 1 }}
-                exit={{ opacity: 0, y: -18 }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
-                className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-gold-400/40 bg-navy-950/90 px-3 py-1 text-xs font-bold shadow-gold"
-              >
-                <span className="text-gold-300">⚡ +{rewardToast.points}</span>
-                <span className="text-purple-200">🪙 +{rewardToast.coins}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
 
         <div className="relative">
           <AnimatePresence mode="wait">
@@ -859,15 +884,15 @@ export default function QuizCard({
               </div>
 
               <AnimatePresence>
-                {locked && (
+                {feedbackReady && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{ duration: 0.3, delay: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
                     className="relative mt-4 overflow-hidden"
                   >
-                    <ScriptureFeedback correct={selected === current.correctIndex} reference={current.reference} explanation={current.explanation} correctAnswer={current.choices[current.correctIndex]} points={lastAnswerReward?.points} compact onNext={handleNext} nextLabel={isLast ? t.quiz.seeResults : t.quiz.nextQuestion} lang={lang} />
+                    <ScriptureFeedback correct={selected === current.correctIndex} reference={current.reference} explanation={current.explanation} correctAnswer={current.choices[current.correctIndex]} points={lastAnswerReward?.xp} streak={streak} reduceMotion={Boolean(reduceMotion)} compact onNext={handleNext} nextLabel={isLast ? t.quiz.seeResults : t.quiz.nextQuestion} lang={lang} />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -875,6 +900,7 @@ export default function QuizCard({
           </AnimatePresence>
 
           {confettiKey !== null && <ConfettiBurst burstKey={confettiKey} />}
+          {locked && selected === current.correctIndex && lastAnswerReward && <XpFlyUp key={lastAnswerReward.key} xp={lastAnswerReward.xp} reduceMotion={Boolean(reduceMotion)} />}
         </div>
         </>
       )}
@@ -899,29 +925,10 @@ export default function QuizCard({
                 icon={<span aria-hidden>✦</span>}
                 label={`${t.quiz.questionLabel} ${index + 1} of ${questions.length}`}
               />
-              <HeaderStat tone="gold" icon={<Sparkles className="h-3.5 w-3.5" aria-hidden />} label={`${score} XP`} />
+              <HeaderStat tone="gold" icon={<Sparkles className="h-3.5 w-3.5" aria-hidden />} label={`${earnedXp} XP`} />
               <HeaderStat tone="purple" icon={<Coins className="h-3.5 w-3.5" aria-hidden />} label={`${correctCount * 5}`} />
               <CircularTimer compact timeLeft={timeLeft} timerPct={timerPct} timerColor={timerColor} />
             </div>
-          </div>
-
-          {/* floating "+XP / +coins" toast, plays once per correct answer */}
-          <div className="relative">
-            <AnimatePresence>
-              {rewardToast && (
-                <motion.div
-                  key={rewardToast.key}
-                  initial={{ opacity: 0, y: 6, scale: 0.9 }}
-                  animate={{ opacity: 1, y: -6, scale: 1 }}
-                  exit={{ opacity: 0, y: -18 }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="pointer-events-none absolute left-1/2 top-1 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-gold-400/40 bg-navy-950/90 px-4 py-1.5 text-sm font-bold shadow-gold"
-                >
-                  <span className="text-gold-300">⚡ +{rewardToast.points} {t.result.score}</span>
-                  <span className="text-purple-200">🪙 +{rewardToast.coins}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-y-2 text-xs">
@@ -1033,15 +1040,15 @@ export default function QuizCard({
               </div>
 
               <AnimatePresence>
-                {locked && (
+                {feedbackReady && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{ duration: 0.3, delay: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
                     className="mt-6 overflow-hidden"
                   >
-                    <ScriptureFeedback correct={selected === current.correctIndex} reference={current.reference} explanation={current.explanation} correctAnswer={current.choices[current.correctIndex]} points={lastAnswerReward?.points} onNext={handleNext} nextLabel={isLast ? t.quiz.seeResults : t.quiz.nextQuestion} lang={lang} />
+                    <ScriptureFeedback correct={selected === current.correctIndex} reference={current.reference} explanation={current.explanation} correctAnswer={current.choices[current.correctIndex]} points={lastAnswerReward?.xp} streak={streak} reduceMotion={Boolean(reduceMotion)} onNext={handleNext} nextLabel={isLast ? t.quiz.seeResults : t.quiz.nextQuestion} lang={lang} />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1049,6 +1056,7 @@ export default function QuizCard({
           </AnimatePresence>
 
           {confettiKey !== null && <ConfettiBurst burstKey={confettiKey} />}
+          {locked && selected === current.correctIndex && lastAnswerReward && <XpFlyUp key={lastAnswerReward.key} xp={lastAnswerReward.xp} reduceMotion={Boolean(reduceMotion)} />}
         </div>
         </>
       )}
