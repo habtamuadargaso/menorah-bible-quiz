@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { MoreVertical, Settings } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -36,11 +37,11 @@ export default function MobileTopBar({
   // lockup is shown (no tagline — this bar is too tight for one).
   const logo = title ? (
     <span className="flex items-center gap-2">
-      <img src="/branding/logo-symbol.svg" alt="" className="h-6 w-6 flex-shrink-0" />
+      <Image src="/branding/logo-symbol.svg" alt="" width={24} height={24} className="h-6 w-6 flex-shrink-0" />
       <span className="truncate font-display text-base font-semibold text-[#f7f0dc]">{title}</span>
     </span>
   ) : (
-    <img src="/branding/logo-horizontal-compact.svg" alt="Menorah Bible Quiz" className="h-7 w-auto" />
+    <Image src="/branding/logo-horizontal-compact.svg" alt="Menorah Bible Quiz" width={157} height={28} priority className="h-7 w-auto" />
   );
 
   return (
@@ -72,7 +73,7 @@ export default function MobileTopBar({
             onClick={() => setMenuOpen((v) => !v)}
             aria-label={t.settings.title}
             aria-expanded={menuOpen}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="touch-target flex items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             <MoreVertical className="h-4 w-4" aria-hidden />
           </button>
@@ -94,7 +95,7 @@ export default function MobileTopBar({
           href="/settings"
           aria-label={t.settings.navLabel}
           title={t.settings.navLabel}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="touch-target flex items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           <Settings className="h-4 w-4" aria-hidden />
         </Link>
@@ -103,7 +104,7 @@ export default function MobileTopBar({
           href="/profile"
           aria-label={t.profile.title}
           title={isGuest ? t.common.guest : displayName}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-500/15 font-display text-sm font-bold text-gold-400 outline-none transition-colors hover:bg-gold-500/25 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="touch-target flex items-center justify-center rounded-full bg-gold-500/15 font-display text-sm font-bold text-gold-400 outline-none transition-colors hover:bg-gold-500/25 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           {displayName.charAt(0)}
         </Link>

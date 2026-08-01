@@ -29,6 +29,7 @@ import {
 import Countdown from "@/components/multiplayer/Countdown";
 import PlayerLobby from "@/components/multiplayer/player/PlayerLobby";
 import PlayerQuestion from "@/components/multiplayer/player/PlayerQuestion";
+import BrandedLoadingState from "@/components/ui/BrandedLoadingState";
 import PlayerRoundResult from "@/components/multiplayer/player/PlayerRoundResult";
 import PlayerFinalResult from "@/components/multiplayer/player/PlayerFinalResult";
 import HostLeaderboard from "@/components/multiplayer/host/HostLeaderboard";
@@ -377,7 +378,7 @@ export default function PlayerRoomPage() {
         className="flex min-h-screen items-center justify-center px-4 text-center text-[#c6cbd6]"
         style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
       >
-        <p>{t.multiplayerLobby.loadingLobby}</p>
+        <BrandedLoadingState label={t.multiplayerLobby.loadingLobby} />
       </main>
     );
   }

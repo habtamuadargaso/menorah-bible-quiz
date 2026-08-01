@@ -79,8 +79,8 @@ export default function PlayCards({
 
   function actionClass(theme: CardTheme) {
     return theme === "gold"
-      ? "inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-bold text-navy-950 shadow-gold outline-none transition-transform group-hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
-      : "inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 px-5 py-2.5 text-sm font-bold text-white shadow-purple outline-none transition-transform group-hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950";
+      ? "inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-2.5 text-sm font-bold text-navy-950 shadow-gold outline-none transition-transform group-hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+      : "inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 px-5 py-2.5 text-sm font-bold text-white shadow-purple outline-none transition-transform group-hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950";
   }
 
   const cards: PlayCard[] = [

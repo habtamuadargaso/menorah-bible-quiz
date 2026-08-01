@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { canClaimDailyReward, claimDailyReward, DAILY_REWARDS, loadDailyReward, type DailyRewardState } from "@/lib/dailyReward";
+import { hapticLight } from "@/lib/mobile/haptics";
+import { playButtonClick } from "@/lib/sound";
 
 export default function DailyReward() {
   const [state, setState] = useState<DailyRewardState>({ lastClaimDate: null, streak: 0 });
@@ -20,6 +22,8 @@ export default function DailyReward() {
       setMessage("You already claimed today’s reward. Come back tomorrow.");
       return;
     }
+    hapticLight();
+    playButtonClick();
     setState(result.state);
     const parts = [];
     if (result.reward.xp) parts.push(`+${result.reward.xp} XP`);

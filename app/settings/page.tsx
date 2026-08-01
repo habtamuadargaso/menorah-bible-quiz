@@ -22,6 +22,8 @@ import {
   setReducedMotionOverride,
 } from "@/lib/preferences";
 import { resetOnboarding } from "@/lib/mobile/onboarding";
+import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
+import { hapticLight } from "@/lib/mobile/haptics";
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
@@ -30,14 +32,15 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={`relative h-7 w-12 shrink-0 rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${
-        checked ? "bg-gold-500" : "bg-white/15"
-      }`}
+      onClick={() => {
+        hapticLight();
+        onChange(!checked);
+      }}
+      className="relative h-11 w-12 shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
     >
-      <span
-        className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`}
-      />
+      <span aria-hidden className={`absolute left-0 top-2 h-7 w-12 rounded-full transition-colors ${checked ? "bg-gold-500" : "bg-white/15"}`}>
+        <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} />
+      </span>
     </button>
   );
 }
@@ -74,7 +77,17 @@ export default function SettingsPage() {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return (
+      <main id="main-content" className="min-h-screen w-full px-4 py-12 sm:px-8" style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}>
+        <div className="mx-auto max-w-2xl" role="status" aria-label="Loading settings">
+          <Skeleton className="mx-auto h-10 w-48" />
+          <Skeleton className="mx-auto mt-3 h-4 w-72 max-w-full" />
+          <div className="mt-8 space-y-5"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
+        </div>
+      </main>
+    );
+  }
 
   const sectionClass = "rounded-card border border-white/10 bg-white/[0.04] p-6 shadow-premium";
   const labelClass = "flex items-center justify-between gap-4";
@@ -92,7 +105,7 @@ export default function SettingsPage() {
           transition={{ duration: reduceMotion ? 0.2 : 0.4 }}
           className="mb-8 text-center"
         >
-          <h1 className="font-display text-4xl font-bold text-[#fbf6e8]">{ts.title}</h1>
+          <h1 className="font-display text-3xl font-bold text-[#fbf6e8] sm:text-4xl">{ts.title}</h1>
           <p className="mt-2 text-[15px] text-[#a7aebd]">{ts.subtitle}</p>
         </motion.header>
 

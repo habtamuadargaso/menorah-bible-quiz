@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { loadProgress, levelForXp } from "@/lib/progress";
@@ -46,20 +47,20 @@ export default function Header({
           className="flex items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           {/* Mission 27 — standardized on public/branding/ (single source of truth) */}
-          <img src="/branding/logo-horizontal-compact.svg" alt="Menorah Bible Quiz" className="h-9 w-auto" />
+          <Image src="/branding/logo-horizontal-compact.svg" alt="Menorah Bible Quiz" width={202} height={36} priority className="h-9 w-auto" />
         </button>
 
       <div className="flex items-center gap-3 sm:gap-5">
         <nav className="hidden items-center gap-5 text-sm font-medium text-[#c6cbd6] lg:flex">
           <button
             onClick={onHome}
-            className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="min-w-[44px] rounded-md px-1 outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             {t.nav.home}
           </button>
           <button
             onClick={onCategories}
-            className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="flex min-h-[44px] items-center rounded-md px-1 outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             {t.nav.categories}
           </button>
@@ -83,7 +84,7 @@ export default function Header({
           </button>
           <Link
             href="/leaderboard"
-            className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="flex min-h-[44px] items-center rounded-md px-1 outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             {t.globalLeaderboard.navLabel}
           </Link>
@@ -100,7 +101,7 @@ export default function Header({
           href="/settings"
           aria-label={t.settings.navLabel}
           title={t.settings.navLabel}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="touch-target flex items-center justify-center rounded-full border border-gold-500/30 text-gold-400 outline-none transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6}>
             <circle cx="12" cy="12" r="3" />
@@ -110,7 +111,7 @@ export default function Header({
 
         <button
           onClick={onProfile}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-500/15 font-display text-sm font-bold text-gold-400 outline-none transition-colors hover:bg-gold-500/25 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="touch-target flex items-center justify-center rounded-full bg-gold-500/15 font-display text-sm font-bold text-gold-400 outline-none transition-colors hover:bg-gold-500/25 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           title={isGuest ? t.common.guest : displayName}
           aria-label={t.profile.title}
         >

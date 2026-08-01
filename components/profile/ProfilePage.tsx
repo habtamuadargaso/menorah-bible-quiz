@@ -12,6 +12,7 @@ import StatTile from "./StatTile";
 import AchievementBadge from "./AchievementBadge";
 import CircularGoalRing from "./CircularGoalRing";
 import CategoryCard from "./CategoryCard";
+import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
 
 export default function ProfilePage({
   onCategories,
@@ -75,8 +76,16 @@ export default function ProfilePage({
   }
 
   if (!stats) {
-    // First client paint only — avoids a localStorage/SSR flash of zeros.
-    return <section id="profile" className="mx-auto max-w-4xl px-5 py-24" />;
+    return (
+      <section id="profile" className="mx-auto max-w-4xl px-5 py-12" role="status" aria-label="Loading profile">
+        <div className="rounded-[24px] border border-gold-500/20 bg-white/[0.04] p-7 text-center shadow-premium">
+          <Skeleton className="mx-auto h-24 w-24 rounded-full" />
+          <Skeleton className="mx-auto mt-5 h-7 w-44" />
+          <Skeleton className="mx-auto mt-3 h-4 w-64 max-w-full" />
+        </div>
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2"><SkeletonCard /><SkeletonCard /></div>
+      </section>
+    );
   }
 
   return (

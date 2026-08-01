@@ -31,7 +31,7 @@ export default function SoundToggle() {
       onClick={toggleSound}
       aria-label={on ? t.sound.on : t.sound.off}
       title={on ? t.sound.on : t.sound.off}
-      className="flex h-8 w-8 items-center justify-center rounded-full border border-gold-500/30 text-gold-400 transition-colors hover:border-gold-500/60"
+      className="touch-target flex items-center justify-center rounded-full border border-gold-500/30 text-gold-400 transition-colors hover:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
     >
       {on ? (
         <svg viewBox="0 0 24 24" className="h-4 w-4">

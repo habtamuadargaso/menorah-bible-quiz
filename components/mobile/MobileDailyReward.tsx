@@ -11,6 +11,7 @@ import {
   type DailyRewardState,
 } from "@/lib/dailyReward";
 import { hapticLight } from "@/lib/mobile/haptics";
+import { playButtonClick } from "@/lib/sound";
 
 // Mission 18.5 — a handful of small, always-on sparkle dots around the
 // chest icon (distinct from ConfettiBurst below, which only plays once on
@@ -81,6 +82,7 @@ export default function MobileDailyReward({ isAmharic }: { isAmharic: boolean })
     hapticLight();
     const result = claimDailyReward();
     if (!result) return;
+    playButtonClick();
     setState(result.state);
     const parts: string[] = [];
     if (result.reward.xp) parts.push(`+${result.reward.xp} XP`);

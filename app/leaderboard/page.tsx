@@ -15,7 +15,7 @@ export default function GlobalLeaderboardRoute() {
       <div className="mx-auto max-w-6xl px-5 pt-5">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#c6cbd6] outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 rounded-full"
+          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-1 text-sm font-semibold text-[#c6cbd6] outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           <span aria-hidden>←</span>
           {t.nav.home}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export default function Footer() {
@@ -8,7 +9,7 @@ export default function Footer() {
   return (
     <footer className="border-t border-white/10 px-5 py-10 text-center">
       {/* Mission 25A brand system — see public/branding/ */}
-      <img src="/branding/logo-symbol.svg" alt="Menorah Bible Quiz" className="mx-auto mb-4 h-9 w-9 opacity-90" />
+      <Image src="/branding/logo-symbol.svg" alt="Menorah Bible Quiz" width={36} height={36} className="mx-auto mb-4 h-9 w-9 opacity-90" />
       <div className="mx-auto max-w-lg text-xs leading-relaxed text-[#7c8394]">{t.footer.verse}</div>
       <div className="mt-4 text-xs text-[#5c6272]">{t.footer.tagline}</div>
       <nav className="mt-3 flex flex-wrap items-center justify-center gap-x-1 gap-y-1 text-sm text-[#a7aebd]">
@@ -22,25 +23,25 @@ export default function Footer() {
             changing the footer's compact visual density. */}
         <Link
           href="/about"
-          className="rounded px-2 py-2.5 underline decoration-dotted underline-offset-2 outline-none transition-colors hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="inline-flex min-h-[44px] items-center rounded px-2 py-2.5 underline decoration-dotted underline-offset-2 outline-none transition-colors hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           About
         </Link>
         <Link
           href="/privacy"
-          className="rounded px-2 py-2.5 underline decoration-dotted underline-offset-2 outline-none transition-colors hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="inline-flex min-h-[44px] items-center rounded px-2 py-2.5 underline decoration-dotted underline-offset-2 outline-none transition-colors hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           Privacy
         </Link>
         <Link
           href="/terms"
-          className="rounded px-2 py-2.5 underline decoration-dotted underline-offset-2 outline-none transition-colors hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="inline-flex min-h-[44px] items-center rounded px-2 py-2.5 underline decoration-dotted underline-offset-2 outline-none transition-colors hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           Terms
         </Link>
         <Link
           href="/support"
-          className="rounded px-2 py-2.5 underline decoration-dotted underline-offset-2 outline-none transition-colors hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          className="inline-flex min-h-[44px] items-center rounded px-2 py-2.5 underline decoration-dotted underline-offset-2 outline-none transition-colors hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
         >
           Support
         </Link>

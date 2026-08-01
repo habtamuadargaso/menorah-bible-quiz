@@ -32,6 +32,7 @@ import {
 import Countdown from "@/components/multiplayer/Countdown";
 import HostLobby from "@/components/multiplayer/host/HostLobby";
 import HostBattleScreen from "@/components/multiplayer/host/HostBattleScreen";
+import BrandedLoadingState from "@/components/ui/BrandedLoadingState";
 import HostRoundReveal from "@/components/multiplayer/host/HostRoundReveal";
 import HostLeaderboard from "@/components/multiplayer/host/HostLeaderboard";
 import HostFinalResults from "@/components/multiplayer/host/HostFinalResults";
@@ -406,7 +407,7 @@ export default function HostRoomPage() {
         className="flex min-h-screen items-center justify-center px-4 text-center text-[#c6cbd6]"
         style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
       >
-        <p>{t.multiplayerHost.loadingHost}</p>
+        <BrandedLoadingState label={t.multiplayerHost.loadingHost} />
       </main>
     );
   }

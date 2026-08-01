@@ -12,6 +12,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { playCorrectSound, playFinishSound, playTimeoutSound, playWrongSound, startGameMusic, stopGameMusic } from "@/lib/sound";
 import { hapticLight, hapticMedium, hapticWarning } from "@/lib/mobile/haptics";
 import MobileGameHeader from "@/components/mobile/MobileGameHeader";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 const MAX_LIVES = 3;
 const QUESTION_LOAD_TIMEOUT_MS = 15000;
@@ -719,8 +720,13 @@ export default function QuizCard({
       );
     }
     return (
-      <section className="mx-auto max-w-xl px-5 py-24 text-center text-[#a7aebd]">
-        Loading questions...
+      <section className="mx-auto max-w-2xl px-5 py-12" role="status" aria-label="Loading questions">
+        <div className="rounded-[24px] border border-gold-500/20 bg-white/[0.04] p-7 shadow-premium">
+          <Skeleton className="mx-auto h-12 w-12 rounded-2xl" />
+          <Skeleton className="mx-auto mt-5 h-7 w-4/5" />
+          <Skeleton className="mx-auto mt-3 h-7 w-3/5" />
+          <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">{[0, 1, 2, 3].map((item) => <Skeleton key={item} className="h-[68px] rounded-2xl" />)}</div>
+        </div>
       </section>
     );
   }
