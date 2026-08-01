@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 // Mission 15 — compact, mobile-only gameplay header shared by Solo Quiz,
 // Live Battle (host + player), and Friends Battle question screens. Every
 // value here is already computed by the caller (timer state, score,
@@ -23,6 +25,10 @@ export default function MobileGameHeader({
   roomCode,
   connectionState,
   progressPct,
+  coins,
+  xp,
+  timer,
+  questionLabel = "Question",
 }: {
   onExit?: () => void;
   exitLabel?: string;
@@ -39,16 +45,20 @@ export default function MobileGameHeader({
   connectionState?: "connected" | "reconnecting" | "disconnected";
   /** 0-100. Optional — only Solo Quiz passes this today; Live/Friends Battle callers are unaffected if they omit it. */
   progressPct?: number;
+  coins?: number;
+  xp?: number;
+  timer?: ReactNode;
+  questionLabel?: string;
 }) {
   const urgent = typeof timeLeft === "number" && timeLeft <= 5;
 
   return (
-    <div className="mb-4 rounded-card-sm border border-gold-500/20 bg-white/[0.04] p-3.5 shadow-premium backdrop-blur-md md:hidden">
+    <div className="mb-4 rounded-[22px] border border-gold-500/20 bg-[#0b1730]/90 p-3.5 shadow-premium backdrop-blur-md md:hidden">
       <div className="flex items-center justify-between gap-2">
         {onExit ? (
           <button
             onClick={onExit}
-            className="flex min-h-[36px] items-center gap-1 rounded-full px-1.5 text-sm font-semibold text-[#c6cbd6] outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="flex min-h-[44px] items-center gap-1 rounded-full px-1.5 text-sm font-semibold text-[#e3dfd5] outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             <span aria-hidden>←</span>
             {exitLabel}
@@ -60,7 +70,7 @@ export default function MobileGameHeader({
         <div className="flex items-center gap-2">
           {typeof questionIndex === "number" && typeof questionCount === "number" && (
             <span className="rounded-full border border-gold-500/25 bg-gold-500/10 px-2.5 py-1 text-xs font-bold text-gold-400">
-              {questionIndex}/{questionCount}
+              {questionLabel} {questionIndex} of {questionCount}
             </span>
           )}
           {typeof timeLeft === "number" && (
@@ -72,6 +82,7 @@ export default function MobileGameHeader({
               {timeLeft}s
             </span>
           )}
+          {timer}
         </div>
       </div>
 
@@ -85,6 +96,8 @@ export default function MobileGameHeader({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {typeof xp === "number" && <span className="font-bold text-gold-300">✦ {xp} XP</span>}
+          {typeof coins === "number" && <span className="font-bold text-purple-200">● {coins}</span>}
           {typeof score === "number" && (
             <span className="font-bold text-gold-400">
               {scoreLabel ?? "⚡"} {score}
@@ -104,12 +117,18 @@ export default function MobileGameHeader({
       </div>
 
       {typeof progressPct === "number" && (
-        <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-gold-300 to-gold-600 transition-[width] duration-300 ease-out"
-            style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
-          />
-        </div>
+        <>
+          <div className="mt-2.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-[#8f97a7]">
+            {typeof questionIndex === "number" && typeof questionCount === "number" && <span>{questionLabel} {questionIndex} / {questionCount}</span>}
+            <span>{Math.round(progressPct)}%</span>
+          </div>
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuemin={1} aria-valuemax={questionCount} aria-valuenow={questionIndex}>
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-gold-300 to-gold-600 transition-[width] duration-300 ease-out"
+              style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
+            />
+          </div>
+        </>
       )}
     </div>
   );

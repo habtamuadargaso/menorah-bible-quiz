@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { BookOpen, Check, Coins, Sparkles, X } from "lucide-react";
 import type { CategoryId } from "@/lib/categories";
 import { loadQuestionsForGame } from "@/lib/questions/loadQuestionsForGame";
 import type { Question, Difficulty } from "@/lib/questions/types";
@@ -92,7 +93,12 @@ const CircularTimer = memo(function CircularTimer({
   secLabel?: string;
 }) {
   const urgent = timeLeft <= 3;
-  const warning = timeLeft <= 5;
+  const reduceMotion = useReducedMotion();
+  const size = compact ? 64 : 108;
+  const strokeWidth = compact ? 4 : 5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference * (1 - timerPct / 100);
 
   return (
     <motion.div
@@ -102,32 +108,34 @@ const CircularTimer = memo(function CircularTimer({
           : "relative flex h-24 w-24 items-center justify-center rounded-full sm:h-28 sm:w-28"
       }
       animate={
-        urgent
+        urgent && !reduceMotion
           ? { scale: [1, 1.08, 1] }
-          : warning
-          ? { scale: [1, 1.04, 1] }
           : { scale: 1 }
       }
       transition={
-        warning
-          ? { duration: urgent ? 0.5 : 0.9, repeat: Infinity, ease: "easeInOut" }
+        urgent && !reduceMotion
+          ? { duration: 0.55, repeat: Infinity, ease: "easeInOut" }
           : { duration: 0.25 }
       }
       style={{ filter: `drop-shadow(0 0 18px ${timerColor}55)` }}
       role="timer"
       aria-label={`${timeLeft} seconds remaining`}
     >
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{ background: "conic-gradient(rgba(139,92,246,0.35) 100%, transparent 0)" }}
-      />
-      <div
-        className="absolute rounded-full transition-[background] duration-300"
-        style={{
-          inset: compact ? 2 : 3,
-          background: `conic-gradient(${timerColor} ${timerPct}%, rgba(255,255,255,0.08) 0)`,
-        }}
-      />
+      <svg aria-hidden className="absolute inset-0 -rotate-90" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth={strokeWidth} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={timerColor}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          className={reduceMotion ? undefined : "transition-[stroke-dashoffset,stroke] duration-1000 ease-linear"}
+        />
+      </svg>
       <div
         className={
           compact
@@ -172,7 +180,7 @@ const AnswerOption = memo(function AnswerOption({
 }) {
   const stateClasses: Record<AnswerState, string> = {
     idle: "border-white/15 bg-white/[0.04] text-[#f3efe2] hover:border-gold-500/50 hover:bg-white/[0.07] hover:shadow-[0_0_28px_rgba(232,193,95,0.22)]",
-    correct: "border-emerald-400/70 bg-emerald-500/15 text-[#f3efe2] shadow-[0_0_28px_rgba(52,211,153,0.4)]",
+    correct: "border-gold-400/80 bg-emerald-500/20 text-[#f3efe2] shadow-[0_0_30px_rgba(52,211,153,0.34)]",
     wrong: "border-red-400/70 bg-red-500/15 text-[#f3efe2] shadow-[0_0_22px_rgba(239,68,68,0.28)]",
     muted: "border-white/10 bg-white/[0.02] text-[#7c8394]",
   };
@@ -194,7 +202,7 @@ const AnswerOption = memo(function AnswerOption({
       animate={shake ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
       transition={shake ? { duration: 0.4, ease: "easeInOut" } : { duration: 0.22, ease: "easeOut" }}
       className={`relative flex items-center justify-between gap-3 rounded-2xl border text-left font-medium outline-none transition-[background-color,border-color,box-shadow] duration-200 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 ${
-        compact ? "min-h-[52px] px-4 py-3 text-sm" : "min-h-[64px] px-5 py-4 text-[15px]"
+        compact ? "min-h-[68px] px-4 py-3 text-sm" : "min-h-[68px] px-5 py-4 text-[15px]"
       } ${stateClasses[state]}`}
     >
       {/* one-shot result ripple, plays once when this option resolves to correct/wrong */}
@@ -281,6 +289,73 @@ function ConfettiBurst({ burstKey }: { burstKey: number }) {
           transition={{ duration: 0.9, delay: p.delay, ease: "easeOut" }}
         />
       ))}
+    </div>
+  );
+}
+
+function ScriptureFeedback({
+  correct,
+  reference,
+  explanation,
+  correctAnswer,
+  points,
+  compact,
+  onNext,
+  nextLabel,
+  lang,
+}: {
+  correct: boolean;
+  reference: string;
+  explanation: string;
+  correctAnswer: string;
+  points?: number;
+  compact?: boolean;
+  onNext: () => void;
+  nextLabel: string;
+  lang: string;
+}) {
+  return (
+    <div className={compact ? "mt-4" : "mt-6"} aria-live="polite">
+      <div
+        className={`rounded-2xl border p-4 text-center ${
+          correct
+            ? "border-gold-400/45 bg-gold-500/10 shadow-[0_0_32px_rgba(232,193,95,0.16)]"
+            : "border-red-400/25 bg-red-500/[0.07]"
+        }`}
+      >
+        <span className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full ${correct ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"}`}>
+          {correct ? <Check className="h-5 w-5" aria-hidden /> : <X className="h-5 w-5" aria-hidden />}
+        </span>
+        <p className={`mt-2 font-display text-lg font-bold ${correct ? "text-gold-300" : "text-[#f4d7d3]"}`}>
+          {correct ? (lang === "am" ? "በጣም ጥሩ!" : "Great job!") : (lang === "am" ? "ትንሽ ቀርቶታል።" : "Not quite.")}
+        </p>
+        {correct && typeof points === "number" ? (
+          <p className="mt-1 flex items-center justify-center gap-1 text-sm font-extrabold text-gold-400"><Sparkles className="h-4 w-4" aria-hidden />+{points} XP</p>
+        ) : (
+          <p className="mt-1 text-sm text-[#c9ced8]">{lang === "am" ? "ትክክለኛው መልስ፦" : "Correct answer:"} <span className="font-bold text-[#fbf6e8]">{correctAnswer}</span></p>
+        )}
+      </div>
+
+      <div className="mt-3 rounded-2xl border border-gold-500/25 bg-[#09152c]/90 p-4 shadow-[0_14px_34px_rgba(0,0,0,0.25)]">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-gold-500/25 bg-gold-500/10 text-gold-300"><BookOpen className="h-5 w-5" aria-hidden /></span>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8f97a7]">{lang === "am" ? "የመጽሐፍ ቅዱስ ማጣቀሻ" : "Bible Reference"}</p>
+            <p className="mt-0.5 font-display text-base font-bold text-gold-300">{reference}</p>
+          </div>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-[#c6cbd6]">{explanation}</p>
+      </div>
+
+      <motion.button
+        type="button"
+        onClick={onNext}
+        whileHover={compact ? undefined : { y: -2, scale: 1.01 }}
+        whileTap={{ scale: 0.98 }}
+        className="mt-4 min-h-[48px] w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-3 text-sm font-bold text-navy-950 shadow-gold outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+      >
+        {nextLabel}
+      </motion.button>
     </div>
   );
 }
@@ -639,7 +714,7 @@ export default function QuizCard({
 
   const progressPct = Math.round(((index + 1) / questions.length) * 100);
   const timerPct = Math.round((timeLeft / timePerQuestion) * 100);
-  const timerColor = timeLeft <= 5 ? "#e0655f" : "#e8c15f";
+  const timerColor = timeLeft <= 3 ? "#ef6461" : timeLeft <= 5 ? "#f59e42" : "#e8c15f";
   const optionLetters = ["A", "B", "C", "D"];
   const tier = level <= 3 ? t.campaign.foundation : level <= 7 ? t.campaign.growingDisciple : t.campaign.scriptureMaster;
 
@@ -696,12 +771,14 @@ export default function QuizCard({
           levelLabel={`${t.common.level} ${level}`}
           questionIndex={index + 1}
           questionCount={questions.length}
-          score={score}
-          scoreLabel={t.result.score}
+          questionLabel={t.quiz.questionLabel}
+          xp={score}
+          coins={correctCount * 5}
           livesRemaining={lives}
           maxLives={MAX_LIVES}
           streak={streak}
           progressPct={progressPct}
+          timer={<CircularTimer compact timeLeft={timeLeft} timerPct={timerPct} timerColor={timerColor} />}
         />
 
         <div className="relative">
@@ -722,25 +799,15 @@ export default function QuizCard({
           </AnimatePresence>
         </div>
 
-        <div className="my-4 flex justify-center">
-          <CircularTimer
-            compact
-            timeLeft={timeLeft}
-            timerPct={timerPct}
-            timerColor={timerColor}
-            secLabel={lang === "am" ? "ሰከንድ" : "sec"}
-          />
-        </div>
-
         <div className="relative">
           <AnimatePresence mode="wait">
             <motion.div
               key={current.id}
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -24 }}
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -18 }}
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="relative overflow-hidden rounded-card-sm border border-gold-500/20 bg-glass-gold p-4 shadow-premium-lg backdrop-blur-md"
+              className="relative overflow-hidden rounded-[24px] border border-gold-500/35 bg-[#0a1730]/95 p-5 shadow-[0_22px_55px_rgba(0,0,0,0.34)] backdrop-blur-md"
             >
               {/* subtle low-opacity menorah glyph — decorative only, never affects text layout */}
               <svg
@@ -758,18 +825,12 @@ export default function QuizCard({
                 />
               </svg>
 
-              <div className="relative mb-2.5 flex justify-center">
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#8d94a3]">
-                  {t.quiz.difficulty[current.difficulty]}
-                </span>
+              <div className="relative mb-3 flex flex-col items-center">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-gold-500/25 bg-gold-500/10 text-gold-300"><BookOpen className="h-5 w-5" aria-hidden /></span>
+                <span className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-gold-400">{t.quiz.questionLabel}</span>
               </div>
-              <div className="relative mb-2.5 text-center font-display text-xl font-bold leading-snug tracking-tight text-[#fbf6e8]">
+              <div className="relative mb-6 text-center font-display text-xl font-bold leading-snug tracking-tight text-[#fbf6e8]">
                 {current.question}
-              </div>
-
-              <div className="relative mb-4 flex items-center justify-center gap-1.5 text-xs font-bold text-gold-500">
-                <span aria-hidden>📖</span>
-                {current.reference}
               </div>
 
               <div className="relative grid grid-cols-1 gap-2.5">
@@ -806,36 +867,7 @@ export default function QuizCard({
                     transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                     className="relative mt-4 overflow-hidden"
                   >
-                    <div className="mb-2 flex items-center gap-2">
-                      {selected === current.correctIndex ? (
-                        <span className="flex items-center gap-1.5 text-sm font-bold text-success-300">
-                          <span aria-hidden>✓</span>
-                          {lang === "am" ? "ትክክል" : "Correct"}
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1.5 text-sm font-bold text-coral-300">
-                          <span aria-hidden>✗</span>
-                          {lang === "am" ? "ስህተት" : "Incorrect"}
-                        </span>
-                      )}
-                      {selected === current.correctIndex && lastAnswerReward && (
-                        <span className="ml-auto flex items-center gap-2 text-xs font-bold text-gold-300">
-                          <span>⚡ +{lastAnswerReward.points}</span>
-                          <span>🪙 +{lastAnswerReward.coins}</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="rounded-xl border border-gold-500/25 bg-navy-900/60 p-4 shadow-premium">
-                      <p className="text-xs leading-relaxed text-[#c6cbd6]">{current.explanation}</p>
-                    </div>
-                    <motion.button
-                      onClick={handleNext}
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="mt-4 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 py-3 text-sm font-bold text-navy-900 shadow-gold outline-none transition-shadow duration-300 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
-                    >
-                      {isLast ? t.quiz.seeResults : t.quiz.nextQuestion}
-                    </motion.button>
+                    <ScriptureFeedback correct={selected === current.correctIndex} reference={current.reference} explanation={current.explanation} correctAnswer={current.choices[current.correctIndex]} points={lastAnswerReward?.points} compact onNext={handleNext} nextLabel={isLast ? t.quiz.seeResults : t.quiz.nextQuestion} lang={lang} />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -862,14 +894,14 @@ export default function QuizCard({
             </button>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <HeaderStat tone="purple" icon={<span aria-hidden>⭐</span>} label={`${t.common.level} ${level}`} />
               <HeaderStat
                 tone="gold"
                 icon={<span aria-hidden>✦</span>}
-                label={`${t.quiz.questionLabel} ${index + 1}/${questions.length}`}
+                label={`${t.quiz.questionLabel} ${index + 1} of ${questions.length}`}
               />
-              <HeaderStat tone="gold" icon={<span aria-hidden>⚡</span>} label={`${t.result.score} ${score}`} />
-              <HeaderStat tone="purple" icon={<span aria-hidden>🪙</span>} label={`${correctCount * 5}`} />
+              <HeaderStat tone="gold" icon={<Sparkles className="h-3.5 w-3.5" aria-hidden />} label={`${score} XP`} />
+              <HeaderStat tone="purple" icon={<Coins className="h-3.5 w-3.5" aria-hidden />} label={`${correctCount * 5}`} />
+              <CircularTimer compact timeLeft={timeLeft} timerPct={timerPct} timerColor={timerColor} />
             </div>
           </div>
 
@@ -936,7 +968,11 @@ export default function QuizCard({
             </div>
           </div>
 
-          <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
+          <div className="mt-4 flex items-center justify-between text-xs font-bold text-[#aeb5c3]">
+            <span>{t.quiz.questionLabel} {index + 1} / {questions.length}</span>
+            <span>{progressPct}%</span>
+          </div>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuemin={1} aria-valuemax={questions.length} aria-valuenow={index + 1}>
             <motion.div
               className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-purple-400 to-gold-400"
               animate={{ width: `${progressPct}%` }}
@@ -954,32 +990,22 @@ export default function QuizCard({
           </div>
         </div>
 
-        <div className="mb-6 flex justify-center">
-          <CircularTimer timeLeft={timeLeft} timerPct={timerPct} timerColor={timerColor} />
-        </div>
-
         <div className="relative">
           <AnimatePresence mode="wait">
             <motion.div
               key={current.id}
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -24 }}
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -20 }}
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="relative overflow-hidden rounded-card border border-gold-500/20 bg-glass-gold p-6 shadow-premium-lg backdrop-blur-md sm:p-9"
+              className="relative overflow-hidden rounded-[24px] border border-gold-500/35 bg-[#0a1730]/95 p-6 shadow-[0_24px_65px_rgba(0,0,0,0.38)] backdrop-blur-md sm:p-9"
             >
-              <div className="mb-3 flex justify-center">
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#8d94a3]">
-                  {t.quiz.difficulty[current.difficulty]}
-                </span>
+              <div className="mb-3 flex flex-col items-center">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-gold-500/25 bg-gold-500/10 text-gold-300"><BookOpen className="h-6 w-6" aria-hidden /></span>
+                <span className="mt-2 text-[11px] font-bold uppercase tracking-[0.2em] text-gold-400">{t.quiz.questionLabel}</span>
               </div>
-              <div className="mb-3 text-center font-display text-2xl font-bold leading-snug tracking-tight text-[#fbf6e8] sm:text-[28px] md:text-3xl">
+              <div className="mb-7 text-center font-display text-2xl font-bold leading-snug tracking-tight text-[#fbf6e8] sm:text-[28px] md:text-3xl">
                 {current.question}
-              </div>
-
-              <div className="mb-6 flex items-center justify-center gap-2 text-sm font-bold text-gold-500">
-                <span aria-hidden>📖</span>
-                {current.reference}
               </div>
 
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
@@ -1015,18 +1041,7 @@ export default function QuizCard({
                     transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                     className="mt-6 overflow-hidden"
                   >
-                    <div className="rounded-2xl border border-gold-500/25 bg-navy-900/60 p-5 shadow-premium">
-                      <p className="text-sm leading-relaxed text-[#c6cbd6]">{current.explanation}</p>
-                    </div>
-                    <motion.button
-                      onClick={handleNext}
-                      whileHover={{ y: -2, scale: 1.015 }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="mt-5 w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 py-3.5 text-[15px] font-bold text-navy-900 shadow-gold outline-none transition-shadow duration-300 hover:shadow-[0_0_36px_rgba(232,193,95,0.5)] focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
-                    >
-                      {isLast ? t.quiz.seeResults : t.quiz.nextQuestion}
-                    </motion.button>
+                    <ScriptureFeedback correct={selected === current.correctIndex} reference={current.reference} explanation={current.explanation} correctAnswer={current.choices[current.correctIndex]} points={lastAnswerReward?.points} onNext={handleNext} nextLabel={isLast ? t.quiz.seeResults : t.quiz.nextQuestion} lang={lang} />
                   </motion.div>
                 )}
               </AnimatePresence>
