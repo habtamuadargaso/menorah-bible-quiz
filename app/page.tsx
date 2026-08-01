@@ -33,19 +33,11 @@ import CampaignMap from "@/components/CampaignMap";
 import LanguageModal from "@/components/LanguageModal";
 import MobileAppShell from "@/components/mobile/MobileAppShell";
 import MobileBottomNav from "@/components/mobile/MobileBottomNav";
-import MobileSection from "@/components/mobile/MobileSection";
-import MobileActionCard from "@/components/mobile/MobileActionCard";
-import MobileHero from "@/components/mobile/MobileHero";
-import MobileProgressCards from "@/components/mobile/MobileProgressCards";
-import MobileDailyReward from "@/components/mobile/MobileDailyReward";
-import MobileVerseCard from "@/components/mobile/MobileVerseCard";
-import MobileComingSoonSummary from "@/components/mobile/MobileComingSoonSummary";
+import MobileHomeDashboard from "@/components/mobile/MobileHomeDashboard";
 import MobileCampaignJourney from "@/components/mobile/MobileCampaignJourney";
 import MobileLevelComplete from "@/components/mobile/MobileLevelComplete";
-import MobileLeaderboardPreview from "@/components/mobile/MobileLeaderboardPreview";
 import MobileOnboarding from "@/components/mobile/onboarding/MobileOnboarding";
 import { hasCompletedOnboarding } from "@/lib/mobile/onboarding";
-import { Play, Calendar, Church, Swords, Users } from "lucide-react";
 
 import {
   loadLeaderboard,
@@ -133,14 +125,6 @@ function HomeInner() {
   const challengesRef = useRef<HTMLDivElement>(null);
   const bibleRef = useRef<HTMLDivElement>(null);
   const churchRef = useRef<HTMLDivElement>(null);
-  // Mission 15.5 — mobile's "Daily Challenge"/"Church Mode" action cards
-  // still scroll to these refs, but the target content below them is now
-  // the compact MobileDailyReward/MobileComingSoonSummary cards rather than
-  // the full desktop ChallengesStrip/ChurchModeSection, so they need their
-  // own refs distinct from the desktop-only ones above.
-  const mobileChallengesRef = useRef<HTMLDivElement>(null);
-  const mobileChurchRef = useRef<HTMLDivElement>(null);
-
   // Mission 21 — mobile-only first-launch onboarding gate. Starts as
   // `null` ("not checked yet") so the very first client render never
   // shows the wrong thing before localStorage has actually been read —
@@ -534,110 +518,18 @@ function HomeInner() {
             transition={{ duration: 0.25 }}
           >
           <MobileAppShell>
-            <MobileHero
+            <MobileHomeDashboard
               displayName={user?.displayName ?? t.common.guest}
               isGuest={isGuest}
-              isAmharic={isAmharic}
               level={levelForXp(mobileProgress.totalXp).level}
               progressPct={levelForXp(mobileProgress.totalXp).progressPct}
               xpIntoLevel={levelForXp(mobileProgress.totalXp).xpIntoLevel}
               xpForNextLevel={levelForXp(mobileProgress.totalXp).xpForNextLevel}
-              coins={mobileProgress.coins}
+              totalXp={mobileProgress.totalXp}
               streak={mobileStats?.currentDayStreak ?? 0}
-              onContinue={() => router.push("/learn")}
+              stats={mobileStats}
+              onLiveBattle={handleBattleSetup}
             />
-
-            <MobileVerseCard />
-
-            <MobileSection title={isAmharic ? "ተጫወት" : "Play"}>
-              <MobileActionCard
-                icon={<Play className="h-5 w-5" aria-hidden />}
-                title={isAmharic ? "ብቻዬን ተጫወት" : "Solo Quiz"}
-                subtitle={isAmharic ? "10 ደረጃዎችን ያልፉ" : "Play alone through 10 levels"}
-                href="/learn"
-                accent="blue"
-              />
-              <MobileActionCard
-                icon={<Calendar className="h-5 w-5" aria-hidden />}
-                title={isAmharic ? "የዕለቱ ፈተና" : "Daily Challenge"}
-                subtitle={isAmharic ? "ዕለታዊ ሽልማት ይሰብስቡ" : "Claim today's reward"}
-                onClick={() => scrollTo(mobileChallengesRef)}
-                accent="amber"
-              />
-              <MobileActionCard
-                icon={<Church className="h-5 w-5" aria-hidden />}
-                title={isAmharic ? "የቤተ ክርስቲያን ሁነታ" : "Church Mode"}
-                subtitle={isAmharic ? "ለቡድን ውድድር" : "Host a group competition"}
-                onClick={() => scrollTo(mobileChurchRef)}
-                accent="purple"
-              />
-            </MobileSection>
-
-            <MobileSection title={isAmharic ? "ተወዳደር" : "Compete"}>
-              <MobileActionCard
-                icon={<Swords className="h-5 w-5" aria-hidden />}
-                title={isAmharic ? "የቀጥታ ውድድር" : "Live Battle"}
-                subtitle={isAmharic ? "በክፍል ኮድ ተቀላቀሉ" : "Create or join a room"}
-                onClick={handleBattleSetup}
-                theme="navy-outline"
-                accent="violet"
-              />
-              <MobileActionCard
-                icon={<Users className="h-5 w-5" aria-hidden />}
-                title={isAmharic ? "የጓደኞች ውድድር" : "Friends Battle"}
-                subtitle={isAmharic ? "በአንድ መሳሪያ ይጫወቱ" : "Pass-and-play on one device"}
-                href="/friends-battle"
-                theme="navy-outline"
-                accent="teal"
-              />
-            </MobileSection>
-
-            <MobileSection title={isAmharic ? "እድገትዎ" : "Your Progress"}>
-              <MobileProgressCards
-                level={levelForXp(mobileProgress.totalXp).level}
-                progressPct={levelForXp(mobileProgress.totalXp).progressPct}
-                coins={mobileProgress.coins}
-                streak={mobileStats?.currentDayStreak ?? 0}
-                levelLabel={t.common.level}
-                coinsLabel={t.profile.totalCoins}
-                streakLabel={t.profile.currentStreak}
-              />
-            </MobileSection>
-
-            <MobileSection title={t.nav.leaderboard} action={{ label: isAmharic ? "ሁሉንም ይመልከቱ" : "See all", onClick: () => router.push("/leaderboard") }}>
-              <MobileLeaderboardPreview
-                entries={entries}
-                onViewAll={() => router.push("/leaderboard")}
-                currentPlayerName={user?.displayName}
-              />
-            </MobileSection>
-
-            <MobileSection title={isAmharic ? "ዕለታዊ ሽልማት" : "Daily Reward"}>
-              <div ref={mobileChallengesRef} className="flex flex-col gap-2.5">
-                <MobileDailyReward isAmharic={isAmharic} />
-                <MobileComingSoonSummary
-                  heading={t.challenges.heading}
-                  items={[t.challenges.daily.title, t.challenges.weekly.title]}
-                  isAmharic={isAmharic}
-                />
-              </div>
-            </MobileSection>
-
-            <MobileSection title={t.church.heading}>
-              <div ref={mobileChurchRef}>
-                <MobileComingSoonSummary
-                  heading={isAmharic ? "ተጨማሪ ይመጣል" : "More on the way"}
-                  items={[
-                    t.church.competition.title,
-                    t.church.youthChallenge.title,
-                    t.church.sundaySchool.title,
-                    t.church.teamVsTeam.title,
-                    t.church.dashboard.title,
-                  ]}
-                  isAmharic={isAmharic}
-                />
-              </div>
-            </MobileSection>
           </MobileAppShell>
           </motion.div>
         )}

@@ -44,7 +44,7 @@ export default function MobileTopBar({
   );
 
   return (
-    <div className="relative z-20 flex min-h-[60px] items-center justify-between gap-2 border-b border-gold-500/20 bg-navy-950/90 px-3 py-2 backdrop-blur-md md:hidden">
+    <div className="relative z-20 flex min-h-[60px] items-center justify-between gap-2 border-b border-gold-500/20 bg-navy-950/90 px-3 pb-2 pt-[max(env(safe-area-inset-top),0.5rem)] backdrop-blur-md md:hidden">
       {onHome ? (
         <button
           onClick={onHome}
