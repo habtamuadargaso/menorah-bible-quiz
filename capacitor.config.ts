@@ -20,8 +20,14 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * a local dev server (e.g. `http://192.168.1.23:3000` — a real LAN IP, not
  * `localhost`, since the URL is loaded by the device/emulator, not this
  * machine) instead of production, without editing this file. Leave it unset
- * to load the production Vercel deployment, which is what a release build
- * must always do.
+ * to load the production deployment, which is what a release build must
+ * always do.
+ *
+ * Mission 27.1 — production URL migrated from the Vercel-assigned
+ * menorah-bible-quiz.vercel.app to the canonical custom domain
+ * www.menorahbiblequiz.com. The underlying Vercel deployment is unchanged
+ * (same project, same app) — only which hostname the native shell/deep
+ * links/site metadata treat as canonical.
  */
 const devServerUrl = process.env.CAPACITOR_SERVER_URL;
 
@@ -30,7 +36,7 @@ const config: CapacitorConfig = {
   appName: "Menorah Bible Quiz",
   webDir: "www",
   server: {
-    url: devServerUrl || "https://menorah-bible-quiz.vercel.app",
+    url: devServerUrl || "https://www.menorahbiblequiz.com",
     // Only ever cleartext (http) for an explicit local dev override — a
     // release build always resolves to the hardcoded https production URL
     // above, which is never cleartext.

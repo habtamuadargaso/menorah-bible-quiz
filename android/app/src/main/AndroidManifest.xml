@@ -31,18 +31,21 @@
 
             <!-- Mission 12 — Android App Links (real https:// URLs open the
                  app directly instead of a browser tab). android:autoVerify
-                 requires https://menorah-bible-quiz.vercel.app/.well-known/assetlinks.json
+                 requires https://www.menorahbiblequiz.com/.well-known/assetlinks.json
                  (public/.well-known/assetlinks.json in this repo) to list
                  this app's real release-signing SHA-256 fingerprint before
                  Android will actually trust it — see MOBILE_SETUP.md for
                  that one remaining manual step. Safe to ship before that:
                  verification just doesn't succeed yet, so these links keep
-                 opening in the browser exactly as they do today. -->
+                 opening in the browser exactly as they do today.
+                 Mission 27.1 — host migrated from the Vercel-assigned
+                 menorah-bible-quiz.vercel.app to the canonical custom
+                 domain www.menorahbiblequiz.com. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="menorah-bible-quiz.vercel.app" />
+                <data android:scheme="https" android:host="www.menorahbiblequiz.com" />
             </intent-filter>
         </activity>
 

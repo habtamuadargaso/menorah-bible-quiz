@@ -7,9 +7,12 @@ covers the native packaging layer around it.
 
 ## Architecture: remote-URL mode
 
-`capacitor.config.ts` sets `server.url` to the production Vercel deployment
-(`https://menorah-bible-quiz.vercel.app`). Capacitor's native shell loads that
-URL directly into a WebView, the same way a regular browser would, instead of
+`capacitor.config.ts` sets `server.url` to the production deployment
+(`https://www.menorahbiblequiz.com` — Mission 27.1 migrated this from the
+Vercel-assigned `menorah-bible-quiz.vercel.app` to this canonical custom
+domain; same underlying Vercel project/deployment either way). Capacitor's
+native shell loads that URL directly into a WebView, the same way a regular
+browser would, instead of
 bundling a static (`next export`) copy of the site. `webDir: "www"` exists
 only because Capacitor's CLI requires *some* directory to be present — it's
 never actually used while `server.url` is set.
@@ -228,14 +231,14 @@ Two supported forms, both resolved by the pure, unit-testable
      keytool -list -v -keystore your-release-key.keystore -alias your-key-alias
      ```
      `AndroidManifest.xml` already has the `autoVerify="true"` intent-filter
-     for `https://menorah-bible-quiz.vercel.app` — it just won't verify
+     for `https://www.menorahbiblequiz.com` — it just won't verify
      until the real fingerprint is deployed at that path. Until then, these
      links keep opening in the browser exactly as they do today (safe
      degradation, not a broken state).
    - **iOS**: `public/.well-known/apple-app-site-association` has a
      placeholder Team ID. Replace `REPLACE_WITH_YOUR_APPLE_TEAM_ID` with
      your real 10-character Apple Developer Team ID. `ios/App/App/App.entitlements`
-     already declares `applinks:menorah-bible-quiz.vercel.app` — attach it
+     already declares `applinks:www.menorahbiblequiz.com` — attach it
      to the target in Xcode (Signing & Capabilities -> + Capability ->
      Associated Domains -> confirm this entitlements file is selected).
      This one step needs a human in Xcode; it isn't something a text edit

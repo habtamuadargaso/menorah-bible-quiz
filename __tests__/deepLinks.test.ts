@@ -15,11 +15,11 @@ describe("resolveDeepLinkPath", () => {
   });
 
   it("resolves the join/<CODE> shortcut (https Universal Link form) the same way", () => {
-    expect(resolveDeepLinkPath("https://menorah-bible-quiz.vercel.app/join/xyz789")).toBe("/multiplayer/join?room=XYZ789");
+    expect(resolveDeepLinkPath("https://www.menorahbiblequiz.com/join/xyz789")).toBe("/multiplayer/join?room=XYZ789");
   });
 
   it("maps a plain https URL to its pathname + search", () => {
-    expect(resolveDeepLinkPath("https://menorah-bible-quiz.vercel.app/multiplayer/join?room=ABCD")).toBe(
+    expect(resolveDeepLinkPath("https://www.menorahbiblequiz.com/multiplayer/join?room=ABCD")).toBe(
       "/multiplayer/join?room=ABCD"
     );
   });

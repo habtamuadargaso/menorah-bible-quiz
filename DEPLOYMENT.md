@@ -2,7 +2,7 @@
 
 ## Target platform
 
-Vercel. `capacitor.config.ts` already points at `https://menorah-bible-quiz.vercel.app` — Vercel is the established deployment target for this project, not a new choice made in this mission.
+Vercel. `capacitor.config.ts` points at the canonical custom domain `https://www.menorahbiblequiz.com` (Mission 27.1 — migrated from the Vercel-assigned `menorah-bible-quiz.vercel.app`; both resolve to the same underlying Vercel project/deployment). Vercel is the established deployment target for this project, not a new choice made in this mission.
 
 ## Runtime requirements
 
@@ -74,7 +74,7 @@ verified (a real `pnpm test` + `pnpm run build` + `npx cap sync` +
 Still out of scope per the mission's own instructions ("no actual app-store
 publishing"): code-signing, store listings, and App Store Connect / Google
 Play Console submission. `capacitor.config.ts` stays in **remote-URL
-mode** (native shell loads `https://menorah-bible-quiz.vercel.app` directly)
+mode** (native shell loads `https://www.menorahbiblequiz.com` directly)
 — the lowest-risk packaging approach, and the only one that doesn't require
 rewriting the AI Question Factory / admin routes' service-role-key-gated
 server logic against some other backend shape.
