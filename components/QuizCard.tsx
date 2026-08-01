@@ -1,8 +1,9 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { BookOpen, Check, Coins, Sparkles, X } from "lucide-react";
+import { BookOpen, Check, ChevronDown, ChevronUp, Coins, Sparkles, X } from "lucide-react";
 import type { CategoryId } from "@/lib/categories";
 import { loadQuestionsForGame } from "@/lib/questions/loadQuestionsForGame";
 import type { Question, Difficulty } from "@/lib/questions/types";
@@ -408,6 +409,146 @@ function ScriptureFeedback({
   );
 }
 
+function MobileFeedbackSheet({
+  correct,
+  reference,
+  explanation,
+  correctAnswer,
+  points,
+  streak,
+  reduceMotion,
+  onNext,
+  nextLabel,
+  lang,
+}: {
+  correct: boolean;
+  reference: string;
+  explanation: string;
+  correctAnswer: string;
+  points?: number;
+  streak: number;
+  reduceMotion: boolean;
+  onNext: () => void;
+  nextLabel: string;
+  lang: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [buttonReady, setButtonReady] = useState(reduceMotion);
+  const nextButtonRef = useRef<HTMLButtonElement>(null);
+  const advancingRef = useRef(false);
+
+  useEffect(() => {
+    const delay = reduceMotion ? 0 : 280;
+    const timer = window.setTimeout(() => {
+      setButtonReady(true);
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [reduceMotion]);
+
+  useEffect(() => {
+    if (buttonReady) nextButtonRef.current?.focus({ preventScroll: true });
+  }, [buttonReady]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [expanded]);
+
+  const sheet = (
+    <motion.aside
+      role="dialog"
+      aria-modal="false"
+      aria-label={lang === "am" ? "የመልስ ውጤት" : "Answer feedback"}
+      className={`fixed inset-x-0 bottom-0 z-[70] mx-auto flex w-full max-w-[640px] flex-col overflow-hidden rounded-t-[28px] border border-b-0 border-white/15 bg-[#0a1730]/95 shadow-[0_-22px_65px_rgba(0,0,0,0.52)] backdrop-blur-2xl ${expanded ? "h-[min(60dvh,560px)]" : "h-[min(35dvh,330px)] min-h-[240px]"}`}
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: "100%" }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: "100%" }}
+      transition={{ duration: reduceMotion ? 0.01 : 0.28, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex flex-none justify-center pb-1 pt-2.5" aria-hidden>
+          <span className="h-1.5 w-11 rounded-full bg-white/25" />
+        </div>
+
+        <div className={`min-h-0 px-5 ${expanded ? "flex-1 overflow-y-auto overscroll-contain pb-4" : "flex-none pb-2"}`}>
+          <div className="flex items-center gap-3">
+            <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-full ${correct ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"}`}>
+              {correct ? <Check className="h-5 w-5" aria-hidden /> : <X className="h-5 w-5" aria-hidden />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className={`font-display text-lg font-bold ${correct ? "text-gold-300" : "text-[#f4d7d3]"}`}>
+                {correct ? (lang === "am" ? "በጣም ጥሩ!" : "Great answer!") : (lang === "am" ? "ትንሽ ቀርቶታል።" : "Not quite.")}
+              </p>
+              {correct && typeof points === "number" ? (
+                <p className="flex items-center gap-1 text-sm font-extrabold text-gold-400"><Sparkles className="h-4 w-4" aria-hidden />+<CountUpXp value={points} reduceMotion={reduceMotion} /> XP</p>
+              ) : (
+                <p className="truncate text-sm text-[#c9ced8]">{lang === "am" ? "ትክክለኛው መልስ፦" : "Correct answer:"} <span className="font-bold text-[#fbf6e8]">{correctAnswer}</span></p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-gold-500/20 bg-gold-500/[0.07] px-3 py-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <BookOpen className="h-4 w-4 flex-none text-gold-300" aria-hidden />
+              <span className="truncate text-sm font-bold text-gold-300">{reference}</span>
+            </div>
+            <button
+              type="button"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((value) => !value)}
+              className="flex min-h-[44px] flex-none items-center gap-1 rounded-full px-2 text-xs font-bold text-[#d9deea] outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+            >
+              {expanded ? (lang === "am" ? "ያነሰ አሳይ" : "Show Less") : (lang === "am" ? "ተጨማሪ ያንብቡ" : "Read More")}
+              {expanded ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
+            </button>
+          </div>
+
+          {expanded && (
+            <motion.div
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduceMotion ? 0.01 : 0.25 }}
+              className="pt-4"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8f97a7]">{lang === "am" ? "የመጽሐፍ ቅዱስ ማብራሪያ" : "Bible explanation"}</p>
+              <p className="mt-2 text-sm leading-6 text-[#d2d6df]">{explanation}</p>
+              {correct && streak >= 2 && <p className="mt-3 text-xs font-bold uppercase tracking-[0.14em] text-emerald-300">🔥 {streak} {lang === "am" ? "በተከታታይ!" : "in a row!"}</p>}
+            </motion.div>
+          )}
+        </div>
+
+        <div className="mt-auto flex-none border-t border-white/10 bg-[#09152c]/95 px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+          <motion.button
+            ref={nextButtonRef}
+            type="button"
+            disabled={!buttonReady}
+            onClick={() => {
+              if (advancingRef.current) return;
+              advancingRef.current = true;
+              onNext();
+            }}
+            whileTap={buttonReady ? { scale: 0.98 } : undefined}
+            className="min-h-[48px] w-full rounded-full bg-gradient-to-br from-gold-400 to-gold-600 px-5 py-3 text-sm font-bold text-navy-950 shadow-gold outline-none focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+          >
+            {nextLabel}
+          </motion.button>
+        </div>
+      </div>
+      <p className="sr-only" aria-live="assertive" aria-atomic="true">
+        {correct
+          ? `${lang === "am" ? "ትክክለኛ መልስ" : "Correct answer"}${typeof points === "number" ? `, ${points} XP` : ""}`
+          : `${lang === "am" ? "የተሳሳተ መልስ" : "Incorrect answer"}. ${lang === "am" ? "ትክክለኛው መልስ" : "Correct answer"}: ${correctAnswer}`}
+      </p>
+    </motion.aside>
+  );
+
+  return createPortal(sheet, document.body);
+}
+
 // Mission 17 — mobile-only skeleton shown while questions are loading, in
 // the exact shape of the compact mobile layout below (header bar, small
 // timer circle, question card, 4 answer bars) so the screen doesn't blank
@@ -477,6 +618,9 @@ export default function QuizCard({
   const [timeLeft, setTimeLeft] = useState(timePerQuestion);
   const autoNextRef = useRef<number | null>(null);
   const answerLockedRef = useRef(false);
+  const mobileQuestionRef = useRef<HTMLDivElement>(null);
+  const selectedAnswerRef = useRef<HTMLDivElement>(null);
+  const positionedFeedbackRef = useRef<string | null>(null);
   // Mirrors `timeLeft` so handleAnswer can read the latest value without
   // needing timeLeft in its own dependency array — that keeps its identity
   // (and therefore the memoized answer buttons) stable across every
@@ -711,6 +855,28 @@ export default function QuizCard({
     [isLast, timePerQuestion]
   );
 
+  useEffect(() => {
+    if (variant !== "mobile" || !locked || !current) return;
+    const feedbackIsReady = selected !== current.correctIndex || lastAnswerReward !== null;
+    if (!feedbackIsReady || positionedFeedbackRef.current === current.id) return;
+    positionedFeedbackRef.current = current.id;
+
+    const timer = window.setTimeout(() => {
+      const target = selectedAnswerRef.current ?? mobileQuestionRef.current;
+      if (!target) return;
+      const targetRect = target.getBoundingClientRect();
+      const sheetTop = window.innerHeight * 0.58;
+      if (targetRect.bottom > sheetTop) {
+        window.scrollBy({
+          top: Math.min(targetRect.bottom - sheetTop + 12, Math.max(0, targetRect.top - 12)),
+          behavior: reduceMotion ? "auto" : "smooth",
+        });
+      }
+    }, reduceMotion ? 0 : 280);
+
+    return () => window.clearTimeout(timer);
+  }, [current, lastAnswerReward, locked, reduceMotion, selected, variant]);
+
   if (loadingQuestions) {
     if (variant === "mobile") {
       return (
@@ -833,6 +999,7 @@ export default function QuizCard({
         <div className="relative">
           <AnimatePresence mode="wait">
             <motion.div
+              ref={mobileQuestionRef}
               key={current.id}
               initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
@@ -875,34 +1042,39 @@ export default function QuizCard({
                     else state = "muted";
                   }
                   return (
-                    <AnswerOption
-                      key={i}
-                      compact
-                      label={choice}
-                      state={state}
-                      disabled={locked}
-                      optionLetter={optionLetters[i] ?? String(i + 1)}
-                      choiceIndex={i}
-                      onSelect={handleAnswer}
-                    />
+                    <div key={i} ref={isSelected ? selectedAnswerRef : undefined}>
+                      <AnswerOption
+                        compact
+                        label={choice}
+                        state={state}
+                        disabled={locked}
+                        optionLetter={optionLetters[i] ?? String(i + 1)}
+                        choiceIndex={i}
+                        onSelect={handleAnswer}
+                      />
+                    </div>
                   );
                 })}
               </div>
-
-              <AnimatePresence>
-                {feedbackReady && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3, delay: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
-                    className="relative mt-4 overflow-hidden"
-                  >
-                    <ScriptureFeedback correct={selected === current.correctIndex} reference={current.reference} explanation={current.explanation} correctAnswer={current.choices[current.correctIndex]} points={lastAnswerReward?.xp} streak={streak} reduceMotion={Boolean(reduceMotion)} compact onNext={handleNext} nextLabel={isLast ? t.quiz.seeResults : t.quiz.nextQuestion} lang={lang} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {feedbackReady && (
+              <MobileFeedbackSheet
+                key={current.id}
+                correct={selected === current.correctIndex}
+                reference={current.reference}
+                explanation={current.explanation}
+                correctAnswer={current.choices[current.correctIndex]}
+                points={lastAnswerReward?.xp}
+                streak={streak}
+                reduceMotion={Boolean(reduceMotion)}
+                onNext={handleNext}
+                nextLabel={isLast ? t.quiz.seeResults : t.quiz.nextQuestion}
+                lang={lang}
+              />
+            )}
           </AnimatePresence>
 
           {confettiKey !== null && <ConfettiBurst burstKey={confettiKey} />}
