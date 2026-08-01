@@ -438,7 +438,7 @@ function MobileFeedbackSheet({
   const advancingRef = useRef(false);
 
   useEffect(() => {
-    const delay = reduceMotion ? 0 : 280;
+    const delay = reduceMotion ? 0 : 250;
     const timer = window.setTimeout(() => {
       setButtonReady(true);
     }, delay);
@@ -463,13 +463,13 @@ function MobileFeedbackSheet({
       role="dialog"
       aria-modal="false"
       aria-label={lang === "am" ? "የመልስ ውጤት" : "Answer feedback"}
-      className={`fixed inset-x-0 bottom-0 z-[70] mx-auto flex w-full max-w-[640px] flex-col overflow-hidden rounded-t-[28px] border border-b-0 border-white/15 bg-[#0a1730]/95 shadow-[0_-22px_65px_rgba(0,0,0,0.52)] backdrop-blur-2xl ${expanded ? "h-[min(60dvh,560px)]" : "h-[min(35dvh,330px)] min-h-[240px]"}`}
+      className={`fixed inset-x-0 bottom-0 z-[70] mx-auto flex w-full max-w-[640px] flex-col overflow-hidden rounded-t-[28px] border border-b-0 border-white/15 bg-[#0a1730]/95 shadow-[0_-22px_65px_rgba(0,0,0,0.52)] backdrop-blur-2xl transition-[height] duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${expanded ? "h-[min(60dvh,560px)]" : "h-[min(38dvh,340px)] min-h-[272px]"}`}
       initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: "100%" }}
       animate={{ opacity: 1, y: 0 }}
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: "100%" }}
-      transition={{ duration: reduceMotion ? 0.01 : 0.28, ease: [0.22, 1, 0.36, 1] }}
+      transition={reduceMotion ? { duration: 0.01 } : { type: "spring", duration: 0.25, bounce: 0.18 }}
     >
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col pb-[calc(73px+env(safe-area-inset-bottom))]">
         <div className="flex flex-none justify-center pb-1 pt-2.5" aria-hidden>
           <span className="h-1.5 w-11 rounded-full bg-white/25" />
         </div>
@@ -492,9 +492,19 @@ function MobileFeedbackSheet({
           </div>
 
           <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-gold-500/20 bg-gold-500/[0.07] px-3 py-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <BookOpen className="h-4 w-4 flex-none text-gold-300" aria-hidden />
-              <span className="truncate text-sm font-bold text-gold-300">{reference}</span>
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-center gap-2">
+                <BookOpen className="h-4 w-4 flex-none text-gold-300" aria-hidden />
+                <span className="truncate text-sm font-bold text-gold-300">{reference}</span>
+              </div>
+              {!expanded && (
+                <p
+                  className="mt-1.5 overflow-hidden text-xs leading-[18px] text-[#c8ced9]"
+                  style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2 }}
+                >
+                  {explanation}
+                </p>
+              )}
             </div>
             <button
               type="button"
@@ -521,7 +531,7 @@ function MobileFeedbackSheet({
           )}
         </div>
 
-        <div className="mt-auto flex-none border-t border-white/10 bg-[#09152c]/95 px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+        <div className="absolute inset-x-0 bottom-0 flex-none border-t border-white/10 bg-[#09152c]/95 px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
           <motion.button
             ref={nextButtonRef}
             type="button"
@@ -872,7 +882,7 @@ export default function QuizCard({
           behavior: reduceMotion ? "auto" : "smooth",
         });
       }
-    }, reduceMotion ? 0 : 280);
+    }, reduceMotion ? 0 : 250);
 
     return () => window.clearTimeout(timer);
   }, [current, lastAnswerReward, locked, reduceMotion, selected, variant]);
