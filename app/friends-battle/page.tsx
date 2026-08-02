@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { LangCode } from "@/lib/i18n/locales";
@@ -14,6 +15,7 @@ import FriendsBattleQuestionScreen from "@/components/friendsBattle/FriendsBattl
 import AnswerSavedScreen from "@/components/friendsBattle/AnswerSavedScreen";
 import FriendsBattleReveal from "@/components/friendsBattle/FriendsBattleReveal";
 import FriendsBattleFinal from "@/components/friendsBattle/FriendsBattleFinal";
+import FriendsBattleQuitDialog from "@/components/friendsBattle/FriendsBattleQuitDialog";
 
 const ANSWER_SAVED_PAUSE_MS = 1400;
 
@@ -43,6 +45,8 @@ export default function FriendsBattlePage() {
   const { t } = useLanguage();
   const [state, dispatch] = useReducer(friendsBattleReducer, INITIAL_STATE);
   const [hydrated, setHydrated] = useState(false);
+  const [quitOpen, setQuitOpen] = useState(false);
+  const quitButtonRef = useRef<HTMLButtonElement>(null);
 
   // Rehydrate an in-progress match after mount only (client-only storage
   // read), so the server-rendered HTML always matches the first client
@@ -70,10 +74,21 @@ export default function FriendsBattlePage() {
   // either the next player's pass screen or, once everyone has gone, the
   // group reveal. Nothing the player does here can skip or repeat a turn.
   useEffect(() => {
-    if (state.phase !== "answerSaved") return;
+    if (state.phase !== "answerSaved" || quitOpen) return;
     const id = window.setTimeout(() => dispatch({ type: "ADVANCE_AFTER_ANSWER_SAVED" }), ANSWER_SAVED_PAUSE_MS);
     return () => window.clearTimeout(id);
-  }, [state.phase, state.answersForCurrentQuestion.length]);
+  }, [state.phase, state.answersForCurrentQuestion.length, quitOpen]);
+
+  const handleContinuePlaying = useCallback(() => {
+    setQuitOpen(false);
+    window.requestAnimationFrame(() => quitButtonRef.current?.focus());
+  }, []);
+
+  function handleQuitMatch() {
+    clearFriendsBattleMatch();
+    setQuitOpen(false);
+    dispatch({ type: "REHYDRATE", state: INITIAL_STATE });
+  }
 
   // Returns true once the match has actually started, false when neither
   // the local bank nor published DB content could form a full round —
@@ -114,9 +129,10 @@ export default function FriendsBattlePage() {
   const currentQuestion = state.questions[state.questionIndex];
   const currentPlayer = state.players[state.currentPlayerIndex];
 
+  let matchScreen;
   switch (state.phase) {
     case "passDevice":
-      return (
+      matchScreen = (
         <PassDeviceScreen
           key={`${state.questionIndex}-${state.currentPlayerIndex}-pass`}
           t={t}
@@ -126,9 +142,10 @@ export default function FriendsBattlePage() {
           onReady={() => dispatch({ type: "PLAYER_READY" })}
         />
       );
+      break;
 
     case "question":
-      return (
+      matchScreen = (
         <FriendsBattleQuestionScreen
           key={`${state.questionIndex}-${state.currentPlayerIndex}-question`}
           t={t}
@@ -137,19 +154,22 @@ export default function FriendsBattlePage() {
           questionNumber={state.questionIndex + 1}
           questionCount={state.questions.length}
           difficulty={state.difficulty}
+          paused={quitOpen}
           onAnswer={(index) => dispatch({ type: "SUBMIT_ANSWER", selectedIndex: index })}
           onTimeout={() => dispatch({ type: "TIMEOUT" })}
         />
       );
+      break;
 
     case "answerSaved": {
       const everyoneAnswered = state.answersForCurrentQuestion.length >= state.players.length;
       const nextPlayerName = everyoneAnswered ? null : state.players[state.currentPlayerIndex + 1]?.name ?? null;
-      return <AnswerSavedScreen t={t} nextPlayerName={nextPlayerName} />;
+      matchScreen = <AnswerSavedScreen t={t} nextPlayerName={nextPlayerName} />;
+      break;
     }
 
     case "reveal":
-      return (
+      matchScreen = (
         <FriendsBattleReveal
           key={`${state.questionIndex}-reveal`}
           t={t}
@@ -160,6 +180,7 @@ export default function FriendsBattlePage() {
           onContinue={() => dispatch({ type: "CONTINUE_AFTER_REVEAL" })}
         />
       );
+      break;
 
     case "final":
       return <FriendsBattleFinal t={t} players={state.players} onPlayAgain={handlePlayAgain} onHome={handleHome} />;
@@ -167,4 +188,23 @@ export default function FriendsBattlePage() {
     default:
       return null;
   }
+
+  return (
+    <>
+      {matchScreen}
+      <button
+        ref={quitButtonRef}
+        type="button"
+        onClick={() => setQuitOpen(true)}
+        aria-label="Quit Friends Battle"
+        aria-haspopup="dialog"
+        aria-expanded={quitOpen}
+        className="fixed left-3 top-[max(0.75rem,env(safe-area-inset-top))] z-50 flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border border-white/15 bg-navy-950/80 px-3 text-sm font-bold text-[#f3efe2] shadow-premium backdrop-blur-md outline-none transition-colors hover:border-gold-500/40 hover:bg-navy-900 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+      >
+        <ArrowLeft className="h-5 w-5" aria-hidden />
+        <span className="hidden sm:inline">Quit</span>
+      </button>
+      <FriendsBattleQuitDialog open={quitOpen} onContinue={handleContinuePlaying} onQuit={handleQuitMatch} />
+    </>
+  );
 }

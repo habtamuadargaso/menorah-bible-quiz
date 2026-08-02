@@ -64,20 +64,12 @@ export default function MobileHomeDashboard({
       href: "/learn",
     },
     {
-      title: isAmharic ? "የዕለቱ ፈተና" : "Daily Challenge",
-      subtitle: isAmharic ? "የዕለቱን ፈተና ይጫወቱ" : "Take today’s challenge",
-      status: isAmharic ? "ዕለታዊ" : "Daily",
-      icon: CalendarDays,
-      accent: "border-amber-400/25 bg-amber-500/10 text-amber-300",
-      onClick: onDailyChallenge,
-    },
-    {
-      title: isAmharic ? "የቤተ ክርስቲያን ሁነታ" : "Church Mode",
-      subtitle: isAmharic ? "የቡድን ውድድር ያስተናግዱ" : "Host a group competition",
-      status: isAmharic ? "ቡድን" : "Group",
-      icon: Church,
-      accent: "border-fuchsia-400/25 bg-fuchsia-500/10 text-fuchsia-300",
-      onClick: onChurchMode,
+      title: isAmharic ? "የጓደኞች ውድድር" : "Friends Battle",
+      subtitle: isAmharic ? "በአንድ መሣሪያ ይጫወቱ" : "Pass and play together",
+      status: isAmharic ? "1 መሣሪያ" : "1 Device",
+      icon: Users,
+      accent: "border-teal-400/25 bg-teal-500/10 text-teal-300",
+      href: "/friends-battle",
     },
     {
       title: isAmharic ? "የቀጥታ ውድድር" : "Live Battle",
@@ -88,12 +80,20 @@ export default function MobileHomeDashboard({
       onClick: onLiveBattle,
     },
     {
-      title: isAmharic ? "የጓደኞች ውድድር" : "Friends Battle",
-      subtitle: isAmharic ? "በአንድ መሣሪያ ይጫወቱ" : "Pass and play together",
-      status: isAmharic ? "1 መሣሪያ" : "1 Device",
-      icon: Users,
-      accent: "border-teal-400/25 bg-teal-500/10 text-teal-300",
-      href: "/friends-battle",
+      title: isAmharic ? "የቤተ ክርስቲያን ሁነታ" : "Church Mode",
+      subtitle: isAmharic ? "የቡድን ውድድር ያስተናግዱ" : "Host a church competition",
+      status: isAmharic ? "ቡድን" : "Group",
+      icon: Church,
+      accent: "border-fuchsia-400/25 bg-fuchsia-500/10 text-fuchsia-300",
+      onClick: onChurchMode,
+    },
+    {
+      title: isAmharic ? "የዕለቱ ፈተና" : "Daily Challenge",
+      subtitle: isAmharic ? "የዕለቱን ፈተና ይጫወቱ" : "Today's Bible challenge",
+      status: isAmharic ? "ዕለታዊ" : "Daily",
+      icon: CalendarDays,
+      accent: "border-amber-400/25 bg-amber-500/10 text-amber-300",
+      onClick: onDailyChallenge,
     },
   ];
 
@@ -151,7 +151,7 @@ export default function MobileHomeDashboard({
       </motion.section>
 
       <motion.section {...entrance(0.09)}>
-        {[{ label: isAmharic ? "ተጫወት" : "Play", items: modes.slice(0, 3) }, { label: isAmharic ? "ተወዳደር" : "Compete", items: modes.slice(3) }].map((group, groupIndex) => (
+        {[{ label: isAmharic ? "አሁን ይጫወቱ" : "Play Now", items: modes.slice(0, 3) }, { label: isAmharic ? "ልዩ ሁነታዎች" : "Special Modes", items: modes.slice(3) }].map((group, groupIndex) => (
           <div key={group.label} className={groupIndex === 0 ? "" : "mt-8"}>
             <h2 className="mb-4 px-1 font-display text-sm font-bold uppercase tracking-[0.16em] text-gold-400">{group.label}</h2>
             <div className="space-y-4">

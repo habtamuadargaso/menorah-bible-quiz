@@ -23,6 +23,7 @@ export default function FriendsBattleQuestionScreen({
   questionNumber,
   questionCount,
   difficulty,
+  paused,
   onAnswer,
   onTimeout,
 }: {
@@ -32,6 +33,7 @@ export default function FriendsBattleQuestionScreen({
   questionNumber: number;
   questionCount: number;
   difficulty: Difficulty;
+  paused: boolean;
   onAnswer: (index: number) => void;
   onTimeout: () => void;
 }) {
@@ -39,19 +41,23 @@ export default function FriendsBattleQuestionScreen({
   const tf = t.friendsBattle;
   const [secondsLeft, setSecondsLeft] = useState(FRIENDS_BATTLE_ROUND_SECONDS);
   const [locked, setLocked] = useState(false);
+  const remainingMsRef = useRef(FRIENDS_BATTLE_ROUND_SECONDS * 1000);
+  const countdownTickedRef = useRef(false);
 
   const onTimeoutRef = useRef(onTimeout);
   onTimeoutRef.current = onTimeout;
 
   useEffect(() => {
-    const startedAt = Date.now();
-    let ticked = false;
+    if (paused || locked) return;
+    let previousTickAt = Date.now();
     const id = window.setInterval(() => {
-      const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
-      const remaining = Math.max(0, FRIENDS_BATTLE_ROUND_SECONDS - elapsedSeconds);
+      const now = Date.now();
+      remainingMsRef.current = Math.max(0, remainingMsRef.current - (now - previousTickAt));
+      previousTickAt = now;
+      const remaining = Math.ceil(remainingMsRef.current / 1000);
       setSecondsLeft(remaining);
-      if (remaining <= 5 && remaining > 0 && !ticked) {
-        ticked = true;
+      if (remaining <= 5 && remaining > 0 && !countdownTickedRef.current) {
+        countdownTickedRef.current = true;
         playCountdownTick();
       }
       if (remaining <= 0) {
@@ -65,7 +71,7 @@ export default function FriendsBattleQuestionScreen({
     // component via a per-turn key), so this timer only ever needs to run
     // once per mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [paused, locked]);
 
   function handleSelect(index: number) {
     if (locked) return;
