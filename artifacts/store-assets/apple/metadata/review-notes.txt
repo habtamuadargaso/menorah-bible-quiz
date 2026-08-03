@@ -1,0 +1,17 @@
+Menorah Bible Quiz can be reviewed without a registered account.
+
+Solo Quiz:
+1. Open Learn or tap Continue Journey on Home.
+2. Choose a category and an available level.
+3. Select a language and begin the quiz.
+
+Friends Battle:
+1. Open Battle, then Friends Battle.
+2. Enter names for 2–4 players.
+3. Start the match and pass the device between turns.
+
+Live Battle requires network access and uses anonymous Supabase authentication. A reviewer may create a room with a non-sensitive display name, then join it from another device or browser session using the generated room code.
+
+Daily Challenge and Church Mode promotional cards currently lead to clearly marked Coming Soon content and are intentionally not described as released features in this listing.
+
+No paid account or subscription is required for review.

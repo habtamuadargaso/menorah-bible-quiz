@@ -1,0 +1,7 @@
+Initial release of Menorah Bible Quiz:
+• 10-level Solo Quiz journey
+• Scripture-based answer feedback
+• Online Live Battle rooms
+• Local Friends Battle for 2–4 players
+• XP, levels, streaks, results, and achievements
+• Multiple supported languages
