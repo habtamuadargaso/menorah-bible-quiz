@@ -4,7 +4,7 @@ import type { MetadataRoute } from "next";
  * URLs are dynamic and private (a room code), and are excluded here as
  * well as in robots.ts. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.menorahbiblequiz.com";
   const routes = ["/", "/friends-battle", "/multiplayer", "/multiplayer/join", "/leaderboard", "/settings", "/about", "/privacy", "/terms", "/support"];
 
   const lastModified = new Date();

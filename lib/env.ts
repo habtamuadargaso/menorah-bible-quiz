@@ -15,7 +15,7 @@ type EnvSpec = {
 const CLIENT_ENV: EnvSpec[] = [
   { name: "NEXT_PUBLIC_SUPABASE_URL", required: true },
   { name: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", required: true },
-  { name: "NEXT_PUBLIC_SITE_URL", required: false, note: "defaults to http://localhost:3000" },
+  { name: "NEXT_PUBLIC_SITE_URL", required: false, note: "defaults to https://www.menorahbiblequiz.com" },
 ];
 
 const SERVER_ENV: EnvSpec[] = [

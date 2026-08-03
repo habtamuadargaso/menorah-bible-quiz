@@ -21,8 +21,11 @@ export const viewport: Viewport = {
   themeColor: "#0A1E3D",
 };
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.menorahbiblequiz.com";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(siteUrl),
+  alternates: { canonical: "/" },
   title: { default: "Menorah Bible Quiz", template: "%s | Menorah Bible Quiz" },
   description: "A multilingual Bible learning game for individuals, families, churches, and live competitions.",
   applicationName: "Menorah Bible Quiz",
@@ -41,6 +44,7 @@ export const metadata: Metadata = {
     title: "Menorah Bible Quiz",
     description: "Learn the Word. Test your faith. Grow in wisdom.",
     type: "website",
+    url: "/",
     images: [{ url: "/branding/og-image.png", width: 1200, height: 630, alt: "Menorah Bible Quiz" }],
   },
   twitter: {
