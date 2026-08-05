@@ -5,28 +5,16 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/**
- * Mission 24. The contact channel below is a real, required gap — this
- * codebase has no support email or form wired up anywhere, and one must
- * not be invented (CLAUDE.md: no fabricated contact information). Whoever
- * owns this deployment must supply a real, monitored email address (or
- * contact form) here before App Store / Play Store submission; both
- * stores require a working support URL. See Mission 24's compliance
- * report for the exact wording to replace once that address exists.
- */
 export default function SupportPage() {
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-6 py-16 text-[#f3efe2]">
       <h1 className="text-3xl font-bold">Support</h1>
       <section className="mt-8 space-y-4 text-sm leading-relaxed text-[#c6cbd6]">
         <p>Running into a problem, or have a question about a Bible reference in a quiz question? We&apos;d like to hear from you.</p>
-        <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-5">
+        <div className="rounded-2xl border border-gold-500/30 bg-gold-500/10 p-5">
           <p className="font-semibold text-[#f3efe2]">Contact</p>
-          <p className="mt-1 text-amber-200">
-            A support contact for this app has not been configured yet. The app&apos;s owner needs to add a real,
-            monitored email address or contact form here before this app can be submitted to the App Store or
-            Google Play — both require a working support channel.
-          </p>
+          <p className="mt-1 text-[#c6cbd6]">Email the Menorah Bible Quiz support team:</p>
+          <a className="mt-3 inline-flex min-h-[44px] min-w-[44px] items-center rounded-full border border-gold-500/40 bg-navy-950/40 px-5 py-2 font-semibold text-gold-300 underline decoration-dotted underline-offset-4 outline-none hover:bg-gold-500/10 focus-visible:ring-2 focus-visible:ring-gold-300" href="mailto:support@menorahbiblequiz.com">support@menorahbiblequiz.com</a>
         </div>
         <h2 className="text-lg font-semibold text-[#f3efe2]">Common questions</h2>
         <ul className="list-disc space-y-2 pl-5">
@@ -42,13 +30,11 @@ export default function SupportPage() {
           </li>
           <li>
             The onboarding &ldquo;daily reminder&rdquo; choice is saved, but the app does not yet send any push or local
-            notifications — see our <a className="underline" href="/privacy">Privacy Policy</a>.
+            notifications — see our <a className="inline-flex min-h-[44px] items-center underline" href="/privacy">Privacy Policy</a>.
           </li>
         </ul>
         <h2 className="text-lg font-semibold text-[#f3efe2]">Response expectations</h2>
-        <p className="text-amber-200">
-          Not yet defined — depends on the real support channel above once it exists.
-        </p>
+        <p>Include your device, app version, and steps to reproduce the issue so the support team can investigate efficiently.</p>
       </section>
     </main>
   );

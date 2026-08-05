@@ -24,7 +24,7 @@ export default function LanguageSelector() {
       aria-label="Select language"
       value={lang}
       onChange={(event) => setLang(event.target.value as typeof lang)}
-      className="cursor-pointer rounded-full border border-gold-500/30 bg-white/5 px-3 py-1.5 text-sm font-medium text-gold-300 outline-none transition-colors hover:border-gold-500/60 focus:border-gold-500"
+      className="min-h-[44px] cursor-pointer rounded-full border border-gold-500/30 bg-white/5 px-3 py-1.5 text-sm font-medium text-gold-300 outline-none transition-colors hover:border-gold-500/60 focus:border-gold-500"
     >
       {LANGUAGES.map((language) => {
         const hasLiveContent = (byCode.get(language.code)?.publishedCount ?? 0) > 0;

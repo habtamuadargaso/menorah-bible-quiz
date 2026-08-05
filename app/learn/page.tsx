@@ -1,46 +1,17 @@
-"use client";
+import type { Metadata } from "next";
+import LearnRouteClient from "@/components/LearnRouteClient";
 
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useLanguage } from "@/lib/i18n/LanguageContext";
-import CategoryGrid from "@/components/CategoryGrid";
-import BibleLearningSection from "@/components/BibleLearningSection";
-import MobileBottomNav from "@/components/mobile/MobileBottomNav";
-import type { CategoryId } from "@/lib/categories";
+export const metadata: Metadata = {
+  title: "Learn",
+  description: "Explore Bible quiz categories and daily Scripture learning activities.",
+};
 
-// Mission 15 — new route giving the mobile bottom nav's "Learn" tab a real
-// URL. Renders the same CategoryGrid + BibleLearningSection content already
-// shown inline on "/" (no new content invented). Category selection can't
-// launch the quiz here directly, because quiz-launch state (categoryId,
-// gameLevel, stage) lives only in app/page.tsx's stage machine — so this
-// hands off via a query param that app/page.tsx reads once on mount.
+// The selected verse is date-dependent. Render per request so the serialized
+// UTC timestamp remains current instead of being frozen at build time.
+export const dynamic = "force-dynamic";
+
 export default function LearnRoute() {
-  const { t } = useLanguage();
-  const router = useRouter();
-
-  function handleSelectCategory(id: CategoryId) {
-    router.push(`/?category=${id}`);
-  }
-
-  return (
-    <main
-      className="min-h-screen w-full pb-20 md:pb-0"
-      style={{ background: "linear-gradient(165deg,#080d22 0%,#171034 45%,#080d22 100%)" }}
-    >
-      <div className="mx-auto max-w-6xl px-5 pt-5">
-        <Link
-          href="/"
-          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-1 text-sm font-semibold text-[#c6cbd6] outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
-        >
-          <span aria-hidden>←</span>
-          {t.nav.home}
-        </Link>
-      </div>
-
-      <CategoryGrid onSelect={handleSelectCategory} />
-      <BibleLearningSection />
-
-      <MobileBottomNav />
-    </main>
-  );
+  // Serialize one timestamp into the client component so SSR and hydration
+  // select the exact same daily and memory verses, including at UTC midnight.
+  return <LearnRouteClient verseDateIso={new Date().toISOString()} />;
 }

@@ -146,7 +146,7 @@ export default function SettingsPage() {
                   setMusicVolumeState(v);
                   setMusicVolume(v);
                 }}
-                className="w-full accent-gold-400 disabled:opacity-40"
+                className="h-11 w-full cursor-pointer accent-gold-400 disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label={ts.musicVolumeLabel}
               />
             </label>
@@ -176,7 +176,7 @@ export default function SettingsPage() {
                   setSfxVolumeState(v);
                   setSfxVolume(v);
                 }}
-                className="w-full accent-gold-400 disabled:opacity-40"
+                className="h-11 w-full cursor-pointer accent-gold-400 disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label={ts.soundVolumeLabel}
               />
             </label>

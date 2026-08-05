@@ -40,10 +40,10 @@ const READING_PLAN_ICON = "M4 5.5c2-1 5-1 8 0 3-1 6-1 8 0v13c-2-1-5-1-8 0-3-1-6-
 const FAVORITES_ICON = "M12 20s-7-4.3-9.3-8.6C1.2 8.3 3 5 6.4 5c1.9 0 3.3 1 4 2.3.7-1.3 2.1-2.3 4-2.3 3.4 0 5.2 3.3 3.7 6.4C19 15.7 12 20 12 20Z";
 const PRAYER_JOURNAL_ICON = "M12 4v9M8 21c0-4 1.8-6.5 4-8 2.2 1.5 4 4 4 8M5 21h14";
 
-export default function BibleLearningSection() {
+export default function BibleLearningSection({ verseDateIso }: { verseDateIso?: string }) {
   const { t, lang } = useLanguage();
-  const dailyVerse = useMemo(() => getDailyVerse(), []);
-  const memoryVerse = useMemo(() => getMemoryVerse(), []);
+  const dailyVerse = useMemo(() => getDailyVerse(verseDateIso ? new Date(verseDateIso) : undefined), [verseDateIso]);
+  const memoryVerse = useMemo(() => getMemoryVerse(verseDateIso ? new Date(verseDateIso) : undefined), [verseDateIso]);
   const [revealed, setRevealed] = useState(false);
 
   const dailyText = getVerseText(dailyVerse, lang);
@@ -113,7 +113,7 @@ export default function BibleLearningSection() {
           <div className="mt-3 text-sm font-semibold text-gold-400">{memoryVerse.reference}</div>
           <button
             onClick={() => setRevealed((r) => !r)}
-            className="mt-4 rounded-full border border-gold-500/50 px-5 py-2 text-sm font-semibold text-gold-500 outline-none transition-colors hover:bg-gold-500/10 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="mt-4 min-h-[44px] min-w-[44px] rounded-full border border-gold-500/50 px-5 py-2 text-sm font-semibold text-gold-500 outline-none transition-colors hover:bg-gold-500/10 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             {revealed ? t.bible.memoryVerse.hideAgain : t.bible.memoryVerse.reveal}
           </button>

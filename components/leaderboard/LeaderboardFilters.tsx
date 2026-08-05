@@ -84,7 +84,7 @@ export default function LeaderboardFilters({
           id="leaderboard-metric"
           value={activeMetric}
           onChange={(e) => onMetricChange(e.target.value as LeaderboardMetric)}
-          className="w-full rounded-full border border-purple-400/30 bg-white/5 px-4 py-2.5 text-sm font-semibold text-[#f3efe2] outline-none transition-colors focus:border-purple-400 focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 sm:w-auto"
+          className="min-h-[44px] w-full rounded-full border border-purple-400/30 bg-white/5 px-4 py-2.5 text-sm font-semibold text-[#f3efe2] outline-none transition-colors focus:border-purple-400 focus-visible:ring-2 focus-visible:ring-purple-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 sm:w-auto"
         >
           {metrics.map((m) => (
             <option key={m.id} value={m.id} className="bg-navy-900">
@@ -100,14 +100,14 @@ export default function LeaderboardFilters({
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder={searchPlaceholder}
             aria-label={searchPlaceholder}
-            className="w-full rounded-full border border-white/15 bg-white/5 py-2.5 pl-4 pr-9 text-sm text-[#f3efe2] outline-none transition-colors placeholder:text-[#7c8394] focus:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="min-h-[44px] w-full rounded-full border border-white/15 bg-white/5 py-2.5 pl-4 pr-12 text-sm text-[#f3efe2] outline-none transition-colors placeholder:text-[#7c8394] focus:border-gold-500/60 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           />
           {searchInput && (
             <button
               type="button"
               onClick={handleClear}
               aria-label={clearSearchLabel}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8d94a3] outline-none hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300"
+              className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[#8d94a3] outline-none hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300"
             >
               ✕
             </button>
