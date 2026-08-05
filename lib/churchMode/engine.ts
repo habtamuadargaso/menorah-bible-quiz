@@ -16,7 +16,7 @@ export interface ChurchAnswerResult {
   pointsAwarded: number;
 }
 
-export type ChurchMatchPhase = "lobby" | "question" | "reveal" | "results";
+export type ChurchMatchPhase = "lobby" | "handoff" | "answering" | "reveal" | "results";
 
 export interface ChurchMatchState {
   phase: ChurchMatchPhase;
@@ -45,7 +45,7 @@ export function startChurchMatch(
   return {
     ok: true,
     state: {
-      phase: "question",
+      phase: "handoff",
       players: players.map((player) => ({ ...player, score: 0, correctCount: 0 })),
       questions,
       questionIndex: 0,
@@ -55,6 +55,15 @@ export function startChurchMatch(
       secondsPerQuestion,
     },
   };
+}
+
+/** Begins exactly one participant turn. Calling this again while already
+ * answering is a no-op, so rapid taps cannot restart the countdown. */
+export function startChurchTurn(state: ChurchMatchState): ChurchMatchState {
+  if (state.phase !== "handoff") return state;
+  const currentPlayer = state.players[state.currentPlayerIndex];
+  if (!currentPlayer || state.answers[currentPlayer.id]) return state;
+  return { ...state, phase: "answering", timeLeft: state.secondsPerQuestion };
 }
 
 export function applyChurchAnswer(
@@ -85,9 +94,10 @@ export function recordChurchAnswer(
   playerId: string,
   selectedIndex: number,
 ): ChurchMatchState {
-  if (state.phase !== "question" || state.answers[playerId]) return state;
+  if (state.phase !== "answering" || state.answers[playerId]) return state;
   const question = state.questions[state.questionIndex];
-  if (!question || !state.players.some((player) => player.id === playerId)) return state;
+  const currentPlayer = state.players[state.currentPlayerIndex];
+  if (!question || !currentPlayer || currentPlayer.id !== playerId) return state;
 
   const outcome = applyChurchAnswer(state.players, playerId, question, selectedIndex);
   const answers = { ...state.answers, [playerId]: outcome.result };
@@ -98,28 +108,46 @@ export function recordChurchAnswer(
 
   return {
     ...state,
-    phase: allAnswered ? "reveal" : "question",
+    phase: allAnswered ? "reveal" : "handoff",
     players: outcome.players,
     answers,
     currentPlayerIndex: nextPlayerIndex,
+    // The configured duration belongs to each participant, not the whole
+    // question. Stop at reveal; otherwise start the next turn at full time.
+    timeLeft: allAnswered ? 0 : state.secondsPerQuestion,
   };
 }
 
 export function resolveChurchTimeout(state: ChurchMatchState): ChurchMatchState {
-  if (state.phase !== "question") return state;
+  if (state.phase !== "answering") return state;
   const question = state.questions[state.questionIndex];
-  if (!question) return state;
+  const currentPlayer = state.players[state.currentPlayerIndex];
+  if (!question || !currentPlayer || state.answers[currentPlayer.id]) return state;
 
-  let players = state.players;
-  const answers = { ...state.answers };
-  state.players.forEach((player) => {
-    if (answers[player.id]) return;
-    const outcome = applyChurchAnswer(players, player.id, question, null);
-    players = outcome.players;
-    answers[player.id] = outcome.result;
-  });
+  // A timeout belongs only to the active participant. Previous answers stay
+  // intact and later participants still receive their complete turn.
+  const outcome = applyChurchAnswer(state.players, currentPlayer.id, question, null);
+  const answers = { ...state.answers, [currentPlayer.id]: outcome.result };
+  const allAnswered = Object.keys(answers).length === state.players.length;
+  const nextPlayerIndex = allAnswered
+    ? state.currentPlayerIndex
+    : state.players.findIndex((player) => !answers[player.id]);
 
-  return { ...state, phase: "reveal", players, answers, timeLeft: 0 };
+  return {
+    ...state,
+    phase: allAnswered ? "reveal" : "handoff",
+    players: outcome.players,
+    answers,
+    currentPlayerIndex: nextPlayerIndex,
+    timeLeft: allAnswered ? 0 : state.secondsPerQuestion,
+  };
+}
+
+/** One deterministic timer tick. The UI passes `paused=true` while the quit
+ * dialog is open, which preserves the exact remaining time for resume. */
+export function tickChurchTimer(state: ChurchMatchState, paused = false): ChurchMatchState {
+  if (paused || state.phase !== "answering" || state.timeLeft <= 0) return state;
+  return { ...state, timeLeft: state.timeLeft - 1 };
 }
 
 export function advanceChurchQuestion(state: ChurchMatchState): ChurchMatchState {
@@ -129,7 +157,7 @@ export function advanceChurchQuestion(state: ChurchMatchState): ChurchMatchState
   }
   return {
     ...state,
-    phase: "question",
+    phase: "handoff",
     questionIndex: state.questionIndex + 1,
     currentPlayerIndex: 0,
     answers: {},
@@ -140,7 +168,7 @@ export function advanceChurchQuestion(state: ChurchMatchState): ChurchMatchState
 export function replayChurchMatch(state: ChurchMatchState, questions = state.questions): ChurchMatchState {
   return {
     ...state,
-    phase: "lobby",
+    phase: "handoff",
     players: state.players.map((player) => ({ ...player, score: 0, correctCount: 0 })),
     questions,
     questionIndex: 0,

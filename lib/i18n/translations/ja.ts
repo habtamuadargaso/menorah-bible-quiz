@@ -1,6 +1,6 @@
 import type { DeepPartial, UIStrings } from "../types";
 
-// Mission 10 adds "ja" (Japanese) to LangCode/LANGUAGES as a real language
+// Mission 10 adds "ja" (Japanese) to the central configured-language registry
 // the app knows about, but no UI-chrome string translations exist for it
 // yet — intentionally empty rather than guessed/machine-translated. Every
 // key here falls back to English (see LanguageContext.tsx's deepMerge)

@@ -13,6 +13,7 @@ import AchievementBadge from "./AchievementBadge";
 import CircularGoalRing from "./CircularGoalRing";
 import CategoryCard from "./CategoryCard";
 import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
+import { SHOW_FUTURE_FEATURES } from "@/lib/features/version";
 
 export default function ProfilePage({
   onCategories,
@@ -315,7 +316,7 @@ export default function ProfilePage({
           {t.profile.actionsHeading}
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <motion.button
+          {SHOW_FUTURE_FEATURES && <motion.button
             whileHover={reduceMotion ? undefined : { y: -2, scale: 1.02 }}
             whileTap={reduceMotion ? undefined : { scale: 0.98 }}
             aria-disabled="true"
@@ -323,8 +324,8 @@ export default function ProfilePage({
             className="relative rounded-full border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-[#c6cbd6] opacity-70 outline-none shadow-premium transition-colors focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             ✏️ {t.profile.editProfile}
-          </motion.button>
-          <motion.button
+          </motion.button>}
+          {SHOW_FUTURE_FEATURES && <motion.button
             whileHover={reduceMotion ? undefined : { y: -2, scale: 1.02 }}
             whileTap={reduceMotion ? undefined : { scale: 0.98 }}
             aria-disabled="true"
@@ -332,7 +333,7 @@ export default function ProfilePage({
             className="relative rounded-full border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-[#c6cbd6] opacity-70 outline-none shadow-premium transition-colors focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             ⚙️ {t.profile.settings}
-          </motion.button>
+          </motion.button>}
           <motion.button
             onClick={onLeaderboard}
             whileHover={reduceMotion ? undefined : { y: -2, scale: 1.02 }}
@@ -341,7 +342,7 @@ export default function ProfilePage({
           >
             🏆 {t.nav.leaderboard}
           </motion.button>
-          <motion.button
+          {SHOW_FUTURE_FEATURES && <motion.button
             whileHover={reduceMotion ? undefined : { y: -2, scale: 1.02 }}
             whileTap={reduceMotion ? undefined : { scale: 0.98 }}
             aria-disabled="true"
@@ -349,7 +350,7 @@ export default function ProfilePage({
             className="relative rounded-full border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-[#c6cbd6] opacity-70 outline-none shadow-premium transition-colors focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             👥 {t.profile.friends}
-          </motion.button>
+          </motion.button>}
           <motion.button
             onClick={scrollToStats}
             whileHover={reduceMotion ? undefined : { y: -2, scale: 1.02 }}

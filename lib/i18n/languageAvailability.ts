@@ -2,7 +2,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { completeLevelCount, nativeQuestionBank } from "@/lib/questions";
 import { FRIENDS_BATTLE_QUESTION_COUNT } from "@/lib/friendsBattle/types";
 import { MAX_GAME_LEVEL, difficultyForLevel } from "@/lib/levels";
-import { LANGUAGES, type LangCode } from "./locales";
+import { ALL_LANGUAGES, type LangCode } from "./locales";
 
 export interface LanguageAvailability {
   code: LangCode;
@@ -65,7 +65,7 @@ export async function computeLanguageAvailability(): Promise<LanguageAvailabilit
     perLevelCounts.set(row.language_code, byLevel);
   }
 
-  return LANGUAGES.map((lang) => {
+  return ALL_LANGUAGES.map((lang) => {
     const publishedCount = publishedByLang.get(lang.code) ?? 0;
     const levels = perLevelCounts.get(lang.code);
     const onlineBattleAvailable = levels ? Array.from(levels.values()).some((count) => count >= ONLINE_BATTLE_MIN_PER_LEVEL) : false;
@@ -176,7 +176,7 @@ export async function computeLiveBattleEligibility(): Promise<LiveBattleEligibil
     eligibleByLangLevel.set(row.language_code, byLevel);
   }
 
-  return LANGUAGES.map((lang) => {
+  return ALL_LANGUAGES.map((lang) => {
     const eligibleLevels = eligibleByLangLevel.get(lang.code);
     const levels: LevelEligibilityRow[] = Array.from({ length: MAX_GAME_LEVEL }, (_, i) => {
       const level = i + 1;

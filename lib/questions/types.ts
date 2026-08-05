@@ -11,9 +11,19 @@ export type Question = {
   difficulty: Difficulty;
   /** Runtime campaign assignment. Each question belongs to one level per campaign. */
   level?: number;
+  /** Church Mode freezes canonical translation selection in the rendered
+   * match question. Other game modes do not need to populate these. */
+  canonicalQuestionId?: string;
+  languageCode?: import("@/lib/i18n/locales").LangCode;
+  isEnglishFallback?: boolean;
 };
 
 export type SupportedQuestionLanguage = "en" | "am";
+
+/** Interface and question languages are separate concepts even though the
+ * Version 1.0 enabled sets are currently identical. */
+export type InterfaceLanguageCode = import("@/lib/i18n/locales").LangCode;
+export type QuestionLanguageCode = import("@/lib/i18n/locales").LangCode;
 
 export type QuestionTranslation = {
   question: string;

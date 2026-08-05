@@ -1,10 +1,10 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { generateWithGemini, parseGeminiJson, getGeminiModel } from "@/lib/question-factory/gemini";
-import { LANGUAGES } from "@/lib/i18n/locales";
+import { ALL_LANGUAGES } from "@/lib/i18n/locales";
 
 type ServiceClient = ReturnType<typeof createServiceRoleClient>;
 
-const SUPPORTED_LANGUAGE_CODES = new Set<string>(LANGUAGES.map((l) => l.code));
+const SUPPORTED_LANGUAGE_CODES = new Set<string>(ALL_LANGUAGES.map((l) => l.code));
 
 /**
  * Mission 10 — the server-side translation workflow, mirroring the
@@ -200,7 +200,7 @@ async function generateOne(
     };
   }
 
-  const targetInfo = LANGUAGES.find((l) => l.code === targetLanguage);
+  const targetInfo = ALL_LANGUAGES.find((l) => l.code === targetLanguage);
   const targetLanguageName = targetInfo?.englishName ?? targetLanguage;
 
   const prompt = buildTranslationPrompt(

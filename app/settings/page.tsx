@@ -24,6 +24,7 @@ import {
 import { resetOnboarding } from "@/lib/mobile/onboarding";
 import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
 import { hapticLight } from "@/lib/mobile/haptics";
+import { SHOW_FUTURE_FEATURES } from "@/lib/features/version";
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
@@ -238,7 +239,7 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          <section id="coming-soon" className={sectionClass}>
+          {SHOW_FUTURE_FEATURES && <section id="coming-soon" className={sectionClass}>
             <h2 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-gold-400">{t.common.comingSoon}</h2>
             <div className="flex flex-col gap-3">
               {[
@@ -264,7 +265,7 @@ export default function SettingsPage() {
                 </div>
               ))}
             </div>
-          </section>
+          </section>}
         </div>
 
         <div className="mt-8 text-center">

@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedAdmin, unauthorizedResponse } from "@/lib/admin/auth";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { LANGUAGES } from "@/lib/i18n/locales";
+import { ALL_LANGUAGES } from "@/lib/i18n/locales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SUPPORTED_CODES = new Set(LANGUAGES.map((l) => l.code));
+const SUPPORTED_CODES = new Set(ALL_LANGUAGES.map((l) => l.code));
 // Safety cap on how many published questions this route will ever load
 // into memory before filtering/paginating in JS (same "load a bounded set,
 // filter/paginate in JS" pattern lib/admin/adminQuestions.ts already uses

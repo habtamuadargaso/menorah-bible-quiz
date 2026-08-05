@@ -7,11 +7,11 @@ Solo Quiz:
 
 Friends Battle:
 1. Open Battle, then Friends Battle.
-2. Enter names for 2–4 players.
+2. Enter names for 2–8 players.
 3. Start the match and pass the device between turns.
 
 Live Battle requires network access and uses anonymous Supabase authentication. A reviewer may create a room with a non-sensitive display name, then join it from another device or browser session using the generated room code.
 
-Daily Challenge and Church Mode promotional cards currently lead to clearly marked Coming Soon content and are intentionally not described as released features in this listing.
+Daily Challenge remains hidden for Version 1.0. Church Mode is a released shared-screen, host-controlled mode for up to 8 participants, but it is intentionally not promoted in this initial listing and does not support remote joining.
 
 No paid account or subscription is required for review.

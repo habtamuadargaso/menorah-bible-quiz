@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Use",
+  alternates: { canonical: "/terms" },
   robots: { index: false, follow: false },
 };
 
@@ -40,7 +41,7 @@ export default function TermsPage() {
         <h2 className="text-lg font-semibold text-[#f3efe2]">AI-generated Bible questions</h2>
         <p>
           Some questions are drafted with AI assistance, but none reach players until a human administrator reviews
-          and explicitly approves them (see our <a className="underline" href="/privacy">Privacy Policy</a>). Even so,
+          and explicitly approves them (see our <a className="inline-flex min-h-[44px] items-center underline" href="/privacy">Privacy Policy</a>). Even so,
           quiz content — AI-assisted or not — should not be treated as a final theological authority. Always refer to
           Scripture itself for study and doctrine.
         </p>
@@ -74,7 +75,7 @@ export default function TermsPage() {
         </p>
 
         <h2 className="text-lg font-semibold text-[#f3efe2]">Contact</h2>
-        <p>Questions about these terms should go through our <a className="underline" href="/support">Support</a> page.</p>
+        <p>Questions about these terms should go through our <a className="inline-flex min-h-[44px] items-center underline" href="/support">Support</a> page.</p>
       </section>
     </main>
   );

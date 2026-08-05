@@ -7,10 +7,8 @@ export type { LanguageAvailability };
 
 /**
  * The one client-side source every language selector reads from for
- * informational "published questions available" signals. Mission 12: no
- * selector uses this to disable/hide a language anymore (every language in
- * SUPPORTED_LANGUAGE_CODES is always selectable) — it's purely a soft
- * "content is live" indicator now. Backed by the public GET
+ * informational "published questions available" signals. Public selectors
+ * still render only the release-enabled language subset. Backed by the public GET
  * /api/languages/availability endpoint.
  */
 export function useLanguageAvailability() {

@@ -4,16 +4,9 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { LANGUAGES } from "@/lib/i18n/locales";
 import { useLanguageAvailability } from "@/lib/i18n/useLanguageAvailability";
 
-// Mission 12: the "Solo Quiz" language selector (see LanguageModal.tsx's
-// own copy). Every configured language in LANGUAGES is always selectable —
-// this used to disable an option and label it "Coming Soon" based on
-// soloAvailable, but the AI Question Factory + Global Translations already
-// generate and publish real per-question content for every one of these
-// languages, and a language should never be hidden just because it
-// currently has fewer published questions than another (missing content is
-// surfaced at gameplay time instead — see loadQuestionsForGame.ts). The
-// availability fetch is only used for the small "published questions
-// available" dot, never to gate the option itself.
+// Player-facing selectors use the release-enabled subset from locales.ts.
+// Future languages remain available to protected translation tooling but
+// cannot leak into Version 1.0 discovery or settings controls.
 export default function LanguageSelector() {
   const { lang, setLang } = useLanguage();
   const { availability } = useLanguageAvailability();

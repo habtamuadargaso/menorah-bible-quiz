@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowLeft,
@@ -19,10 +19,11 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { LANGUAGES, type LangCode } from "@/lib/i18n/locales";
+import { type LangCode } from "@/lib/i18n/locales";
 import {
-  pickFriendsBattleQuestions,
-} from "@/lib/friendsBattle/localQuestions";
+  churchModeLanguages,
+  loadChurchQuestions,
+} from "@/lib/churchMode/questions";
 import type { Difficulty } from "@/lib/questions/types";
 import {
   advanceChurchQuestion,
@@ -33,12 +34,14 @@ import {
   resetChurchMatch,
   resolveChurchTimeout,
   startChurchMatch,
+  startChurchTurn,
+  tickChurchTimer,
   type ChurchAnswerResult,
   type ChurchPlayer,
 } from "@/lib/churchMode/engine";
 import type { Question } from "@/lib/questions";
 
-type Phase = "welcome" | "settings" | "lobby" | "question" | "reveal" | "results";
+type Phase = "welcome" | "settings" | "lobby" | "handoff" | "answering" | "reveal" | "results";
 
 interface SessionSettings {
   churchName: string;
@@ -85,19 +88,35 @@ export default function ChurchModeSection() {
   const [quitOpen, setQuitOpen] = useState(false);
   const quitButtonRef = useRef<HTMLButtonElement>(null);
   const quitDialogRef = useRef<HTMLDivElement>(null);
+  const startTurnButtonRef = useRef<HTMLButtonElement>(null);
 
   const currentQuestion = questions[questionIndex];
   const rankedPlayers = useMemo(() => rankChurchPlayers(players), [players]);
-  const sessionLanguage = LANGUAGES.find(({ code }) => code === settings.language)?.nativeName ?? settings.language;
+  const sessionLanguage = churchModeLanguages.find(({ code }) => code === settings.language)?.nativeName ?? settings.language;
+  const usesEnglishFallback = questions.some((question) => question.isEnglishFallback);
+
+  const currentMatchState = useCallback(() => ({
+    phase: phase === "welcome" || phase === "settings" ? "lobby" as const : phase,
+    players,
+    questions,
+    questionIndex,
+    currentPlayerIndex,
+    answers,
+    timeLeft,
+    secondsPerQuestion: settings.secondsPerQuestion,
+  }), [answers, currentPlayerIndex, phase, players, questionIndex, questions, settings.secondsPerQuestion, timeLeft]);
 
   useEffect(() => {
-    if (phase !== "question" || quitOpen || timeLeft <= 0) return;
-    const timer = window.setTimeout(() => setTimeLeft((value) => value - 1), 1000);
+    if (phase !== "answering" || quitOpen || timeLeft <= 0) return;
+    const timer = window.setTimeout(() => {
+      const ticked = tickChurchTimer(currentMatchState(), quitOpen);
+      setTimeLeft(ticked.timeLeft);
+    }, 1000);
     return () => window.clearTimeout(timer);
-  }, [phase, quitOpen, timeLeft]);
+  }, [currentMatchState, phase, quitOpen, timeLeft]);
 
   useEffect(() => {
-    if (phase !== "question" || timeLeft !== 0 || !currentQuestion) return;
+    if (phase !== "answering" || timeLeft !== 0 || !currentQuestion) return;
 
     const timedOut = resolveChurchTimeout({ phase, players, questions, questionIndex, currentPlayerIndex, answers, timeLeft, secondsPerQuestion: settings.secondsPerQuestion });
     applyMatchState(timedOut);
@@ -115,6 +134,11 @@ export default function ChurchModeSection() {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [quitOpen]);
 
+  useEffect(() => {
+    if (phase !== "handoff" || quitOpen) return;
+    window.requestAnimationFrame(() => startTurnButtonRef.current?.focus());
+  }, [phase, currentPlayerIndex, quitOpen]);
+
   const applyMatchState = (state: ReturnType<typeof resetChurchMatch>) => {
     setPhase(state.phase);
     setPlayers(state.players);
@@ -124,17 +148,6 @@ export default function ChurchModeSection() {
     setAnswers(state.answers);
     setTimeLeft(state.timeLeft);
   };
-
-  const currentMatchState = () => ({
-    phase: phase === "welcome" || phase === "settings" ? "lobby" as const : phase,
-    players,
-    questions,
-    questionIndex,
-    currentPlayerIndex,
-    answers,
-    timeLeft,
-    secondsPerQuestion: settings.secondsPerQuestion,
-  });
 
   const goToPhase = (nextPhase: Phase) => {
     setPhase(nextPhase);
@@ -156,17 +169,13 @@ export default function ChurchModeSection() {
     event.preventDefault();
     setError(null);
     setIsLoading(true);
-    const selection = await pickFriendsBattleQuestions(
-      settings.language,
-      1,
-      settings.difficulty,
-    );
+    const selection = await loadChurchQuestions(settings.language, settings.difficulty, settings.questionCount);
     setIsLoading(false);
     if (!selection) {
-      setError("Not enough questions are available for that language and difficulty.");
+      setError(`Church Mode cannot produce ${settings.questionCount} complete ${settings.difficulty.toLowerCase()} questions. Choose another language, difficulty, or question count.`);
       return;
     }
-    setQuestions(selection.questions.slice(0, settings.questionCount));
+    setQuestions(selection.questions);
     goToPhase("lobby");
   };
 
@@ -201,12 +210,19 @@ export default function ChurchModeSection() {
       return;
     }
     applyMatchState(result.state);
-    goToPhase("question");
+    goToPhase("handoff");
+  };
+
+  const beginCurrentTurn = () => {
+    const next = startChurchTurn(currentMatchState());
+    if (next.phase !== "answering") return;
+    applyMatchState(next);
+    goToPhase("answering");
   };
 
   const answerForCurrentPlayer = (selectedIndex: number) => {
     const player = players[currentPlayerIndex];
-    if (!player || !currentQuestion || answers[player.id] || phase !== "question") return;
+    if (!player || !currentQuestion || answers[player.id] || phase !== "answering") return;
 
     applyMatchState(recordChurchAnswer(currentMatchState(), player.id, selectedIndex));
   };
@@ -214,16 +230,17 @@ export default function ChurchModeSection() {
   const nextQuestion = () => {
     const next = advanceChurchQuestion(currentMatchState());
     applyMatchState(next);
-    goToPhase(next.phase === "results" ? "results" : "question");
+    goToPhase(next.phase);
   };
 
   const playAgain = async () => {
     setIsLoading(true);
-    const selection = await pickFriendsBattleQuestions(settings.language, 1, settings.difficulty);
+    const selection = await loadChurchQuestions(settings.language, settings.difficulty, settings.questionCount);
     setIsLoading(false);
-    const replayQuestions = selection?.questions.slice(0, settings.questionCount) ?? questions;
-    applyMatchState(replayChurchMatch(currentMatchState(), replayQuestions));
-    goToPhase("lobby");
+    const replayQuestions = selection?.questions ?? questions;
+    const replay = replayChurchMatch(currentMatchState(), replayQuestions);
+    applyMatchState(replay);
+    goToPhase("handoff");
   };
 
   return (
@@ -272,7 +289,7 @@ export default function ChurchModeSection() {
                 </Field>
                 <Field label="Language">
                   <select value={settings.language} onChange={(event) => setSettings({ ...settings, language: event.target.value as LangCode })} className={fieldClass}>
-                    {LANGUAGES.filter(({ code }) => code === "en" || code === "am").map(({ code, nativeName }) => <option key={code} value={code} className="bg-[#0A1E3D]">{nativeName}</option>)}
+                    {churchModeLanguages.map(({ code, nativeName, englishName }) => <option key={code} value={code} className="bg-[#0A1E3D]">{nativeName}{nativeName === englishName ? "" : ` — ${englishName}`}</option>)}
                   </select>
                 </Field>
                 <Field label="Question count">
@@ -331,6 +348,7 @@ export default function ChurchModeSection() {
                     <SummaryItem label="Timer" value={`${settings.secondsPerQuestion} Seconds`} />
                     <SummaryItem label="Participants" value={`${players.length} ${players.length === 1 ? "Participant" : "Participants"}`} />
                   </dl>
+                  {usesEnglishFallback && <p role="status" className="mt-4 rounded-2xl border border-[#D4AF37]/20 bg-[#D4AF37]/10 px-4 py-3 text-sm leading-6 text-[#FFE8A8]">Some questions will appear in English because translations are not yet available in the selected language.</p>}
                   <button type="button" onClick={startQuiz} disabled={players.length < 2} className={`${primaryButtonClass} mt-6 min-h-14 w-full text-lg`}><Play className="size-5 fill-current" aria-hidden="true" /> Start Quiz</button>
                   <p className="mt-3 min-h-5 text-center text-sm text-white/55">{players.length < 2 ? "Add at least two participants." : `${players.length} participants are ready to play.`}</p>
                   <button type="button" onClick={resetSession} className={`${secondaryButtonClass} mt-5 w-full`}><ArrowLeft className="size-5" aria-hidden="true" /> Leave Session</button>
@@ -339,7 +357,24 @@ export default function ChurchModeSection() {
             </div>
           )}
 
-          {phase === "question" && currentQuestion && (
+          {phase === "handoff" && currentQuestion && players[currentPlayerIndex] && (
+            <div className={`${panelClass} p-5 sm:p-8`}>
+              <div className="flex justify-end">
+                <button ref={quitButtonRef} type="button" onClick={() => setQuitOpen(true)} className="min-h-12 rounded-xl border border-red-300/25 bg-red-400/10 px-4 font-semibold text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300" aria-label="Quit Church Mode session">Quit Session</button>
+              </div>
+              <div className="mx-auto max-w-xl py-8 text-center sm:py-14" aria-live="polite">
+                <div className="mx-auto grid size-20 place-items-center rounded-3xl border border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#FFD97A]"><UserRound className="size-10" aria-hidden="true" /></div>
+                <p className="mt-6 text-sm font-bold uppercase tracking-[.2em] text-[#D4AF37]">Pass the device to</p>
+                <h2 className="mt-2 font-serif text-4xl font-bold text-white sm:text-5xl">{players[currentPlayerIndex].name}</h2>
+                <p className="mt-5 text-lg text-white/70">Your timer has not started.</p>
+                <p className="mt-2 font-semibold text-[#FFD97A]">{settings.secondsPerQuestion} seconds available</p>
+                <p className="mt-4 text-sm text-white/50">Previous answers are hidden.</p>
+                <button ref={startTurnButtonRef} type="button" onClick={beginCurrentTurn} className={`${primaryButtonClass} mt-8 min-h-14 w-full text-lg sm:w-auto`} aria-label={`Start ${players[currentPlayerIndex].name}'s turn`}><Play className="size-5 fill-current" aria-hidden="true" /> Start My Turn</button>
+              </div>
+            </div>
+          )}
+
+          {phase === "answering" && currentQuestion && (
             <div className={`${panelClass} p-5 sm:p-8`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><p className="text-sm font-bold uppercase tracking-[.18em] text-[#D4AF37]">Question {questionIndex + 1} of {questions.length}</p><p className="mt-1 text-sm text-white/55">{settings.churchName} · {settings.quizName}</p></div>
@@ -347,7 +382,8 @@ export default function ChurchModeSection() {
               </div>
               <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden="true"><div className="h-full rounded-full bg-[#D4AF37] transition-[width] duration-300" style={{ width: `${(timeLeft / settings.secondsPerQuestion) * 100}%` }} /></div>
               <div className="mt-7 rounded-3xl border border-white/10 bg-black/10 p-5 sm:p-8">
-                <div className="mb-5 flex items-center gap-3"><div className="grid size-11 place-items-center rounded-xl bg-[#D4AF37]/15 text-[#FFD97A]"><UserRound className="size-5" aria-hidden="true" /></div><div><p className="text-xs uppercase tracking-[.16em] text-white/45">Answering now</p><p className="font-bold text-white">{players[currentPlayerIndex]?.name}</p></div></div>
+                <div className="mb-5 flex items-center gap-3"><div className="grid size-11 place-items-center rounded-xl bg-[#D4AF37]/15 text-[#FFD97A]"><UserRound className="size-5" aria-hidden="true" /></div><div><p className="text-xs uppercase tracking-[.16em] text-white/45">Answering now · Player {currentPlayerIndex + 1} of {players.length}</p><p className="font-bold text-white">{players[currentPlayerIndex]?.name}</p></div></div>
+                {currentQuestion.isEnglishFallback && <span className="mb-3 inline-flex rounded-full border border-[#D4AF37]/25 bg-[#D4AF37]/10 px-3 py-1 text-xs font-bold uppercase tracking-[.12em] text-[#FFD97A]">English fallback</span>}
                 <h2 className="text-xl font-bold leading-snug text-white sm:text-3xl">{currentQuestion.question}</h2>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   {currentQuestion.choices.map((choice, index) => (

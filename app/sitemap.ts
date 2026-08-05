@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
  * well as in robots.ts. */
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.menorahbiblequiz.com";
-  const routes = ["/", "/friends-battle", "/multiplayer", "/multiplayer/join", "/leaderboard", "/settings", "/about", "/privacy", "/terms", "/support"];
+  const routes = ["/", "/learn", "/church", "/friends-battle", "/multiplayer", "/multiplayer/join", "/leaderboard", "/profile", "/settings", "/about", "/privacy", "/terms", "/support"];
 
   const lastModified = new Date();
   return routes.map((route) => ({

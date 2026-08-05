@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "About",
+  alternates: { canonical: "/about" },
   description: "About Menorah Bible Quiz — a multilingual Bible-learning game for individuals, families, churches, and live competitions.",
 };
 

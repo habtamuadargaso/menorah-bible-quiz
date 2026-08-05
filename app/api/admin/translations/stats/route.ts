@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedAdmin, unauthorizedResponse } from "@/lib/admin/auth";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { LANGUAGES } from "@/lib/i18n/locales";
+import { ALL_LANGUAGES } from "@/lib/i18n/locales";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   if (failureError) return NextResponse.json({ error: failureError.message }, { status: 500 });
 
   const total = totalPublished ?? 0;
-  const byLanguage = LANGUAGES.map((lang) => {
+  const byLanguage = ALL_LANGUAGES.map((lang) => {
     const counts: Record<(typeof STATUSES)[number], number> = {
       ai_draft: 0,
       needs_review: 0,

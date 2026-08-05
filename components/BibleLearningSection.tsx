@@ -6,6 +6,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { getDailyVerse, getMemoryVerse, getVerseText } from "@/lib/bible/verses";
 import ComingSoonCard from "./ComingSoonCard";
 import SectionBackdrop from "./SectionBackdrop";
+import { SHOW_FUTURE_FEATURES } from "@/lib/features/version";
 
 function maskVerse(text: string) {
   // Blanks out every other word (keeps short words/punctuation-only tokens visible)
@@ -119,6 +120,7 @@ export default function BibleLearningSection({ verseDateIso }: { verseDateIso?: 
           </button>
         </motion.div>
 
+        {SHOW_FUTURE_FEATURES && <>
         <ComingSoonCard
           title={t.bible.readingPlan.title}
           subtitle={t.bible.readingPlan.subtitle}
@@ -134,6 +136,7 @@ export default function BibleLearningSection({ verseDateIso }: { verseDateIso?: 
           subtitle={t.bible.prayerJournal.subtitle}
           icon={<FeatureIcon path={PRAYER_JOURNAL_ICON} />}
         />
+        </>}
       </div>
     </section>
   );

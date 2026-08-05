@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { DEFAULT_LANG, LANGUAGES, type LangCode } from "./locales";
+import { ALL_LANGUAGES, DEFAULT_LANG, isPlayerLanguage, type LangCode } from "./locales";
 import { TRANSLATIONS } from "./translations";
 import type { UIStrings } from "./types";
 
@@ -52,7 +52,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY) as LangCode | null;
-      if (saved && LANGUAGES.some((l) => l.code === saved)) {
+      if (saved && isPlayerLanguage(saved)) {
         setLangState(saved);
       }
     } catch {
@@ -68,20 +68,20 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore write failures (e.g. private browsing)
     }
-    const info = LANGUAGES.find((l) => l.code === lang);
+    const info = ALL_LANGUAGES.find((l) => l.code === lang);
     document.documentElement.lang = lang;
     document.documentElement.dir = info?.rtl ? "rtl" : "ltr";
   }, [lang, mounted]);
 
   function setLang(next: LangCode) {
-    setLangState(next);
+    setLangState(isPlayerLanguage(next) ? next : DEFAULT_LANG);
   }
 
   const t = useMemo<UIStrings>(() => {
     return deepMerge(TRANSLATIONS.en as UIStrings, TRANSLATIONS[lang]);
   }, [lang]);
 
-  const dir: "ltr" | "rtl" = LANGUAGES.find((l) => l.code === lang)?.rtl ? "rtl" : "ltr";
+  const dir: "ltr" | "rtl" = ALL_LANGUAGES.find((l) => l.code === lang)?.rtl ? "rtl" : "ltr";
 
   return (
     <LanguageContext.Provider value={{ lang, setLang, t, dir }}>{children}</LanguageContext.Provider>

@@ -13,6 +13,7 @@ import { createBattleRoom, fetchRoomById, getSavedPlayerName, seedRoomQuestions 
 import { OfflineBanner } from "@/components/ui/OfflineBanner";
 import { useOnlineStatus } from "@/lib/useOnlineStatus";
 import MobileBottomNav from "@/components/mobile/MobileBottomNav";
+import { SHOW_FUTURE_FEATURES } from "@/lib/features/version";
 
 // Mission 14: the host previously only picked from 3 fixed "Difficulty"
 // buckets (Easy=1, Medium=4, Hard=8) — 7 of the 10 real levels (2, 3, 5, 6,
@@ -271,7 +272,7 @@ export default function MultiplayerPage() {
             </motion.button>
           </HomeOptionCard>
 
-          <HomeOptionCard
+          {SHOW_FUTURE_FEATURES && <HomeOptionCard
             icon="⚡"
             title={tm.quickMatchTitle}
             description={tm.quickMatchDescription}
@@ -279,7 +280,7 @@ export default function MultiplayerPage() {
             comingSoon
             comingSoonLabel={t.common.comingSoon}
             delay={0.25}
-          />
+          />}
         </div>
 
         {status && (

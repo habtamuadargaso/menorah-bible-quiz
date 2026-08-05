@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Support",
+  alternates: { canonical: "/support" },
   robots: { index: false, follow: false },
 };
 

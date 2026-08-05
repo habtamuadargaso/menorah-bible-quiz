@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
+  alternates: { canonical: "/privacy" },
   robots: { index: false, follow: false },
 };
 
@@ -98,11 +99,11 @@ export default function PrivacyPage() {
         <p>
           You can clear local storage yourself at any time through your browser or device settings to remove
           on-device progress and preferences. To request deletion of Live Battle data tied to your anonymous player
-          ID, contact us through the channel on our <a className="underline" href="/support">Support</a> page.
+          ID, contact us through the channel on our <a className="inline-flex min-h-[44px] items-center underline" href="/support">Support</a> page.
         </p>
 
         <h2 className="text-lg font-semibold text-[#f3efe2]">Contact</h2>
-        <p>Questions about this policy should go through our <a className="underline" href="/support">Support</a> page.</p>
+        <p>Questions about this policy should go through our <a className="inline-flex min-h-[44px] items-center underline" href="/support">Support</a> page.</p>
       </section>
     </main>
   );

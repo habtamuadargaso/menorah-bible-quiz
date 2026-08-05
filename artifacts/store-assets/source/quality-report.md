@@ -8,7 +8,7 @@
 - Captions use consistent top placement and do not cover controls.
 - Approved navy, gold, cream, typography, logo, iconography, and hero artwork are used.
 - Google feature graphic contains no ranking, rating, award, price, or unsupported claim.
-- Daily Challenge and Church Mode are omitted from released-feature claims because their destinations are marked Coming Soon.
+- Daily Challenge is omitted because it remains hidden for Version 1.0. Church Mode shared-screen V1 is released but is intentionally not promoted in this initial asset set; no remote-join claim appears.
 
 ## Technical targets
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { adminFetch } from "@/lib/admin/apiClient";
-import { LANGUAGES } from "@/lib/i18n/locales";
+import { ALL_LANGUAGES } from "@/lib/i18n/locales";
 
 interface SourceOrTarget {
   question_text: string;
@@ -68,7 +68,7 @@ export default function TranslationEditor({
   const [form, setForm] = useState({ questionText: "", choice1: "", choice2: "", choice3: "", choice4: "", explanation: "", reflection: "" });
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const targetLanguageInfo = LANGUAGES.find((l) => l.code === targetLanguage);
+  const targetLanguageInfo = ALL_LANGUAGES.find((l) => l.code === targetLanguage);
 
   function load() {
     setLoading(true);

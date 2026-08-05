@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateAndSaveQuestions } from "@/lib/question-factory/generator";
 import { isAuthorizedAdmin } from "@/lib/admin/auth";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
-import { LANGUAGES } from "@/lib/i18n/locales";
+import { ALL_LANGUAGES } from "@/lib/i18n/locales";
 import type {
   GenerateQuestionsInput,
   SupportedLanguage,
@@ -39,7 +39,7 @@ function getErrorMessage(error: unknown): string {
 // Mission 10: derives from the one central language registry
 // (lib/i18n/locales.ts) instead of a second, hand-maintained list that had
 // already drifted out of sync with it (see lib/question-factory/types.ts).
-const SUPPORTED_LANGUAGE_CODES = new Set<SupportedLanguage>(LANGUAGES.map((l) => l.code));
+const SUPPORTED_LANGUAGE_CODES = new Set<SupportedLanguage>(ALL_LANGUAGES.map((l) => l.code));
 
 function normalizeLanguages(
   languages: string[] | undefined

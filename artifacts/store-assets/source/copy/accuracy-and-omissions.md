@@ -6,14 +6,15 @@
 - Correct and incorrect feedback with Scripture references
 - Results, XP, levels, streaks, and achievements
 - Live Battle creation/join setup and online room flow
-- Friends Battle for 2–4 players on one device
+- Friends Battle for 2–8 players on one device
+- Church Mode shared-screen, host-controlled sessions for up to 8 participants
 - Language selection across configured app locales
 - Profile and leaderboard screens
 
 ## Intentionally omitted from promotional claims
 
 - Daily Challenge: its current destination contains a Coming Soon card. Daily rewards exist, but a completed daily quiz flow is not released.
-- Church Mode: its current competition formats are marked Coming Soon.
+- Church Mode is intentionally omitted from this initial promotional set; the released mode is shared-screen only and does not support remote joining.
 - Native reminders: no verified production notification/reminder delivery flow.
 - Unlimited AI-generated questions for ordinary users: the question generator is an administrative tool, not an advertised consumer entitlement.
 - Worldwide leaderboard reliability guarantees: the leaderboard exists, but no reliability guarantee is supportable.

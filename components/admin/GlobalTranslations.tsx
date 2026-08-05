@@ -5,7 +5,7 @@ import { adminFetch } from "@/lib/admin/apiClient";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { makeToastId, ToastStack, type ToastMessage } from "@/components/ui/Toast";
-import { LANGUAGES, type LangCode } from "@/lib/i18n/locales";
+import { ALL_LANGUAGES, type LangCode } from "@/lib/i18n/locales";
 import TranslationEditor from "./TranslationEditor";
 
 type TranslationStatus = "missing" | "ai_draft" | "needs_review" | "approved" | "published" | "rejected" | "archived";
@@ -91,7 +91,7 @@ const STATUS_FILTERS: TranslationStatus[] = ["missing", "ai_draft", "needs_revie
 const EMPTY_FILTERS = { level: "", status: "", sourceType: "", search: "" };
 
 export default function GlobalTranslations({ secret, reviewer }: { secret: string; reviewer: string }) {
-  const targetLanguageOptions = LANGUAGES.filter((l) => l.code !== "en");
+  const targetLanguageOptions = ALL_LANGUAGES.filter((l) => l.code !== "en");
   const [targetLanguage, setTargetLanguage] = useState(targetLanguageOptions[0]?.code ?? "am");
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
@@ -308,7 +308,7 @@ export default function GlobalTranslations({ secret, reviewer }: { secret: strin
   }
 
   function targetLanguageName(): string {
-    return LANGUAGES.find((l) => l.code === targetLanguage)?.englishName ?? targetLanguage;
+    return ALL_LANGUAGES.find((l) => l.code === targetLanguage)?.englishName ?? targetLanguage;
   }
 
   const currentStatRow = stats?.byLanguage.find((l) => l.code === targetLanguage);

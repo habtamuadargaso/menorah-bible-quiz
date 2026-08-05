@@ -105,7 +105,7 @@ export default function OnboardingShell({
               hapticLight();
               onSkip();
             }}
-            className="min-h-[32px] flex-shrink-0 rounded-full px-2 text-xs font-semibold text-[#9aa1b0] outline-none transition-colors hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            className="min-h-[44px] min-w-[44px] flex-shrink-0 rounded-full px-2 text-xs font-semibold text-[#9aa1b0] outline-none transition-colors hover:text-gold-400 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
           >
             {skipLabel}
           </button>

@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { adminFetch } from "@/lib/admin/apiClient";
 import { makeToastId, ToastStack, type ToastMessage } from "@/components/ui/Toast";
+import { ALL_LANGUAGES } from "@/lib/i18n/locales";
 
 type Result = {
   generated?: number;
@@ -25,24 +26,6 @@ type PendingFactoryQuestion = {
   created_at: string;
   question_translations: Array<{ language_code: string; question_text: string }>;
 };
-
-const LANGUAGES = [
-  ["en", "English"],
-  ["am", "Amharic"],
-  ["om", "Afaan Oromo"],
-  ["ti", "Tigrinya"],
-  ["sw", "Swahili"],
-  ["ar", "Arabic"],
-  ["fr", "French"],
-  ["es", "Spanish"],
-  ["de", "German"],
-  ["it", "Italian"],
-  ["pt", "Portuguese"],
-  ["hi", "Hindi"],
-  ["zh", "Chinese"],
-  ["ja", "Japanese"],
-  ["ko", "Korean"],
-] as const;
 
 const OLD_TESTAMENT = [
   "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", "Joshua",
@@ -232,7 +215,7 @@ export default function AIQuestionFactory({ secret, reviewer }: { secret: string
   const category = NEW_TESTAMENT.includes(book) ? "New Testament" : "Old Testament";
 
   const selectedNames = useMemo(
-    () => LANGUAGES.filter(([code]) => languages.includes(code)).map(([, name]) => name).join(", "),
+    () => ALL_LANGUAGES.filter(({ code }) => languages.includes(code)).map(({ englishName }) => englishName).join(", "),
     [languages]
   );
 
@@ -372,7 +355,7 @@ export default function AIQuestionFactory({ secret, reviewer }: { secret: string
           <h2 className="text-xl font-bold">Languages</h2>
           <p className="mt-1 text-sm text-amber-300">Selected: {selectedNames}</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-            {LANGUAGES.map(([code, name]) => {
+            {ALL_LANGUAGES.map(({ code, englishName }) => {
               const selected = languages.includes(code);
               return (
                 <label
@@ -382,7 +365,7 @@ export default function AIQuestionFactory({ secret, reviewer }: { secret: string
                   }`}
                 >
                   <input type="checkbox" checked={selected} disabled={code === "en"} onChange={() => toggleLanguage(code)} />
-                  {name}
+                  {englishName}
                 </label>
               );
             })}
