@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { Globe, Check, ChevronRight, Wheat } from "lucide-react";
-import { LANGUAGES } from "@/lib/i18n/locales";
+import { ALL_LANGUAGES } from "@/lib/i18n/locales";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { hapticLight } from "@/lib/mobile/haptics";
 
@@ -46,7 +46,7 @@ export default function OnboardingLanguageScreen({
       </div>
 
       <div className="mt-2 flex flex-col gap-1.5">
-        {LANGUAGES.map((language, i) => {
+        {ALL_LANGUAGES.map((language, i) => {
           const selected = language.code === lang;
           return (
             <motion.button
