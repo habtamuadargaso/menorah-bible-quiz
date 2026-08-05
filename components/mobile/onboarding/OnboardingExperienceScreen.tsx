@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Play, Calendar, Swords, Users, Church, ChevronRight } from "lucide-react";
 import { hapticLight } from "@/lib/mobile/haptics";
-import { SHOW_DAILY_CHALLENGE } from "@/lib/features/version";
+import { SHOW_CHURCH_MODE, SHOW_DAILY_CHALLENGE } from "@/lib/features/version";
 
 // Mission 21.1 — matches the approved mockup: five premium cards (Solo
 // Quiz, Daily Challenge, Live Battle, Friends Battle, Church Mode), same
@@ -137,16 +137,18 @@ export default function OnboardingExperienceScreen({
           selected={selected === "friends"}
           onSelect={setSelected}
         />
-        <ExperienceCard
-          id="church"
-          icon={<Church className="h-5 w-5" aria-hidden />}
-          title={items.churchMode.title}
-          description={items.churchMode.description}
-          accent="purple"
-          index={4}
-          selected={selected === "church"}
-          onSelect={setSelected}
-        />
+        {SHOW_CHURCH_MODE && (
+          <ExperienceCard
+            id="church"
+            icon={<Church className="h-5 w-5" aria-hidden />}
+            title={items.churchMode.title}
+            description={items.churchMode.description}
+            accent="purple"
+            index={4}
+            selected={selected === "church"}
+            onSelect={setSelected}
+          />
+        )}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import { loadProgress, levelForXp } from "@/lib/progress";
 import LanguageSelector from "./LanguageSelector";
 import SoundToggle from "./SoundToggle";
 import MobileTopBar from "./mobile/MobileTopBar";
+import { SHOW_CHURCH_MODE } from "@/lib/features/version";
 
 export default function Header({
   onHome,
@@ -70,12 +71,14 @@ export default function Header({
           >
             {t.bible.heading}
           </button>
-          <button
-            onClick={onChurch}
-            className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
-          >
-            {t.church.heading}
-          </button>
+          {SHOW_CHURCH_MODE && (
+            <button
+              onClick={onChurch}
+              className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"
+            >
+              {t.church.heading}
+            </button>
+          )}
           <button
             onClick={onLeaderboard}
             className="rounded-md outline-none transition-colors hover:text-gold-500 focus-visible:ring-2 focus-visible:ring-gold-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950"

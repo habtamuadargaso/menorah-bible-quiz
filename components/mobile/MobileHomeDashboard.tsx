@@ -9,7 +9,7 @@ import { getDailyVerse, getVerseText } from "@/lib/bible/verses";
 import type { ProfileStats } from "@/lib/profileStats";
 import { hapticLight } from "@/lib/mobile/haptics";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { SHOW_DAILY_CHALLENGE } from "@/lib/features/version";
+import { SHOW_CHURCH_MODE, SHOW_DAILY_CHALLENGE } from "@/lib/features/version";
 
 type Props = {
   displayName: string;
@@ -102,7 +102,15 @@ export default function MobileHomeDashboard({
       onClick: onDailyChallenge,
     },
   ];
-  const visibleModes = modes.filter((mode) => mode.key !== "daily" || SHOW_DAILY_CHALLENGE);
+  const visibleModes = modes.filter((mode) => {
+    if (mode.key === "daily") return SHOW_DAILY_CHALLENGE;
+    if (mode.key === "church") return SHOW_CHURCH_MODE;
+    return true;
+  });
+  const modeGroups = [
+    { label: isAmharic ? "አሁን ይጫወቱ" : "Play Now", items: visibleModes.slice(0, 3) },
+    { label: isAmharic ? "ልዩ ሁነታዎች" : "Special Modes", items: visibleModes.slice(3) },
+  ].filter((group) => group.items.length > 0);
 
   return (
     <div className="space-y-4 px-3 pb-5 pt-3">
@@ -158,7 +166,7 @@ export default function MobileHomeDashboard({
       </motion.section>
 
       <motion.section {...entrance(0.09)}>
-        {[{ label: isAmharic ? "አሁን ይጫወቱ" : "Play Now", items: visibleModes.slice(0, 3) }, { label: isAmharic ? "ልዩ ሁነታዎች" : "Special Modes", items: visibleModes.slice(3) }].map((group, groupIndex) => (
+        {modeGroups.map((group, groupIndex) => (
           <div key={group.label} className={groupIndex === 0 ? "" : "mt-8"}>
             <h2 className="mb-4 px-1 font-display text-sm font-bold uppercase tracking-[0.16em] text-gold-400">{group.label}</h2>
             <div className="space-y-4">

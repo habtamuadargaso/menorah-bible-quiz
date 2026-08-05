@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { SHOW_DAILY_CHALLENGE } from "@/lib/features/version";
+import { SHOW_CHURCH_MODE, SHOW_DAILY_CHALLENGE } from "@/lib/features/version";
 import SectionBackdrop from "./SectionBackdrop";
 
 type CardTheme = "gold" | "purple";
@@ -146,7 +146,12 @@ export default function PlayCards({
       ),
     },
   ];
-  const visibleCards = cards.filter((card) => card.key !== "daily" || SHOW_DAILY_CHALLENGE);
+  const visibleCards = cards.filter((card) => {
+    if (card.key === "daily") return SHOW_DAILY_CHALLENGE;
+    if (card.key === "church") return SHOW_CHURCH_MODE;
+    return true;
+  });
+  const desktopGridClass = visibleCards.length >= 4 ? "lg:grid-cols-4" : visibleCards.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2";
 
   return (
     <section className="relative mx-auto max-w-6xl px-5 pb-14 pt-10">
@@ -162,7 +167,7 @@ export default function PlayCards({
         </p>
       </div>
 
-      <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 ${SHOW_DAILY_CHALLENGE ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+      <div className={`mx-auto grid grid-cols-1 gap-5 sm:grid-cols-2 ${desktopGridClass} ${visibleCards.length <= 2 ? "max-w-3xl" : ""}`}>
         {visibleCards.map((card, i) => (
           <motion.div
             key={card.key}

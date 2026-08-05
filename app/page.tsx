@@ -25,7 +25,7 @@ import ResultCard from "@/components/ResultCard";
 import ProfilePage from "@/components/profile/ProfilePage";
 import Leaderboard from "@/components/Leaderboard";
 import ChallengesStrip from "@/components/ChallengesStrip";
-import { SHOW_DAILY_CHALLENGE } from "@/lib/features/version";
+import { SHOW_CHURCH_MODE, SHOW_DAILY_CHALLENGE } from "@/lib/features/version";
 import BibleLearningSection from "@/components/BibleLearningSection";
 import ChurchModeSection from "@/components/ChurchModeSection";
 import Footer from "@/components/Footer";
@@ -404,9 +404,11 @@ function HomeInner() {
               <BibleLearningSection />
             </div>
 
-            <div ref={churchRef}>
-              <ChurchModeSection />
-            </div>
+            {SHOW_CHURCH_MODE && (
+              <div ref={churchRef}>
+                <ChurchModeSection />
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -549,7 +551,7 @@ function HomeInner() {
               <div ref={mobileFeatureRef} data-mobile-feature={mobileFeature}>
                 {mobileFeature === "daily"
                   ? SHOW_DAILY_CHALLENGE && <ChallengesStrip />
-                  : <ChurchModeSection />}
+                  : SHOW_CHURCH_MODE && <ChurchModeSection />}
               </div>
             )}
           </MobileAppShell>
