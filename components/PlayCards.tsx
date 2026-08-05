@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { SHOW_DAILY_CHALLENGE } from "@/lib/features/version";
 import SectionBackdrop from "./SectionBackdrop";
 
 type CardTheme = "gold" | "purple";
@@ -145,6 +146,7 @@ export default function PlayCards({
       ),
     },
   ];
+  const visibleCards = cards.filter((card) => card.key !== "daily" || SHOW_DAILY_CHALLENGE);
 
   return (
     <section className="relative mx-auto max-w-6xl px-5 pb-14 pt-10">
@@ -160,8 +162,8 @@ export default function PlayCards({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((card, i) => (
+      <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 ${SHOW_DAILY_CHALLENGE ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+        {visibleCards.map((card, i) => (
           <motion.div
             key={card.key}
             initial={{ opacity: 0, y: 24 }}

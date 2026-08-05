@@ -9,6 +9,7 @@ import { getDailyVerse, getVerseText } from "@/lib/bible/verses";
 import type { ProfileStats } from "@/lib/profileStats";
 import { hapticLight } from "@/lib/mobile/haptics";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { SHOW_DAILY_CHALLENGE } from "@/lib/features/version";
 
 type Props = {
   displayName: string;
@@ -56,6 +57,7 @@ export default function MobileHomeDashboard({
 
   const modes = [
     {
+      key: "solo",
       title: isAmharic ? "ብቸኛ ጥያቄ" : "Solo Quiz",
       subtitle: isAmharic ? "በ10 ደረጃዎች ይማሩ" : "Learn through 10 levels",
       status: isAmharic ? "10 ደረጃዎች" : "10 Levels",
@@ -64,6 +66,7 @@ export default function MobileHomeDashboard({
       href: "/learn",
     },
     {
+      key: "friends",
       title: isAmharic ? "የጓደኞች ውድድር" : "Friends Battle",
       subtitle: isAmharic ? "በአንድ መሣሪያ ይጫወቱ" : "Pass and play together",
       status: isAmharic ? "1 መሣሪያ" : "1 Device",
@@ -72,6 +75,7 @@ export default function MobileHomeDashboard({
       href: "/friends-battle",
     },
     {
+      key: "live",
       title: isAmharic ? "የቀጥታ ውድድር" : "Live Battle",
       subtitle: isAmharic ? "ክፍል ይፍጠሩ ወይም ይቀላቀሉ" : "Create or join a room",
       status: isAmharic ? "መስመር ላይ" : "Online",
@@ -80,6 +84,7 @@ export default function MobileHomeDashboard({
       onClick: onLiveBattle,
     },
     {
+      key: "church",
       title: isAmharic ? "የቤተ ክርስቲያን ሁነታ" : "Church Mode",
       subtitle: isAmharic ? "የቡድን ውድድር ያስተናግዱ" : "Host a church competition",
       status: isAmharic ? "ቡድን" : "Group",
@@ -88,6 +93,7 @@ export default function MobileHomeDashboard({
       onClick: onChurchMode,
     },
     {
+      key: "daily",
       title: isAmharic ? "የዕለቱ ፈተና" : "Daily Challenge",
       subtitle: isAmharic ? "የዕለቱን ፈተና ይጫወቱ" : "Today's Bible challenge",
       status: isAmharic ? "ዕለታዊ" : "Daily",
@@ -96,6 +102,7 @@ export default function MobileHomeDashboard({
       onClick: onDailyChallenge,
     },
   ];
+  const visibleModes = modes.filter((mode) => mode.key !== "daily" || SHOW_DAILY_CHALLENGE);
 
   return (
     <div className="space-y-4 px-3 pb-5 pt-3">
@@ -151,7 +158,7 @@ export default function MobileHomeDashboard({
       </motion.section>
 
       <motion.section {...entrance(0.09)}>
-        {[{ label: isAmharic ? "አሁን ይጫወቱ" : "Play Now", items: modes.slice(0, 3) }, { label: isAmharic ? "ልዩ ሁነታዎች" : "Special Modes", items: modes.slice(3) }].map((group, groupIndex) => (
+        {[{ label: isAmharic ? "አሁን ይጫወቱ" : "Play Now", items: visibleModes.slice(0, 3) }, { label: isAmharic ? "ልዩ ሁነታዎች" : "Special Modes", items: visibleModes.slice(3) }].map((group, groupIndex) => (
           <div key={group.label} className={groupIndex === 0 ? "" : "mt-8"}>
             <h2 className="mb-4 px-1 font-display text-sm font-bold uppercase tracking-[0.16em] text-gold-400">{group.label}</h2>
             <div className="space-y-4">
