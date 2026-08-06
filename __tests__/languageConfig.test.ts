@@ -7,22 +7,22 @@ import {
   isPlayerLanguage,
 } from "@/lib/i18n/locales";
 
-describe("Version 1.0 language configuration", () => {
-  it("exposes only English and Amharic to players", () => {
-    expect(LANGUAGES.map(({ code }) => code)).toEqual(["en", "am"]);
-    expect(SUPPORTED_LANGUAGE_CODES).toEqual(["en", "am"]);
+describe("public language configuration", () => {
+  it("exposes every centrally configured language to players", () => {
+    expect(LANGUAGES).toEqual(ALL_LANGUAGES);
+    expect(SUPPORTED_LANGUAGE_CODES).toEqual(CONFIGURED_LANGUAGE_CODES);
   });
 
-  it("keeps future languages configured but disabled", () => {
-    expect(ALL_LANGUAGES.length).toBeGreaterThan(LANGUAGES.length);
+  it("keeps registry readiness metadata without using it as a public visibility gate", () => {
     expect(CONFIGURED_LANGUAGE_CODES).toContain("es");
     expect(ALL_LANGUAGES.filter(({ releaseStatus }) => releaseStatus === "future").length).toBeGreaterThan(0);
   });
 
-  it("rejects future and unknown locales as player languages", () => {
+  it("accepts every configured locale and rejects unknown locales", () => {
     expect(isPlayerLanguage("en")).toBe(true);
     expect(isPlayerLanguage("am")).toBe(true);
-    expect(isPlayerLanguage("es")).toBe(false);
+    expect(isPlayerLanguage("es")).toBe(true);
+    expect(isPlayerLanguage("ja")).toBe(true);
     expect(isPlayerLanguage("unknown")).toBe(false);
   });
 });

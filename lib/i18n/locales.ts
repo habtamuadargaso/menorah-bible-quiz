@@ -55,8 +55,9 @@ export const ALL_LANGUAGES: LanguageInfo[] = [
   { code: "ja", nativeName: "日本語", englishName: "Japanese", flag: "🇯🇵", releaseStatus: "future", churchModeEnabled: true },
 ];
 
-/** Player-facing v1.0 languages. All ordinary selectors consume this list. */
-export const LANGUAGES: LanguageInfo[] = ALL_LANGUAGES.filter((language) => language.releaseStatus === "enabled");
+/** Public language list. Availability of reviewed question content is handled
+ * at question-loading time; it must not hide a configured language here. */
+export const LANGUAGES: LanguageInfo[] = ALL_LANGUAGES;
 
 /** Question languages available to Church hosts. This does not expand the
  * app-wide interface-language selector. */
