@@ -8,13 +8,18 @@ import { createClient } from "@/lib/supabase/client";
 import { playButtonClick } from "@/lib/sound";
 import type { LangCode } from "@/lib/i18n/locales";
 import {
+  applyRoomRealtimeUpdate,
   advancePhaseIfExpired,
+  canSubmitLiveBattleAnswer,
+  endBattleIfHostDisconnected,
   ensureAnonymousSession,
   fetchMyAnswers,
   fetchRoomByCode,
   fetchRoomPlayers,
   fetchRoomQuestion,
+  HOST_RECONNECT_GRACE_MS,
   isConnected,
+  isLiveBattleTerminated,
   leaveRoom,
   resolveRoundIfExpired,
   setPlayerLanguage,
@@ -34,6 +39,7 @@ import PlayerRoundResult from "@/components/multiplayer/player/PlayerRoundResult
 import PlayerFinalResult from "@/components/multiplayer/player/PlayerFinalResult";
 import HostLeaderboard from "@/components/multiplayer/host/HostLeaderboard";
 import MobileBottomNav from "@/components/mobile/MobileBottomNav";
+import BattleEndedScreen from "@/components/multiplayer/BattleEndedScreen";
 
 export default function PlayerRoomPage() {
   const params = useParams<{ code: string }>();
@@ -57,6 +63,12 @@ export default function PlayerRoomPage() {
   // synchronously from realtime callbacks without becoming a dependency
   // that re-subscribes the channel on every language change.
   const myLanguageRef = useRef<LangCode>("en");
+
+  // Guards the "battle ended" transition so it runs its cleanup exactly
+  // once no matter how many terminated-status row updates arrive (Supabase
+  // Realtime can redeliver on reconnect) — every effect/callback below that
+  // could otherwise keep driving gameplay forward checks this first.
+  const hasEndedRef = useRef(false);
 
   const refreshPlayers = useCallback(async (roomId: string) => {
     try {
@@ -159,6 +171,12 @@ export default function PlayerRoomPage() {
         setPlayerName(mine.displayName);
         setRoom(initialRoom);
 
+        if (isLiveBattleTerminated(initialRoom.status)) {
+          hasEndedRef.current = true;
+          setIsLoading(false);
+          return;
+        }
+
         if (initialRoom.status === "question" || initialRoom.status === "reveal") {
           await refreshQuestion(initialRoom.id, myLanguageRef.current);
         }
@@ -175,25 +193,32 @@ export default function PlayerRoomPage() {
             "postgres_changes",
             { event: "*", schema: "public", table: "rooms", filter: `id=eq.${initialRoom.id}` },
             async (payload) => {
+              // Once this client has already transitioned to "ended" there
+              // is nothing left to react to — ignore any further row
+              // update, including a redelivered/duplicate terminated event.
+              if (hasEndedRef.current) return;
+
               const row = payload.new as Record<string, unknown>;
               if (!row || payload.eventType === "DELETE") {
                 setError(t.multiplayerPlayer.errorExpiredRoom);
                 return;
               }
-              const nextStatus = row.status as RoomState["status"];
-              setRoom((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      status: nextStatus,
-                      currentQuestion: row.current_question as number,
-                      questionStartedAt: row.question_started_at as string | null,
-                      questionEndsAt: row.question_ends_at as string | null,
-                      phaseEndsAt: row.phase_ends_at as string | null,
-                    }
-                  : prev
-              );
-              if (nextStatus === "question") {
+              const nextStatus = row.status as string;
+              setRoom((prev) => (prev ? applyRoomRealtimeUpdate(prev, row) : prev));
+              if (isLiveBattleTerminated(nextStatus)) {
+                // Atomic, one-time transition into the ended state: stop
+                // the heartbeat, invalidate any in-flight question fetch
+                // and answer submission, drop the current question so no
+                // stale gameplay UI can render, and stop listening — no
+                // further row update can move this player past "ended".
+                hasEndedRef.current = true;
+                stopHeartbeat?.();
+                stopHeartbeat = null;
+                questionRequestRef.current += 1;
+                submittingForRoomQuestionRef.current = null;
+                setQuestion(null);
+                void supabase.removeChannel(channel);
+              } else if (nextStatus === "question") {
                 await refreshQuestion(initialRoom.id, myLanguageRef.current);
               } else if (nextStatus === "reveal") {
                 await refreshQuestion(initialRoom.id, myLanguageRef.current);
@@ -252,12 +277,29 @@ export default function PlayerRoomPage() {
     const msRemaining = new Date(room.questionEndsAt).getTime() - Date.now();
     const timeout = window.setTimeout(
       () => {
+        if (hasEndedRef.current) return; // battle ended while this timer was pending
         void resolveRoundIfExpired(room.id).catch((err) => console.error("resolveRoundIfExpired failed:", err));
       },
       Math.max(0, msRemaining) + 500
     );
     return () => window.clearTimeout(timeout);
   }, [room]);
+
+  // Refresh/close/temporary network loss all stop the host heartbeat. Give
+  // it a short reconnect window, then ask the database to atomically verify
+  // the heartbeat age before ending anything. A normal player's client can
+  // call this check but cannot end a healthy room.
+  useEffect(() => {
+    if (!room || room.status === "finished" || isLiveBattleTerminated(room.status)) return;
+    const host = players.find((player) => player.playerId === room.hostId);
+    if (!host) return;
+    const delay = Math.max(0, new Date(host.lastSeenAt).getTime() + HOST_RECONNECT_GRACE_MS - Date.now());
+    const timeout = window.setTimeout(() => {
+      if (hasEndedRef.current) return; // battle ended while this timer was pending
+      void endBattleIfHostDisconnected(room.id).catch((err) => console.error("Host disconnect termination check failed:", err));
+    }, delay + 250);
+    return () => window.clearTimeout(timeout);
+  }, [players, room]);
 
   // Backstop for a disconnected host during countdown/reveal/leaderboard —
   // see the identical effect on the host page for the full rationale. Every
@@ -269,6 +311,7 @@ export default function PlayerRoomPage() {
     if (!room.phaseEndsAt) return;
     const msRemaining = new Date(room.phaseEndsAt).getTime() - Date.now();
     const timeout = window.setTimeout(() => {
+      if (hasEndedRef.current) return; // battle ended while this timer was pending
       void advancePhaseIfExpired(room.id).catch((err) => console.error("advancePhaseIfExpired failed:", err));
     }, Math.max(0, msRemaining) + 500);
     return () => window.clearTimeout(timeout);
@@ -318,6 +361,7 @@ export default function PlayerRoomPage() {
 
   async function handleSelectAnswer(index: number) {
     if (!room || !question || !myPlayerId) return;
+    if (hasEndedRef.current || !canSubmitLiveBattleAnswer(room.status)) return;
     if (currentMyAnswer) return; // this question already has a real answer on record
     if (submittingForRoomQuestionRef.current === question.roomQuestionId) return; // a submission is already in flight
     submittingForRoomQuestionRef.current = question.roomQuestionId;
@@ -429,7 +473,8 @@ export default function PlayerRoomPage() {
   // clearly instead of leaving the player looking at a silently frozen
   // screen with no explanation.
   const hostPlayer = players.find((p) => p.playerId === room.hostId);
-  const hostDisconnected = room.status !== "finished" && hostPlayer !== undefined && !isConnected(hostPlayer.lastSeenAt);
+  const battleTerminated = isLiveBattleTerminated(room.status);
+  const hostDisconnected = room.status !== "finished" && !battleTerminated && hostPlayer !== undefined && !isConnected(hostPlayer.lastSeenAt);
 
   const phaseLabelKey = `phase${room.status.charAt(0).toUpperCase()}${room.status.slice(1)}` as
     | "phaseWaiting"
@@ -438,11 +483,20 @@ export default function PlayerRoomPage() {
     | "phaseReveal"
     | "phaseLeaderboard"
     | "phaseFinished";
-  const phaseAnnouncement = t.battleShared.phaseChangedAnnouncement.replace("{phase}", t.battleShared[phaseLabelKey]);
+  const phaseAnnouncement = battleTerminated
+    ? "Battle Ended"
+    : t.battleShared.phaseChangedAnnouncement.replace("{phase}", t.battleShared[phaseLabelKey]);
 
+  // Checked ahead of the switch (rather than as one more `case`) so any
+  // terminated status — including a future value the RoomPhase union below
+  // doesn't literally enumerate — always wins and renders the ended screen,
+  // instead of silently falling through to `default: content = null`.
   let content: ReactNode = null;
-  switch (room.status) {
-    case "waiting":
+  if (battleTerminated) {
+    content = <BattleEndedScreen onLeave={handleLeave} />;
+  } else {
+    switch (room.status) {
+      case "waiting":
       content = (
         <PlayerLobby
           t={t}
@@ -460,10 +514,10 @@ export default function PlayerRoomPage() {
         />
       );
       break;
-    case "countdown":
+      case "countdown":
       content = <Countdown goLabel={t.multiplayerLobby.countdownGo} onComplete={() => {}} />;
       break;
-    case "question":
+      case "question":
       content = question && questionIsFresh ? (
         <PlayerQuestion
           key={question.roomQuestionId}
@@ -481,17 +535,17 @@ export default function PlayerRoomPage() {
         />
       ) : null;
       break;
-    case "reveal":
+      case "reveal":
       content = question && questionIsFresh ? (
         <PlayerRoundResult t={t} question={question} myAnswer={currentMyAnswer} players={competitivePlayers} myPlayerId={myPlayerId} />
       ) : null;
       break;
-    case "leaderboard":
+      case "leaderboard":
       content = (
         <HostLeaderboard t={t} players={competitivePlayers} questionNumber={room.currentQuestion} questionCount={room.questionCount} isHost={false} />
       );
       break;
-    case "finished":
+      case "finished":
       content = (
         <PlayerFinalResult
           t={t}
@@ -503,8 +557,9 @@ export default function PlayerRoomPage() {
         />
       );
       break;
-    default:
+      default:
       content = null;
+    }
   }
 
   return (

@@ -16,7 +16,7 @@ import { difficultyForLevel } from "@/lib/levels";
 import { loadQuestionsForLevel } from "@/lib/questions/loadQuestions";
 import { selectRoomQuestionIds } from "@/lib/questions/selectRoomQuestions";
 
-export type RoomPhase = "waiting" | "countdown" | "question" | "reveal" | "leaderboard" | "finished";
+export type RoomPhase = "waiting" | "countdown" | "question" | "reveal" | "leaderboard" | "finished" | "ended";
 
 export const ROUND_SECONDS = 15;
 export const COUNTDOWN_SECONDS = 3;
@@ -24,6 +24,7 @@ export const REVEAL_SECONDS = 5;
 export const LEADERBOARD_SECONDS = 4;
 /** A player not heard from in this long is shown as disconnected. */
 export const PRESENCE_TIMEOUT_MS = 20000;
+export const HOST_RECONNECT_GRACE_MS = 30000;
 const HEARTBEAT_INTERVAL_MS = 8000;
 
 export interface RoomState {
@@ -40,6 +41,8 @@ export interface RoomState {
   questionStartedAt: string | null;
   questionEndsAt: string | null;
   phaseEndsAt: string | null;
+  endedReason: "host_ended" | "host_disconnected" | null;
+  endedAt: string | null;
 }
 
 export interface RoomPlayerState {
@@ -75,6 +78,38 @@ export interface RoomQuestionView {
    * false signals a genuine, exceptional data problem (e.g. a translation
    * archived mid-battle) rather than a language mismatch to paper over. */
   translationAvailable: boolean;
+}
+
+export function canSubmitLiveBattleAnswer(status: RoomPhase): boolean {
+  return status === "question";
+}
+
+/** Every status value that means the battle has permanently stopped for
+ * every player and no further gameplay (timers, question advancement,
+ * answers) may proceed. Checked against the raw string from the realtime
+ * payload/DB row (not the narrower RoomPhase union) so the player page
+ * still reacts correctly if a future terminal status — e.g. "cancelled" or
+ * "abandoned" — is ever added; today the schema only ever produces
+ * "ended" (see supabase/migrations/20260806_mission35_1_live_battle_termination.sql). */
+const LIVE_BATTLE_TERMINATED_STATUSES = new Set(["ended", "cancelled", "abandoned"]);
+export function isLiveBattleTerminated(status: string): boolean {
+  return LIVE_BATTLE_TERMINATED_STATUSES.has(status);
+}
+
+export function applyRoomRealtimeUpdate(
+  previous: RoomState,
+  row: Record<string, unknown>
+): RoomState {
+  return {
+    ...previous,
+    status: row.status as RoomState["status"],
+    currentQuestion: row.current_question as number,
+    questionStartedAt: row.question_started_at as string | null,
+    questionEndsAt: row.question_ends_at as string | null,
+    phaseEndsAt: row.phase_ends_at as string | null,
+    endedReason: (row.ended_reason as RoomState["endedReason"]) ?? null,
+    endedAt: (row.ended_at as string | null) ?? null,
+  };
 }
 
 export class RoomError extends Error {
@@ -298,6 +333,8 @@ function mapRoom(data: {
   question_started_at: string | null;
   question_ends_at: string | null;
   phase_ends_at: string | null;
+  ended_reason?: string | null;
+  ended_at?: string | null;
 }): RoomState {
   return {
     id: data.id,
@@ -313,6 +350,8 @@ function mapRoom(data: {
     questionStartedAt: data.question_started_at,
     questionEndsAt: data.question_ends_at,
     phaseEndsAt: data.phase_ends_at,
+    endedReason: (data.ended_reason as RoomState["endedReason"]) ?? null,
+    endedAt: data.ended_at ?? null,
   };
 }
 
@@ -321,7 +360,7 @@ export async function fetchRoomByCode(code: string): Promise<RoomState | null> {
   const { data, error } = await supabase
     .from("rooms")
     .select(
-      "id, code, host_id, status, current_question, question_count, language, category_id, game_level, max_players, question_started_at, question_ends_at, phase_ends_at"
+      "id, code, host_id, status, current_question, question_count, language, category_id, game_level, max_players, question_started_at, question_ends_at, phase_ends_at, ended_reason, ended_at"
     )
     .eq("code", code.toUpperCase())
     .maybeSingle();
@@ -334,7 +373,7 @@ export async function fetchRoomById(roomId: string): Promise<RoomState | null> {
   const { data, error } = await supabase
     .from("rooms")
     .select(
-      "id, code, host_id, status, current_question, question_count, language, category_id, game_level, max_players, question_started_at, question_ends_at, phase_ends_at"
+      "id, code, host_id, status, current_question, question_count, language, category_id, game_level, max_players, question_started_at, question_ends_at, phase_ends_at, ended_reason, ended_at"
     )
     .eq("id", roomId)
     .maybeSingle();
@@ -537,6 +576,19 @@ export async function submitAnswer(
   selectedAnswer: number
 ): Promise<{ alreadySubmitted: boolean; isCorrect: boolean }> {
   const supabase = createClient();
+  // Re-check the authoritative room row immediately before the RPC. This
+  // closes the stale-tab window between a realtime termination event and
+  // the local React state update. submit_answer() performs the same check
+  // again while holding a row lock, which closes the remaining race.
+  const { data: currentRoom, error: roomError } = await supabase
+    .from("rooms")
+    .select("status")
+    .eq("id", roomId)
+    .maybeSingle();
+  if (roomError) throw roomError;
+  if (!currentRoom || currentRoom.status === "ended") {
+    throw new Error("This battle has ended and is not accepting answers.");
+  }
   const { data, error } = await supabase.rpc("submit_answer", {
     p_room_id: roomId,
     p_room_question_id: roomQuestionId,
@@ -696,6 +748,15 @@ export async function resolveRoundIfExpired(roomId: string): Promise<void> {
 
 export async function advancePhase(roomId: string, to: RoomPhase): Promise<void> {
   const supabase = createClient();
+  const { data: currentRoom, error: roomError } = await supabase
+    .from("rooms")
+    .select("status")
+    .eq("id", roomId)
+    .maybeSingle();
+  if (roomError) throw roomError;
+  if (!currentRoom || currentRoom.status === "ended") {
+    throw new Error("This battle has ended and cannot advance.");
+  }
   const { error } = await supabase.rpc("advance_phase", { p_room_id: roomId, p_to: to });
   if (error) throw error;
 }
@@ -716,15 +777,56 @@ export async function removePlayer(roomId: string, targetPlayerId: string): Prom
   if (error) throw error;
 }
 
-export async function endRoom(roomId: string): Promise<void> {
-  const supabase = createClient();
-  const { error } = await supabase.from("rooms").delete().eq("id", roomId);
+/** Host-only terminal transition. The explicit host_id filter provides an
+ * additional client-side boundary; the rooms RLS UPDATE policy remains the
+ * authoritative security check. Returning the row proves the write reached
+ * Postgres before the host is allowed to navigate away. */
+export async function endBattle(roomId: string): Promise<RoomState> {
+  const { supabase, userId } = await ensureAnonymousSession();
+  const endedAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("rooms")
+    .update({
+      status: "ended",
+      ended_at: endedAt,
+      ended_reason: "host_ended",
+      phase_ends_at: null,
+      question_started_at: null,
+      question_ends_at: null,
+    })
+    .eq("id", roomId)
+    .eq("host_id", userId)
+    .neq("status", "finished")
+    .select(
+      "id, code, host_id, status, current_question, question_count, language, category_id, game_level, max_players, question_started_at, question_ends_at, phase_ends_at, ended_reason, ended_at"
+    )
+    .maybeSingle();
+
   if (error) throw error;
+  if (!data) {
+    throw new Error("The battle could not be ended. Only the host can end an active room.");
+  }
+  if (data.status !== "ended" || data.ended_reason !== "host_ended" || !data.ended_at) {
+    throw new Error("Supabase did not confirm that the battle ended.");
+  }
+  return mapRoom(data);
+}
+
+/** Server-verified reconnect grace check. A normal player cannot end a
+ * healthy room: the RPC checks membership and the host heartbeat age. */
+export async function endBattleIfHostDisconnected(roomId: string): Promise<boolean> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("end_battle_if_host_disconnected", {
+    p_room_id: roomId,
+    p_grace_seconds: HOST_RECONNECT_GRACE_MS / 1000,
+  });
+  if (error) throw error;
+  return Boolean(data);
 }
 
 export async function leaveRoom(roomId: string, playerId: string, isHost: boolean): Promise<void> {
   if (isHost) {
-    await endRoom(roomId);
+    await endBattle(roomId);
     return;
   }
   const supabase = createClient();
