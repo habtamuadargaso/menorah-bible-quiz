@@ -205,7 +205,7 @@ export default function HostLobby({
                   onClick={onEndRoom}
                   className="rounded-full border border-red-400/40 px-6 py-4 text-sm font-bold text-red-300 outline-none transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-950 2xl:py-5"
                 >
-                  {th.cancelRoomButton}
+                  End Battle
                 </button>
                 <motion.button
                   type="button"

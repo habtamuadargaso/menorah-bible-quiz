@@ -4,7 +4,7 @@
  * (awaited directly or via maybeSingle), `.insert(row).select().single()`,
  * a head-count select, `.delete().eq(...)` (any number of chained `.eq()`,
  * awaited at any point), and `.rpc(name, args)`. Not a general Postgrest
- * mock — only supports what these call sites use. Every insert/delete/rpc
+ * mock — only supports what these call sites use. Every insert/update/delete/rpc
  * call is also recorded so tests can assert on exactly what was sent to
  * the database.
  */
@@ -57,6 +57,7 @@ export interface FakeLiveBattleClient {
   rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
   inserts: Record<string, Record<string, unknown>[]>;
   deletes: { table: string; filters: Record<string, unknown> }[];
+  updates: { table: string; payload: Record<string, unknown>; filters: Record<string, unknown> }[];
   rpcCalls: { name: string; args: Record<string, unknown> }[];
   /** Live view of every table's current rows, post inserts/deletes. */
   tables: Record<string, Record<string, unknown>[]>;
@@ -71,6 +72,7 @@ function matches(row: Record<string, unknown>, filters: Record<string, unknown>,
 export function makeFakeLiveBattleClient(fixture: FakeLiveBattleFixture): FakeLiveBattleClient {
   const inserts: Record<string, Record<string, unknown>[]> = {};
   const deletes: { table: string; filters: Record<string, unknown> }[] = [];
+  const updates: { table: string; payload: Record<string, unknown>; filters: Record<string, unknown> }[] = [];
   const rpcCalls: { name: string; args: Record<string, unknown> }[] = [];
 
   const tables: Record<string, Record<string, unknown>[]> = {
@@ -130,6 +132,39 @@ export function makeFakeLiveBattleClient(fixture: FakeLiveBattleFixture): FakeLi
       upsert() {
         return Promise.resolve({ data: null, error: null });
       },
+      update(payload: Record<string, unknown>) {
+        const updateFilters: Record<string, unknown> = {};
+        const updateNegFilters: Record<string, unknown> = {};
+        const matchingRows = () => (tables[table] ?? []).filter((r) => matches(r, updateFilters, updateNegFilters));
+        const applyUpdate = () => {
+          const rows = matchingRows();
+          for (const row of rows) Object.assign(row, payload);
+          updates.push({ table, payload: { ...payload }, filters: { ...updateFilters } });
+          return rows;
+        };
+        const chain = {
+          eq(col: string, val: unknown) {
+            updateFilters[col] = val;
+            return chain;
+          },
+          neq(col: string, val: unknown) {
+            updateNegFilters[col] = val;
+            return chain;
+          },
+          select() {
+            return chain;
+          },
+          maybeSingle() {
+            const rows = applyUpdate();
+            return Promise.resolve({ data: rows[0] ?? null, error: null });
+          },
+          then(onFulfilled?: (v: { data: null; error: null }) => unknown) {
+            applyUpdate();
+            return Promise.resolve({ data: null, error: null }).then(onFulfilled);
+          },
+        };
+        return chain;
+      },
       delete() {
         const deleteFilters: Record<string, unknown> = {};
         const chain = {
@@ -173,6 +208,7 @@ export function makeFakeLiveBattleClient(fixture: FakeLiveBattleFixture): FakeLi
     },
     inserts,
     deletes,
+    updates,
     rpcCalls,
     tables,
   };

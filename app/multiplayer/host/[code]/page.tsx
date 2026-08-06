@@ -6,10 +6,11 @@ import { AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { createClient } from "@/lib/supabase/client";
 import {
+  applyRoomRealtimeUpdate,
   advancePhase,
   advancePhaseIfExpired,
   ensureAnonymousSession,
-  endRoom,
+  endBattle,
   fetchAnswerCount,
   fetchFinalStats,
   fetchRevealAnswers,
@@ -37,6 +38,7 @@ import HostRoundReveal from "@/components/multiplayer/host/HostRoundReveal";
 import HostLeaderboard from "@/components/multiplayer/host/HostLeaderboard";
 import HostFinalResults from "@/components/multiplayer/host/HostFinalResults";
 import MobileBottomNav from "@/components/mobile/MobileBottomNav";
+import BattleEndedScreen from "@/components/multiplayer/BattleEndedScreen";
 
 const ANSWER_COUNT_POLL_MS = 1500;
 
@@ -58,8 +60,13 @@ export default function HostRoomPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [connectionState, setConnectionState] = useState<"connected" | "reconnecting" | "disconnected">("reconnecting");
+  const [endDialogOpen, setEndDialogOpen] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
 
   const resolvedForQuestionRef = useRef<string | null>(null);
+  const endingRef = useRef(false);
+  const endBattleButtonRef = useRef<HTMLButtonElement>(null);
+  const endDialogRef = useRef<HTMLDivElement>(null);
 
   const refreshPlayers = useCallback(async (roomId: string) => {
     try {
@@ -178,6 +185,10 @@ export default function HostRoomPage() {
         if (initialRoom.status === "finished") {
           await refreshFinalStats(initialRoom.id);
         }
+        if (initialRoom.status === "ended") {
+          setIsLoading(false);
+          return;
+        }
         stopHeartbeat = startHeartbeat(initialRoom.id, userId);
         setIsLoading(false);
 
@@ -194,18 +205,7 @@ export default function HostRoomPage() {
                 return;
               }
               const nextStatus = row.status as RoomState["status"];
-              setRoom((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      status: nextStatus,
-                      currentQuestion: row.current_question as number,
-                      questionStartedAt: row.question_started_at as string | null,
-                      questionEndsAt: row.question_ends_at as string | null,
-                      phaseEndsAt: row.phase_ends_at as string | null,
-                    }
-                  : prev
-              );
+              setRoom((prev) => (prev ? applyRoomRealtimeUpdate(prev, row) : prev));
               if (nextStatus === "question") {
                 resolvedForQuestionRef.current = null;
                 await refreshQuestion(initialRoom.id, initialRoom.language);
@@ -214,6 +214,14 @@ export default function HostRoomPage() {
                 if (q) await refreshRevealAnswers(q.roomQuestionId);
               } else if (nextStatus === "finished") {
                 await refreshFinalStats(initialRoom.id);
+              } else if (nextStatus === "ended") {
+                stopHeartbeat?.();
+                stopHeartbeat = null;
+                questionRequestRef.current += 1;
+                answerCountRoomQuestionRef.current = null;
+                setQuestion(null);
+                setAnsweredCount(0);
+                void supabase.removeChannel(channel);
               }
             }
           )
@@ -252,6 +260,34 @@ export default function HostRoomPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
+
+  useEffect(() => {
+    if (!endDialogOpen) return;
+    endDialogRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || isEnding) return;
+      setEndDialogOpen(false);
+      window.requestAnimationFrame(() => endBattleButtonRef.current?.focus());
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [endDialogOpen, isEnding]);
+
+  // Browser Back is an intentional navigation signal. Keep one guard entry
+  // in front of the host room so Back can request confirmation and use the
+  // same reliable RPC as the visible control. Refresh/close cannot safely
+  // await client work, so those use the server-verified heartbeat grace path.
+  const guardedHostRoomId = room && room.status !== "finished" && room.status !== "ended" ? room.id : null;
+  useEffect(() => {
+    if (!guardedHostRoomId) return;
+    window.history.pushState({ liveBattleHostGuard: true }, "", window.location.href);
+    const onPopState = () => {
+      window.history.pushState({ liveBattleHostGuard: true }, "", window.location.href);
+      setEndDialogOpen(true);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [guardedHostRoomId]);
 
   // Poll the answered count while a question is live — replaces the old
   // realtime subscription on `answers` (see refreshAnswerCount above).
@@ -327,7 +363,7 @@ export default function HostRoomPage() {
   }, [room]);
 
   async function handleStart() {
-    if (!room) return;
+    if (!room || room.status === "ended") return;
     setIsStarting(true);
     try {
       await seedRoomQuestions(room);
@@ -340,15 +376,26 @@ export default function HostRoomPage() {
     }
   }
 
-  async function handleEndRoom() {
+  function handleEndRoom() {
     if (!room) return;
-    if (!window.confirm(t.multiplayerHost.endRoomConfirm)) return;
+    setEndDialogOpen(true);
+  }
+
+  async function confirmEndRoom() {
+    if (!room || endingRef.current) return;
+    endingRef.current = true;
+    setIsEnding(true);
     try {
-      await endRoom(room.id);
+      await endBattle(room.id);
+      setEndDialogOpen(false);
+      router.replace("/multiplayer");
     } catch (err) {
-      console.error("End room failed:", err);
+      console.error("End battle failed:", err);
+      setError(err instanceof Error ? err.message : "The battle could not be ended.");
+    } finally {
+      endingRef.current = false;
+      setIsEnding(false);
     }
-    router.push("/multiplayer");
   }
 
   async function handleRemovePlayer(playerId: string) {
@@ -361,7 +408,7 @@ export default function HostRoomPage() {
   }
 
   async function handleCountdownComplete() {
-    if (!room) return;
+    if (!room || room.status === "ended") return;
     try {
       await advancePhase(room.id, "question");
     } catch (err) {
@@ -370,7 +417,7 @@ export default function HostRoomPage() {
   }
 
   async function handleRevealContinue() {
-    if (!room) return;
+    if (!room || room.status === "ended") return;
     try {
       await advancePhase(room.id, "leaderboard");
     } catch (err) {
@@ -379,7 +426,7 @@ export default function HostRoomPage() {
   }
 
   async function handleLeaderboardContinue() {
-    if (!room) return;
+    if (!room || room.status === "ended") return;
     try {
       const isFinal = room.currentQuestion >= room.questionCount;
       await advancePhase(room.id, isFinal ? "finished" : "countdown");
@@ -389,7 +436,7 @@ export default function HostRoomPage() {
   }
 
   async function handleNewBattle() {
-    if (!room) return;
+    if (!room || room.status === "ended") return;
     try {
       await advancePhase(room.id, "waiting");
       setFinalStats(EMPTY_FINAL_STATS);
@@ -456,7 +503,9 @@ export default function HostRoomPage() {
     | "phaseReveal"
     | "phaseLeaderboard"
     | "phaseFinished";
-  const phaseAnnouncement = t.battleShared.phaseChangedAnnouncement.replace("{phase}", t.battleShared[phaseLabelKey]);
+  const phaseAnnouncement = room.status === "ended"
+    ? "Battle Ended"
+    : t.battleShared.phaseChangedAnnouncement.replace("{phase}", t.battleShared[phaseLabelKey]);
 
   let content: ReactNode = null;
   switch (room.status) {
@@ -520,6 +569,9 @@ export default function HostRoomPage() {
     case "finished":
       content = <HostFinalResults t={t} players={competitivePlayers} stats={finalStats} onNewBattle={handleNewBattle} />;
       break;
+    case "ended":
+      content = <BattleEndedScreen onLeave={() => router.replace("/multiplayer")} />;
+      break;
     default:
       content = null;
   }
@@ -532,7 +584,24 @@ export default function HostRoomPage() {
       <AnimatePresence mode="wait">
         <div key={room.status}>{content}</div>
       </AnimatePresence>
+      {room.status !== "waiting" && room.status !== "finished" && room.status !== "ended" && (
+        <button ref={endBattleButtonRef} type="button" onClick={handleEndRoom} className="fixed left-4 top-[max(1rem,env(safe-area-inset-top))] z-40 min-h-11 rounded-full border border-red-300/35 bg-navy-950/90 px-5 text-sm font-bold text-red-200 shadow-xl backdrop-blur outline-none hover:bg-red-500/15 focus-visible:ring-2 focus-visible:ring-red-300" aria-label="End Live Battle">
+          End Battle
+        </button>
+      )}
       {room.status === "waiting" && <MobileBottomNav />}
+      {endDialogOpen && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/75 p-4" role="presentation">
+          <div ref={endDialogRef} role="alertdialog" aria-modal="true" aria-labelledby="end-battle-title" aria-describedby="end-battle-description" tabIndex={-1} className="w-full max-w-md rounded-[28px] border border-red-300/20 bg-navy-950 p-6 text-[#f3efe2] shadow-2xl outline-none sm:p-8">
+            <h2 id="end-battle-title" className="text-2xl font-bold">End Battle?</h2>
+            <p id="end-battle-description" className="mt-3 leading-7 text-[#c6cbd6]">This immediately ends the battle for every player. The incomplete match will not continue.</p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row-reverse">
+              <button type="button" onClick={confirmEndRoom} disabled={isEnding} className="min-h-12 flex-1 rounded-full bg-red-500 px-5 font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-50">{isEnding ? "Ending…" : "End Battle"}</button>
+              <button type="button" onClick={() => { setEndDialogOpen(false); window.requestAnimationFrame(() => endBattleButtonRef.current?.focus()); }} disabled={isEnding} className="min-h-12 flex-1 rounded-full border border-white/15 px-5 font-bold text-[#f3efe2] outline-none hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-gold-300 disabled:opacity-50">Continue Battle</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
